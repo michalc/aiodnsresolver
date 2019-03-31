@@ -571,15 +571,15 @@ def UdpRequester():
 
     async def request(req, addr):
         future = asyncio.Future()
-        push_future(req.qid, addr.to_addr(), future)
+        push_future(req.qid, addr, future)
 
         try:
             with timeout(3.0):
-                sock = await get_or_create_socket_dedupe(addr.to_addr())
+                sock = await get_or_create_socket_dedupe(addr)
                 await loop.sock_sendall(sock, req.pack())
                 result = await future
         except:
-            pop_future(req.qid, addr.to_addr())
+            pop_future(req.qid, addr)
             raise
 
         return result
@@ -661,7 +661,7 @@ class Resolver:
                 break
             addr = nameservers.get()
             try:
-                cres = await self.udp_requester(req, addr)
+                cres = await self.udp_requester(req, addr.to_addr())
                 assert cres.r != 2
             except (asyncio.TimeoutError, AssertionError):
                 nameservers.fail(addr)
