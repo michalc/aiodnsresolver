@@ -534,10 +534,6 @@ class NameServers:
 
 def udp_requester():
 
-    loop = asyncio.get_event_loop()
-    socks = {}
-    futures = {}
-
     def push_future(qid, addr, future):
         futures[(qid, addr)] = future
         return future
@@ -573,8 +569,6 @@ def udp_requester():
 
         return sock
 
-    get_or_create_socket_dedupe = deduplicate_concurrent(get_or_create_socket)
-
     async def request(req, addr):
         future = asyncio.Future()
         push_future(req.qid, addr.to_addr(), future)
@@ -589,6 +583,11 @@ def udp_requester():
             raise
 
         return result
+
+    get_or_create_socket_dedupe = deduplicate_concurrent(get_or_create_socket)
+    loop = asyncio.get_event_loop()
+    socks = {}
+    futures = {}
 
     return request
 
