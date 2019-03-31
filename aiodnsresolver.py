@@ -555,7 +555,7 @@ def UdpRequester():
         socks[addr] = sock
         task = asyncio.ensure_future(read_incoming(sock, addr))
 
-        async def cleanup_socket():
+        def cleanup_socket(_):
             sock.close()
             del socks[addr]
 
