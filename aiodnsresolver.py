@@ -144,7 +144,7 @@ class RData:
 
     @property
     def type_name(self):
-        return types.get_name(self.rtype).lower()
+        return get_name(self.rtype).lower()
 
 class SOA_RData(RData):
     '''Start of Authority record'''
@@ -197,9 +197,9 @@ class Record:
 
     def __repr__(self):
         if self.q == REQUEST:
-            return str((self.name, types.get_name(self.qtype)))
+            return str((self.name, get_name(self.qtype)))
         else:
-            return str((self.name, types.get_name(self.qtype), self.data, self.ttl))
+            return str((self.name, get_name(self.qtype), self.data, self.ttl))
 
     def copy(self, **kw):
         return Record(
