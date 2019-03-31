@@ -605,6 +605,7 @@ class Resolver:
         self.protocol = InternetProtocol.get(protocol)
         self.timeout = timeout
         self.qid = 0
+        self.do_query_dedupe = deduplicate_concurrent(self.do_query)
         self.udp_requester = UdpRequester()
 
     async def query_cache(self, res, fqdn, qtype):
@@ -729,22 +730,8 @@ class Resolver:
         return has_result
 
     async def __call__(self, fqdn, qtype=types.ANY):
-        '''Return query result.
-
-        Cache queries for hostnames and types to avoid repeated requests at the same time.
-        '''
-        key = fqdn, qtype
-        future = self.futures.get(key)
-        if future is None:
-            loop = asyncio.get_event_loop()
-            future = self.futures[key] = loop.create_future()
-            asyncio.ensure_future(self.do_query(fqdn, qtype))
-        try:
-            res = await asyncio.wait_for(future, self.timeout)
-        except (AssertionError, asyncio.TimeoutError, asyncio.CancelledError):
-            pass
-        else:
-            return res
+        with timeout(self.timeout):
+            return await self.do_query_dedupe(fqdn, qtype)
 
     async def do_query(self, fqdn, qtype):
         '''
@@ -753,7 +740,6 @@ class Resolver:
         key = fqdn, qtype
         res = DNSMessage(qr=RESPONSE, ra=self.recursive, qid=0, o=0, aa=0, tc=0, rd=1, r=0)
         res.qd.append(Record(REQUEST, name=fqdn, qtype=qtype))
-        future = self.futures[key]
         ret = (
             await self.query_cache(res, fqdn, qtype)
         ) or (
@@ -761,9 +747,7 @@ class Resolver:
         )
         if not ret and not res.r:
             res.r = 2
-        self.futures.pop(key)
-        if not future.cancelled():
-            future.set_result(res)
+        return res
 
 
 def deduplicate_concurrent(func):
