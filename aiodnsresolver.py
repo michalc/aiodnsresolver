@@ -568,7 +568,7 @@ class Resolver:
         self.protocol = InternetProtocol.get(protocol)
         self.timeout = timeout
         self.qid = 0
-        self.do_query_memoized = memoize_concurrent(self.do_query)
+        self.query_remote_memoized = memoize_concurrent(self.query_remote)
 
     def get_nameservers(self):
         filename='/etc/resolv.conf'
@@ -597,77 +597,27 @@ class Resolver:
             else:
                 return cres
 
-    async def query_remote(self, res, fqdn, qtype):
-        '''Return a boolean indicating whether results are found.
-
-        No cache is used and requests are sent to remote servers.
-        '''
-        # look up from other DNS servers
+    async def query_remote(self, fqdn, qtype):
         nameservers = self.get_nameservers()
-        cname = [fqdn]
-        req = DNSMessage(qr=REQUEST, qid=secrets.randbelow(65536), o=0, aa=0, tc=0, rd=1, ra=0, r=0)
-        has_result = False
-        key = fqdn, qtype
-        while not has_result:
-            if not cname:
-                break
-            # seems that only one qd is supported by most NS
-            req.qd = [Record(REQUEST, cname[0], qtype)]
-            del cname[:]
-            cres = await self.get_remote(nameservers, req)
-            if not cres: break
-            for rec in cres.an + cres.ns + cres.ar:
-                if rec.ttl > 0 and rec.qtype not in (types.SOA, types.MX):
-                    self.cache.add_host(rec)
-            for rec in cres.an:
-                res.an.append(rec)
-                if rec.qtype == types.CNAME:
-                    cname.append(rec.data)
-                if qtype == types.CNAME or rec.qtype != types.CNAME:
-                    has_result = True
-            for rec in cres.ns:
-                if not self.recursive:
-                    res.ns.append(rec)
-                    has_result = True
-                elif rec.qtype == types.SOA or qtype == types.NS:
-                    has_result = True
-            if not self.recursive:
-                res.ar.extend(cres.ar)
-            nameservers = NameServers(i.data for i in cres.ar if i.qtype in A_TYPES)
-            if not nameservers:
-                for ns_r in cres.ns:
-                    host = ns_r.data.mname if ns_r.qtype == types.SOA else ns_r.data
-                    try:
-                        ns_res = await self(host)
-                        assert ns_res
-                    except (AssertionError, asyncio.TimeoutError):
-                        pass
-                    except Exception as e:
-                        logger.error(host)
-                        logger.error(e)
-                    else:
-                        if ns_res:
-                            for ans in ns_res.an:
-                                if ans.qtype in A_TYPES:
-                                    nameservers.add(ans.data)
-            res.r = cres.r
-        return has_result
+
+        while True:
+            req = DNSMessage(qr=REQUEST, qid=secrets.randbelow(65536), o=0, aa=0, tc=0, rd=1, ra=0, r=0)
+            req.qd = [Record(REQUEST, fqdn, qtype)]
+            res = await self.get_remote(nameservers, req)
+
+            if res.qd[0].name != fqdn:
+                # Possible spoofing
+                raise Exception()
+            elif res.an and res.an[0].qtype == qtype:
+                return res.an[0].data
+            elif res.an and res.an[0].qtype == types.CNAME:
+                fqdn = res.an[0].data
+            else:
+                raise Exception()
 
     async def __call__(self, fqdn, qtype=types.ANY):
         with timeout(self.timeout):
-            return await self.do_query_memoized(fqdn, qtype)
-
-    async def do_query(self, fqdn, qtype):
-        '''
-        Starts a query asynchronously, add the future object to cache.
-        '''
-        key = fqdn, qtype
-        res = DNSMessage(qr=RESPONSE, ra=self.recursive, qid=0, o=0, aa=0, tc=0, rd=1, r=0)
-        res.qd.append(Record(REQUEST, name=fqdn, qtype=qtype))
-        ret = await self.query_remote(res, fqdn, qtype)
-        if not ret and not res.r:
-            res.r = 2
-        return res
+            return await self.query_remote_memoized(fqdn, qtype)
 
 
 def memoize_concurrent(func):
