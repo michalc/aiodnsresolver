@@ -604,7 +604,7 @@ class Resolver:
                         cache_hit = True
         return cache_hit
 
-    def get_nameservers(self, fdqn):
+    def get_nameservers(self):
         filename='/etc/resolv.conf'
         nameservers = []
         with open(filename, 'r') as file:
@@ -637,7 +637,7 @@ class Resolver:
         No cache is used and requests are sent to remote servers.
         '''
         # look up from other DNS servers
-        nameservers = self.get_nameservers(fqdn)
+        nameservers = self.get_nameservers()
         cname = [fqdn]
         req = DNSMessage(qr=REQUEST, qid=secrets.randbelow(65536), o=0, aa=0, tc=0, rd=1, ra=0, r=0)
         has_result = False
