@@ -543,12 +543,6 @@ def udp_requester():
         del futures[(qid, addr)]
         return future
 
-    async def read_incoming(sock, addr):
-        while True:
-            response_data = await loop.sock_recv(sock, 512)
-            cres = DNSMessage.parse(response_data)
-            pop_future(cres.qid, addr).set_result(cres)
-
     async def get_or_create_socket(addr):
         try:
             return socks[addr]
@@ -568,6 +562,12 @@ def udp_requester():
         task.add_done_callback(cleanup_socket)
 
         return sock
+
+    async def read_incoming(sock, addr):
+        while True:
+            response_data = await loop.sock_recv(sock, 512)
+            cres = DNSMessage.parse(response_data)
+            pop_future(cres.qid, addr).set_result(cres)
 
     async def request(req, addr):
         future = asyncio.Future()
