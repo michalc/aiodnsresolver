@@ -728,7 +728,7 @@ class Resolver:
             res.r = cres.r
         return has_result
 
-    async def __call__(self, fqdn, qtype=types.ANY, timeout=None):
+    async def __call__(self, fqdn, qtype=types.ANY):
         '''Return query result.
 
         Cache queries for hostnames and types to avoid repeated requests at the same time.
@@ -739,10 +739,8 @@ class Resolver:
             loop = asyncio.get_event_loop()
             future = self.futures[key] = loop.create_future()
             asyncio.ensure_future(self.do_query(fqdn, qtype))
-        if timeout is None:
-            timeout = self.timeout
         try:
-            res = await asyncio.wait_for(future, timeout)
+            res = await asyncio.wait_for(future, self.timeout)
         except (AssertionError, asyncio.TimeoutError, asyncio.CancelledError):
             pass
         else:
