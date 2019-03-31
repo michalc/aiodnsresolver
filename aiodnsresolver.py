@@ -575,7 +575,7 @@ def UdpRequester():
 
         try:
             with timeout(3.0):
-                sock = await get_or_create_socket_dedupe(addr)
+                sock = await get_or_create_socket_memoized(addr)
                 await loop.sock_sendall(sock, req.pack())
                 result = await future
         except:
@@ -584,7 +584,7 @@ def UdpRequester():
 
         return result
 
-    get_or_create_socket_dedupe = deduplicate_concurrent(get_or_create_socket)
+    get_or_create_socket_memoized = memoize_concurrent(get_or_create_socket)
     loop = asyncio.get_event_loop()
     socks = {}
     futures = {}
@@ -605,7 +605,7 @@ class Resolver:
         self.protocol = InternetProtocol.get(protocol)
         self.timeout = timeout
         self.qid = 0
-        self.do_query_dedupe = deduplicate_concurrent(self.do_query)
+        self.do_query_memoized = memoize_concurrent(self.do_query)
         self.udp_requester = UdpRequester()
 
     async def query_cache(self, res, fqdn, qtype):
@@ -728,7 +728,7 @@ class Resolver:
 
     async def __call__(self, fqdn, qtype=types.ANY):
         with timeout(self.timeout):
-            return await self.do_query_dedupe(fqdn, qtype)
+            return await self.do_query_memoized(fqdn, qtype)
 
     async def do_query(self, fqdn, qtype):
         '''
@@ -747,31 +747,31 @@ class Resolver:
         return res
 
 
-def deduplicate_concurrent(func):
+def memoize_concurrent(func):
 
-    concurrent = {}
+    cache = {}
 
-    async def deduplicated(*args, **kwargs):
-        identifier = (args, tuple(kwargs.items()))
-
-        if identifier in concurrent:
-            return await concurrent[identifier]
-        
-        future = asyncio.Future()
-        concurrent[identifier] = future
+    async def memoized(*args, **kwargs):
+        key = (args, tuple(kwargs.items()))
 
         try:
-            result = await func(*args, **kwargs)
-        except BaseException as exception:
-            future.set_exception(exception)
-        else:
-            future.set_result(result)
-        finally:
-            del concurrent[identifier]
+            future = cache[key]
+        except KeyError:
+            future = asyncio.Future()
+            cache[key] = future
+
+            try:
+                result = await func(*args, **kwargs)
+            except BaseException as exception:
+                future.set_exception(exception)
+            else:
+                future.set_result(result)
+            finally:
+                del cache[key]
 
         return await future
 
-    return deduplicated
+    return memoized
 
 
 @contextlib.contextmanager
