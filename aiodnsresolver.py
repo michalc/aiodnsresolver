@@ -532,31 +532,26 @@ class NameServers:
         pass
 
 
-def UdpRequester():
-
-    async def request(req, addr):
-
-        with timeout(3.0):
-            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
-            try:
-                sock.setblocking(False)
-                await loop.sock_connect(sock, addr)
-                await loop.sock_sendall(sock, req.pack())
-
-                while True:
-                    response_data = await loop.sock_recv(sock, 512)
-                    cres = DNSMessage.parse(response_data)
-                    if cres.qid == req.qid:
-                        return cres
-            finally:
-                sock.close()
-
-        return result
-
+async def udp_request(req, addr):
     loop = asyncio.get_event_loop()
 
-    return request
+    with timeout(3.0):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+        try:
+            sock.setblocking(False)
+            await loop.sock_connect(sock, addr)
+            await loop.sock_sendall(sock, req.pack())
+
+            while True:
+                response_data = await loop.sock_recv(sock, 512)
+                cres = DNSMessage.parse(response_data)
+                if cres.qid == req.qid:
+                    return cres
+        finally:
+            sock.close()
+
+    return result
 
 
 class Resolver:
@@ -573,7 +568,6 @@ class Resolver:
         self.timeout = timeout
         self.qid = 0
         self.do_query_memoized = memoize_concurrent(self.do_query)
-        self.udp_requester = UdpRequester()
 
     async def query_cache(self, res, fqdn, qtype):
         '''Returns a boolean whether a cache hit occurs.'''
@@ -627,7 +621,7 @@ class Resolver:
         while True:
             addr = nameservers.get()
             try:
-                cres = await self.udp_requester(req, addr.to_addr())
+                cres = await udp_request(req, addr.to_addr())
                 assert cres.r != 2
             except (asyncio.TimeoutError, AssertionError):
                 nameservers.fail(addr)
