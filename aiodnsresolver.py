@@ -585,7 +585,7 @@ def udp_requester():
                 await loop.sock_sendall(sock, req.pack())
                 result = await future
         except:
-            pop_future(qid, addr.to_addr())
+            pop_future(req.qid, addr.to_addr())
             raise
 
         return result
