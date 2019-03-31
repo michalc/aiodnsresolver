@@ -532,58 +532,26 @@ class NameServers:
         pass
 
 
-def UdpRequester():
+async def udp_request(req, addr):
+    loop = asyncio.get_event_loop()
 
-    def push_future(qid, addr, future):
-        futures[(qid, addr)] = future
-        return future
-
-    def pop_future(qid, addr):
-        future = futures[(qid, addr)]
-        del futures[(qid, addr)]
-        return future
-
-    async def create_socket(addr):
+    with timeout(3.0):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.setblocking(False)
-        await loop.sock_connect(sock, addr)
-        task = asyncio.ensure_future(read_incoming(sock, addr))
-
-        def cleanup_socket(_):
-            sock.close()
-            invalidate_socket_cache(addr)
-
-        task.add_done_callback(cleanup_socket)
-
-        return sock
-
-    async def read_incoming(sock, addr):
-        while True:
-            response_data = await loop.sock_recv(sock, 512)
-            cres = DNSMessage.parse(response_data)
-            pop_future(cres.qid, addr).set_result(cres)
-
-    async def request(req, addr):
-        future = asyncio.Future()
-        push_future(req.qid, addr, future)
 
         try:
-            with timeout(3.0):
-                sock = await create_socket_memoized(addr)
-                await loop.sock_sendall(sock, req.pack())
-                result = await future
-        except:
-            pop_future(req.qid, addr)
-            raise
+            sock.setblocking(False)
+            await loop.sock_connect(sock, addr)
+            await loop.sock_sendall(sock, req.pack())
 
-        return result
+            while True:
+                response_data = await loop.sock_recv(sock, 512)
+                cres = DNSMessage.parse(response_data)
+                if cres.qid == req.qid:
+                    return cres
+        finally:
+            sock.close()
 
-    create_socket_memoized, invalidate_socket_cache = memoize(create_socket)
-    loop = asyncio.get_event_loop()
-    socks = {}
-    futures = {}
-
-    return request
+    return result
 
 
 class Resolver:
@@ -600,7 +568,6 @@ class Resolver:
         self.timeout = timeout
         self.qid = 0
         self.do_query_memoized = memoize_concurrent(self.do_query)
-        self.udp_requester = UdpRequester()
 
     async def query_cache(self, res, fqdn, qtype):
         '''Returns a boolean whether a cache hit occurs.'''
@@ -654,7 +621,7 @@ class Resolver:
         while True:
             addr = nameservers.get()
             try:
-                cres = await self.udp_requester(req, addr.to_addr())
+                cres = await udp_request(req, addr.to_addr())
                 assert cres.r != 2
             except (asyncio.TimeoutError, AssertionError):
                 nameservers.fail(addr)
