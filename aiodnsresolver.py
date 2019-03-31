@@ -144,7 +144,7 @@ class RData:
 
     @property
     def type_name(self):
-        return types.get_name(self.rtype).lower()
+        return get_name(self.rtype).lower()
 
 class SOA_RData(RData):
     '''Start of Authority record'''
@@ -197,9 +197,9 @@ class Record:
 
     def __repr__(self):
         if self.q == REQUEST:
-            return str((self.name, types.get_name(self.qtype)))
+            return str((self.name, get_name(self.qtype)))
         else:
-            return str((self.name, types.get_name(self.qtype), self.data, self.ttl))
+            return str((self.name, get_name(self.qtype), self.data, self.ttl))
 
     def copy(self, **kw):
         return Record(
@@ -532,11 +532,7 @@ class NameServers:
         pass
 
 
-def udp_requester():
-
-    loop = asyncio.get_event_loop()
-    socks = {}
-    futures = {}
+def UdpRequester():
 
     def push_future(qid, addr, future):
         futures[(qid, addr)] = future
@@ -547,47 +543,45 @@ def udp_requester():
         del futures[(qid, addr)]
         return future
 
-    async def read_incoming(sock, addr):
-        while True:
-            try:
-                response_data = await loop.sock_recv(sock, 512)
-                cres = DNSMessage.parse(response_data)
-                pop_future(cres.qid, addr).set_result(cres)
-            except BaseException as e:
-                sock.close()
-                del socks[addr]
-                raise
-
-    async def _get_socket(addr):
-        try:
-            return socks[addr]
-        except KeyError:
-            pass
-
+    async def create_socket(addr):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setblocking(False)
         await loop.sock_connect(sock, addr)
-        socks[addr] = sock
-        asyncio.ensure_future(read_incoming(sock, addr))
+        task = asyncio.ensure_future(read_incoming(sock, addr))
+
+        def cleanup_socket(_):
+            sock.close()
+            invalidate_socket_cache(addr)
+
+        task.add_done_callback(cleanup_socket)
 
         return sock
 
-    get_socket = deduplicate_concurrent(_get_socket)
+    async def read_incoming(sock, addr):
+        while True:
+            response_data = await loop.sock_recv(sock, 512)
+            cres = DNSMessage.parse(response_data)
+            pop_future(cres.qid, addr).set_result(cres)
 
     async def request(req, addr):
         future = asyncio.Future()
-        push_future(req.qid, addr.to_addr(), future)
+        push_future(req.qid, addr, future)
 
         try:
             with timeout(3.0):
-                sock = await get_socket(addr.to_addr())
+                sock = await create_socket_memoized(addr)
                 await loop.sock_sendall(sock, req.pack())
                 result = await future
         except:
-            pop_future(qid, addr.to_addr())
+            pop_future(req.qid, addr)
             raise
 
         return result
+
+    create_socket_memoized, invalidate_socket_cache = memoize(create_socket)
+    loop = asyncio.get_event_loop()
+    socks = {}
+    futures = {}
 
     return request
 
@@ -605,7 +599,8 @@ class Resolver:
         self.protocol = InternetProtocol.get(protocol)
         self.timeout = timeout
         self.qid = 0
-        self.udp_requester = udp_requester()
+        self.do_query_memoized = memoize_concurrent(self.do_query)
+        self.udp_requester = UdpRequester()
 
     async def query_cache(self, res, fqdn, qtype):
         '''Returns a boolean whether a cache hit occurs.'''
@@ -655,13 +650,11 @@ class Resolver:
                     nameservers.append(parts[1])
         return NameServers(nameservers)
 
-    async def get_remote(self, nameservers, req, future=None):
+    async def get_remote(self, nameservers, req):
         while True:
-            if future and future.cancelled():
-                break
             addr = nameservers.get()
             try:
-                cres = await self.udp_requester(req, addr)
+                cres = await self.udp_requester(req, addr.to_addr())
                 assert cres.r != 2
             except (asyncio.TimeoutError, AssertionError):
                 nameservers.fail(addr)
@@ -682,14 +675,13 @@ class Resolver:
         req = DNSMessage(qr=REQUEST, qid=self.qid, o=0, aa=0, tc=0, rd=1, ra=0, r=0)
         has_result = False
         key = fqdn, qtype
-        future = self.futures.get(key)
         while not has_result:
             if not cname:
                 break
             # seems that only one qd is supported by most NS
             req.qd = [Record(REQUEST, cname[0], qtype)]
             del cname[:]
-            cres = await self.get_remote(nameservers, req, future)
+            cres = await self.get_remote(nameservers, req)
             if not cres: break
             for rec in cres.an + cres.ns + cres.ar:
                 if rec.ttl > 0 and rec.qtype not in (types.SOA, types.MX):
@@ -728,25 +720,9 @@ class Resolver:
             res.r = cres.r
         return has_result
 
-    async def __call__(self, fqdn, qtype=types.ANY, timeout=None):
-        '''Return query result.
-
-        Cache queries for hostnames and types to avoid repeated requests at the same time.
-        '''
-        key = fqdn, qtype
-        future = self.futures.get(key)
-        if future is None:
-            loop = asyncio.get_event_loop()
-            future = self.futures[key] = loop.create_future()
-            asyncio.ensure_future(self.do_query(fqdn, qtype))
-        if timeout is None:
-            timeout = self.timeout
-        try:
-            res = await asyncio.wait_for(future, timeout)
-        except (AssertionError, asyncio.TimeoutError, asyncio.CancelledError):
-            pass
-        else:
-            return res
+    async def __call__(self, fqdn, qtype=types.ANY):
+        with timeout(self.timeout):
+            return await self.do_query_memoized(fqdn, qtype)
 
     async def do_query(self, fqdn, qtype):
         '''
@@ -755,7 +731,6 @@ class Resolver:
         key = fqdn, qtype
         res = DNSMessage(qr=RESPONSE, ra=self.recursive, qid=0, o=0, aa=0, tc=0, rd=1, r=0)
         res.qd.append(Record(REQUEST, name=fqdn, qtype=qtype))
-        future = self.futures[key]
         ret = (
             await self.query_cache(res, fqdn, qtype)
         ) or (
@@ -763,36 +738,64 @@ class Resolver:
         )
         if not ret and not res.r:
             res.r = 2
-        self.futures.pop(key)
-        if not future.cancelled():
-            future.set_result(res)
+        return res
 
 
-def deduplicate_concurrent(func):
+def memoize(func):
 
-    concurrent = {}
+    cache = {}
 
-    async def deduplicated(*args, **kwargs):
-        identifier = (args, tuple(kwargs.items()))
-
-        if identifier in concurrent:
-            return await concurrent[identifier]
-        
-        future = asyncio.Future()
-        concurrent[identifier] = future
+    async def cached(*args, **kwargs):
+        key = (args, tuple(kwargs.items()))
 
         try:
-            result = await func(*args, **kwargs)
-        except BaseException as exception:
-            future.set_exception(exception)
-        else:
-            future.set_result(result)
-        finally:
-            del concurrent[identifier]
+            future = cache[key]
+        except KeyError:
+            future = asyncio.Future()
+            cache[key] = future
+
+            try:
+                result = await func(*args, **kwargs)
+            except BaseException as exception:
+                del cache[key]
+                future.set_exception(exception)
+            else:
+                future.set_result(result)
 
         return await future
 
-    return deduplicated
+    def invalidate(*args, **kwargs):
+        key = (args, tuple(kwargs.items()))
+        del cache[key]
+
+    return cached, invalidate
+
+
+def memoize_concurrent(func):
+
+    cache = {}
+
+    async def memoized(*args, **kwargs):
+        key = (args, tuple(kwargs.items()))
+
+        try:
+            future = cache[key]
+        except KeyError:
+            future = asyncio.Future()
+            cache[key] = future
+
+            try:
+                result = await func(*args, **kwargs)
+            except BaseException as exception:
+                future.set_exception(exception)
+            else:
+                future.set_result(result)
+            finally:
+                del cache[key]
+
+        return await future
+
+    return memoized
 
 
 @contextlib.contextmanager
