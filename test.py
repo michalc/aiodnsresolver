@@ -13,7 +13,6 @@ from aiofastforward import (
 from aiodnsresolver import (
     types,
     Resolver,
-    memoize,
     memoize_concurrent,
     timeout,
 )
