@@ -532,7 +532,7 @@ class NameServers:
         pass
 
 
-def udp_requester():
+def UdpRequester():
 
     def push_future(qid, addr, future):
         futures[(qid, addr)] = future
@@ -605,7 +605,7 @@ class Resolver:
         self.protocol = InternetProtocol.get(protocol)
         self.timeout = timeout
         self.qid = 0
-        self.udp_requester = udp_requester()
+        self.udp_requester = UdpRequester()
 
     async def query_cache(self, res, fqdn, qtype):
         '''Returns a boolean whether a cache hit occurs.'''
