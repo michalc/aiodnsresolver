@@ -543,21 +543,15 @@ def UdpRequester():
         del futures[(qid, addr)]
         return future
 
-    async def get_or_create_socket(addr):
-        try:
-            return socks[addr]
-        except KeyError:
-            pass
-
+    async def create_socket(addr):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setblocking(False)
         await loop.sock_connect(sock, addr)
-        socks[addr] = sock
         task = asyncio.ensure_future(read_incoming(sock, addr))
 
         def cleanup_socket(_):
             sock.close()
-            del socks[addr]
+            invalidate_socket_cache(addr)
 
         task.add_done_callback(cleanup_socket)
 
@@ -575,7 +569,7 @@ def UdpRequester():
 
         try:
             with timeout(3.0):
-                sock = await get_or_create_socket_memoized(addr)
+                sock = await create_socket_memoized(addr)
                 await loop.sock_sendall(sock, req.pack())
                 result = await future
         except:
@@ -584,7 +578,7 @@ def UdpRequester():
 
         return result
 
-    get_or_create_socket_memoized = memoize_concurrent(get_or_create_socket)
+    create_socket_memoized, invalidate_socket_cache = memoize(create_socket)
     loop = asyncio.get_event_loop()
     socks = {}
     futures = {}
@@ -745,6 +739,36 @@ class Resolver:
         if not ret and not res.r:
             res.r = 2
         return res
+
+
+def memoize(func):
+
+    cache = {}
+
+    async def cached(*args, **kwargs):
+        key = (args, tuple(kwargs.items()))
+
+        try:
+            future = cache[key]
+        except KeyError:
+            future = asyncio.Future()
+            cache[key] = future
+
+            try:
+                result = await func(*args, **kwargs)
+            except BaseException as exception:
+                del cache[key]
+                future.set_exception(exception)
+            else:
+                future.set_result(result)
+
+        return await future
+
+    def invalidate(*args, **kwargs):
+        key = (args, tuple(kwargs.items()))
+        del cache[key]
+
+    return cached, invalidate
 
 
 def memoize_concurrent(func):
