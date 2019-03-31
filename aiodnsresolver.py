@@ -656,10 +656,8 @@ class Resolver:
                     nameservers.append(parts[1])
         return NameServers(nameservers)
 
-    async def get_remote(self, nameservers, req, future=None):
+    async def get_remote(self, nameservers, req):
         while True:
-            if future and future.cancelled():
-                break
             addr = nameservers.get()
             try:
                 cres = await self.udp_requester(req, addr.to_addr())
@@ -683,14 +681,13 @@ class Resolver:
         req = DNSMessage(qr=REQUEST, qid=self.qid, o=0, aa=0, tc=0, rd=1, ra=0, r=0)
         has_result = False
         key = fqdn, qtype
-        future = self.futures.get(key)
         while not has_result:
             if not cname:
                 break
             # seems that only one qd is supported by most NS
             req.qd = [Record(REQUEST, cname[0], qtype)]
             del cname[:]
-            cres = await self.get_remote(nameservers, req, future)
+            cres = await self.get_remote(nameservers, req)
             if not cres: break
             for rec in cres.an + cres.ns + cres.ar:
                 if rec.ttl > 0 and rec.qtype not in (types.SOA, types.MX):
