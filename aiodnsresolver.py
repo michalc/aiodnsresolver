@@ -570,40 +570,6 @@ class Resolver:
         self.qid = 0
         self.do_query_memoized = memoize_concurrent(self.do_query)
 
-    async def query_cache(self, res, fqdn, qtype):
-        '''Returns a boolean whether a cache hit occurs.'''
-        # if cached CNAME
-        cname = list(self.cache.query(fqdn, types.CNAME))
-        if cname:
-            res.an.extend(cname)
-            if not self.recursive or qtype == types.CNAME:
-                return True
-            for rec in cname:
-                cres = await self.query(rec.data, qtype)
-                if cres is None or cres.r > 0:
-                    continue
-                res.an.extend(cres.an)
-                res.ns = cres.ns
-                res.ar = cres.ar
-            return True
-        # else
-        data = list(self.cache.query(fqdn, qtype))
-        cache_hit = False
-        if data:
-            for rec in data:
-                if rec.qtype in (types.NS,):
-                    nres = list(self.cache.query(rec.data, A_TYPES))
-                    if nres:
-                        res.ar.extend(nres)
-                        res.ns.append(rec)
-                        if rec.qtype == qtype:
-                            cache_hit = True
-                else:
-                    res.an.append(rec.copy(name=fqdn))
-                    if qtype == types.CNAME or rec.qtype != types.CNAME:
-                        cache_hit = True
-        return cache_hit
-
     def get_nameservers(self):
         filename='/etc/resolv.conf'
         nameservers = []
@@ -698,11 +664,7 @@ class Resolver:
         key = fqdn, qtype
         res = DNSMessage(qr=RESPONSE, ra=self.recursive, qid=0, o=0, aa=0, tc=0, rd=1, r=0)
         res.qd.append(Record(REQUEST, name=fqdn, qtype=qtype))
-        ret = (
-            await self.query_cache(res, fqdn, qtype)
-        ) or (
-            await self.query_remote(res, fqdn, qtype)
-        )
+        ret = await self.query_remote(res, fqdn, qtype)
         if not ret and not res.r:
             res.r = 2
         return res
