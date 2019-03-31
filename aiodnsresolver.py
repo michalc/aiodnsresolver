@@ -3,6 +3,7 @@ Asynchronous DNS client
 '''
 import asyncio
 import collections
+import contextlib
 import io
 import os
 import random
@@ -190,7 +191,7 @@ class Record:
         self.qtype = qtype
         self.qclass = qclass
         if q == RESPONSE:
-            self.ttl = ttl    # 0 means item should not be cached
+            self.ttl = ttl
             self.data = data
             self.timestamp = int(time.time())
 
@@ -269,7 +270,7 @@ class Record:
         return buf.getvalue()
 
 class DNSMessage:
-    def __init__(self, qr=RESPONSE, qid=0, o=0, aa=0, tc=0, rd=1, ra=0, r=0):
+    def __init__(self, qr, qid, o, aa, tc, rd, ra, r):
         self.qr = qr      # 0 for request, 1 for response
         self.qid = qid    # id for UDP package
         self.o = o        # opcode: 0 for standard query
@@ -531,81 +532,64 @@ class NameServers:
         pass
 
 
+def udp_requester():
 
-class CallbackProtocol(asyncio.DatagramProtocol):
-    '''
-    Protocol class for asyncio connection callback.
-    '''
+    loop = asyncio.get_event_loop()
+    socks = {}
+    futures = {}
 
-    def __init__(self):
-        super().__init__()
-        self.transport = None
-        self.futures = {}
-
-    def connection_made(self, transport):
-        self.transport = transport
-
-    def datagram_received(self, data, addr):
-        qid = data[:2]
-        future = self.futures.pop(qid, None)
-        if future is not None and not future.cancelled():
-            future.set_result(data)
-
-    def write_data(self, data, addr):
-        '''
-        Write data to request.
-        '''
-        qid = data[:2]
-        loop = asyncio.get_event_loop()
-        future = loop.create_future()
-        self.futures[qid] = future
-        self.transport.sendto(data, addr)
+    def push_future(qid, addr, future):
+        futures[(qid, addr)] = future
         return future
 
-class Dispatcher:
-    data = {}
+    def pop_future(qid, addr):
+        future = futures[(qid, addr)]
+        del futures[(qid, addr)]
+        return future
 
-    def __init__(self, ip_type, local_addr=None):
-        self._qid = 0
-        self.ip_type = ip_type
-        self.local_addr = local_addr
-        self.initialized = None
+    async def read_incoming(sock, addr):
+        while True:
+            try:
+                response_data = await loop.sock_recv(sock, 512)
+                cres = DNSMessage.parse(response_data)
+                pop_future(cres.qid, addr).set_result(cres)
+            except BaseException as e:
+                sock.close()
+                del socks[addr]
+                raise
 
-    def get_qid(self):
-        self._qid = (self._qid + 1) % 65536
-        return self._qid
+    async def _get_socket(addr):
+        try:
+            return socks[addr]
+        except KeyError:
+            pass
 
-    async def initialize(self):
-        if self.initialized is not None:
-            await self.initialized
-            return
-        loop = asyncio.get_event_loop()
-        self.initialized = loop.create_future()
-        family = socket.AF_INET6 if self.ip_type is types.AAAA else socket.AF_INET
-        _transport, self.protocol = await loop.create_datagram_endpoint(
-                CallbackProtocol, family=family, reuse_port=True, local_addr=self.local_addr)
-        self.initialized.set_result(None)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setblocking(False)
+        await loop.sock_connect(sock, addr)
+        socks[addr] = sock
+        asyncio.ensure_future(read_incoming(sock, addr))
 
-    def send(self, req, addr):
-        req.qid = self.get_qid()
-        return self.protocol.write_data(req.pack(), addr.to_addr())
+        return sock
 
-    @classmethod
-    async def get(cls, ip_type):
-        dispatcher = cls.data.get(ip_type)
-        if dispatcher is None:
-            dispatcher = Dispatcher(ip_type)
-            cls.data[ip_type] = dispatcher
-        await dispatcher.initialize()
-        return dispatcher
+    get_socket = deduplicate_concurrent(_get_socket)
 
-async def upd_request(req, addr, timeout=3.0):
-    '''
-    Send raw data through UDP.
-    '''
-    dispatcher = await Dispatcher.get(addr.ip_type)
-    data = await asyncio.wait_for(dispatcher.send(req, addr), timeout)
-    return data
+    async def request(req, addr):
+        future = asyncio.Future()
+        push_future(req.qid, addr.to_addr(), future)
+
+        try:
+            with timeout(3.0):
+                sock = await get_socket(addr.to_addr())
+                await loop.sock_sendall(sock, req.pack())
+                result = await future
+        except:
+            pop_future(qid, addr.to_addr())
+            raise
+
+        return result
+
+    return request
 
 
 class Resolver:
@@ -614,13 +598,14 @@ class Resolver:
     '''
     recursive = 1
 
-    def __init__(self, protocol=UDP, request_timeout=3.0, timeout=3.0):
+    def __init__(self, protocol=UDP, timeout=3.0):
         self.futures = {}
         cache = Hosts()
         self.cache = cache
         self.protocol = InternetProtocol.get(protocol)
-        self.request_timeout = request_timeout
         self.timeout = timeout
+        self.qid = 0
+        self.udp_requester = udp_requester()
 
     async def query_cache(self, res, fqdn, qtype):
         '''Returns a boolean whether a cache hit occurs.'''
@@ -670,25 +655,13 @@ class Resolver:
                     nameservers.append(parts[1])
         return NameServers(nameservers)
 
-    async def request(self, req, addr, protocol=None):
-        '''Return response to a request.
-
-        Send DNS request data according to `protocol`.
-        '''
-        if protocol is None:
-            protocol = self.protocol
-        request = upd_request
-        data = await request(req, addr, self.request_timeout)
-        return data
-
     async def get_remote(self, nameservers, req, future=None):
         while True:
             if future and future.cancelled():
                 break
             addr = nameservers.get()
             try:
-                data = await self.request(req, addr)
-                cres = DNSMessage.parse(data)
+                cres = await self.udp_requester(req, addr)
                 assert cres.r != 2
             except (asyncio.TimeoutError, AssertionError):
                 nameservers.fail(addr)
@@ -702,13 +675,11 @@ class Resolver:
 
         No cache is used and requests are sent to remote servers.
         '''
-        if fqdn.endswith('.in-addr.arpa'):
-            # Reverse DNS lookup only occurs locally
-            return
         # look up from other DNS servers
         nameservers = self.get_nameservers(fqdn)
         cname = [fqdn]
-        req = DNSMessage(qr=REQUEST)
+        self.qid = (self.qid + 1) % 65536
+        req = DNSMessage(qr=REQUEST, qid=self.qid, o=0, aa=0, tc=0, rd=1, ra=0, r=0)
         has_result = False
         key = fqdn, qtype
         future = self.futures.get(key)
@@ -782,7 +753,7 @@ class Resolver:
         Starts a query asynchronously, add the future object to cache.
         '''
         key = fqdn, qtype
-        res = DNSMessage(ra=self.recursive)
+        res = DNSMessage(qr=RESPONSE, ra=self.recursive, qid=0, o=0, aa=0, tc=0, rd=1, r=0)
         res.qd.append(Record(REQUEST, name=fqdn, qtype=qtype))
         future = self.futures[key]
         ret = (
@@ -795,3 +766,60 @@ class Resolver:
         self.futures.pop(key)
         if not future.cancelled():
             future.set_result(res)
+
+
+def deduplicate_concurrent(func):
+
+    concurrent = {}
+
+    async def deduplicated(*args, **kwargs):
+        identifier = (args, tuple(kwargs.items()))
+
+        if identifier in concurrent:
+            return await concurrent[identifier]
+        
+        future = asyncio.Future()
+        concurrent[identifier] = future
+
+        try:
+            result = await func(*args, **kwargs)
+        except BaseException as exception:
+            future.set_exception(exception)
+        else:
+            future.set_result(result)
+        finally:
+            del concurrent[identifier]
+
+        return await future
+
+    return deduplicated
+
+
+@contextlib.contextmanager
+def timeout(max_time):
+
+    cancelling_due_to_timeout = False
+    current_task = \
+        asyncio.current_task() if hasattr(asyncio, 'current_task') else \
+        asyncio.Task.current_task()
+    loop = \
+        asyncio.get_running_loop() if hasattr(asyncio, 'get_running_loop') else \
+        asyncio.get_event_loop()
+
+    def cancel():
+        nonlocal cancelling_due_to_timeout
+        cancelling_due_to_timeout = True
+        current_task.cancel()
+
+    handle = loop.call_later(max_time, cancel)
+
+    try:
+        yield
+    except asyncio.CancelledError:
+        if cancelling_due_to_timeout:
+            raise asyncio.TimeoutError()
+        else:
+            raise
+            
+    finally:
+        handle.cancel()
