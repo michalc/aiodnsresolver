@@ -549,16 +549,11 @@ def udp_requester():
 
     async def read_incoming(sock, addr):
         while True:
-            try:
-                response_data = await loop.sock_recv(sock, 512)
-                cres = DNSMessage.parse(response_data)
-                pop_future(cres.qid, addr).set_result(cres)
-            except BaseException as e:
-                sock.close()
-                del socks[addr]
-                raise
+            response_data = await loop.sock_recv(sock, 512)
+            cres = DNSMessage.parse(response_data)
+            pop_future(cres.qid, addr).set_result(cres)
 
-    async def _get_socket(addr):
+    async def get_or_create_socket(addr):
         try:
             return socks[addr]
         except KeyError:
@@ -568,11 +563,17 @@ def udp_requester():
         sock.setblocking(False)
         await loop.sock_connect(sock, addr)
         socks[addr] = sock
-        asyncio.ensure_future(read_incoming(sock, addr))
+        task = asyncio.ensure_future(read_incoming(sock, addr))
+
+        async def cleanup_socket():
+            sock.close()
+            del socks[addr]
+
+        task.add_done_callback(cleanup_socket)
 
         return sock
 
-    get_socket = deduplicate_concurrent(_get_socket)
+    get_or_create_socket_dedupe = deduplicate_concurrent(get_or_create_socket)
 
     async def request(req, addr):
         future = asyncio.Future()
@@ -580,7 +581,7 @@ def udp_requester():
 
         try:
             with timeout(3.0):
-                sock = await get_socket(addr.to_addr())
+                sock = await get_or_create_socket_dedupe(addr.to_addr())
                 await loop.sock_sendall(sock, req.pack())
                 result = await future
         except:
