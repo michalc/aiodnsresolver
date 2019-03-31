@@ -8,7 +8,7 @@ def long_description():
 
 setuptools.setup(
     name='aiodnsresolver',
-    version='0.0.1',
+    version='0.0.2',
     description='aiodnsresolver',
     long_description=long_description(),
     long_description_content_type='text/markdown',
