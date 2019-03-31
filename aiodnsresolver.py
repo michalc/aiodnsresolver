@@ -547,7 +547,7 @@ async def udp_request(req, addr):
             while True:
                 response_data = await loop.sock_recv(sock, 512)
                 cres = DNSMessage.parse(response_data)
-                if cres.qid == req.qid:
+                if cres.qid == req.qid and cres.qd[0].name == req.qd[0].name:
                     return cres
         finally:
             sock.close()
@@ -605,10 +605,7 @@ class Resolver:
             req.qd = [Record(REQUEST, fqdn, qtype)]
             res = await self.get_remote(nameservers, req)
 
-            if res.qd[0].name != fqdn:
-                # Possible spoofing
-                raise Exception()
-            elif res.an and res.an[0].qtype == qtype:
+            if res.an and res.an[0].qtype == qtype:
                 return res.an[0].data
             elif res.an and res.an[0].qtype == types.CNAME:
                 fqdn = res.an[0].data
