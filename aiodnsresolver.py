@@ -7,6 +7,7 @@ import contextlib
 import io
 import os
 import random
+import secrets
 import socket
 import struct
 import time
@@ -638,8 +639,7 @@ class Resolver:
         # look up from other DNS servers
         nameservers = self.get_nameservers(fqdn)
         cname = [fqdn]
-        self.qid = (self.qid + 1) % 65536
-        req = DNSMessage(qr=REQUEST, qid=self.qid, o=0, aa=0, tc=0, rd=1, ra=0, r=0)
+        req = DNSMessage(qr=REQUEST, qid=secrets.randbelow(65536), o=0, aa=0, tc=0, rd=1, ra=0, r=0)
         has_result = False
         key = fqdn, qtype
         while not has_result:
