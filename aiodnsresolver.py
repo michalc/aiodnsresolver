@@ -312,9 +312,7 @@ async def get_remote(nameservers, req):
         try:
             cres = await udp_request(req, addr)
             assert cres.r != 2
-        except (asyncio.TimeoutError, AssertionError):
-            nameservers.fail(addr)
-        except DNSError:
+        except:
             pass
         else:
             return cres
