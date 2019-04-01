@@ -116,16 +116,6 @@ class Record:
         else:
             return str((self.name, get_name(self.qtype), self.data, self.ttl))
 
-    def copy(self, **kw):
-        return Record(
-            q=kw.get('q', self.q),
-            name=kw.get('name', self.name),
-            qtype=kw.get('qtype', self.qtype),
-            qclass=kw.get('qclass', self.qclass),
-            ttl=kw.get('ttl', self.ttl),
-            data=kw.get('data', self.data)
-        )
-
     def update(self, other):
         if (self.name, self.qtype, self.data) == (other.name, other.qtype, other.data):
             if self.ttl and other.ttl > self.ttl:
