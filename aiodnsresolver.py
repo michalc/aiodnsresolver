@@ -23,8 +23,6 @@ TYPES = collections.namedtuple('Types', [
     NONE=0, A=1, NS=2, CNAME=5, SOA=6, PTR=12, MX=15, AAAA=28, SRV=33, NAPTR=35, ANY=255,
 )
 
-A_TYPES = TYPES.A, TYPES.AAAA
-
 
 def load_name(data, offset, lower=True):
     '''Return the full name and offset from packed data.'''
