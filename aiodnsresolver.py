@@ -19,17 +19,7 @@ MAXAGE = 3600000
 TYPES = collections.namedtuple('Types', [
     'NONE', 'A', 'NS', 'CNAME', 'SOA', 'PTR', 'MX', 'AAAA', 'SRV', 'NAPTR', 'ANY',
 ])(
-    NONE=0,
-    A=1,
-    NS=2,
-    CNAME=5,
-    SOA=6,
-    PTR=12,
-    MX=15,
-    AAAA=28,
-    SRV=33,
-    NAPTR=35,
-    ANY=255,
+    NONE=0, A=1, NS=2, CNAME=5, SOA=6, PTR=12, MX=15, AAAA=28, SRV=33, NAPTR=35, ANY=255,
 )
 
 A_TYPES = TYPES.A, TYPES.AAAA
