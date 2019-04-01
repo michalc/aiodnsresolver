@@ -443,18 +443,14 @@ class Resolver:
         self.query_remote_memoized = memoize_concurrent(self.query_remote)
 
     def get_nameservers(self):
-        filename='/etc/resolv.conf'
-        nameservers = []
-        with open(filename, 'r') as file:
-            for line in file:
-                if line.startswith('#'):
-                    continue
-                parts = line.split()
-                if len(parts) < 2:
-                    continue
-                if parts[0] == 'nameserver':
-                    nameservers.append(parts[1])
-        return NameServers(nameservers)
+        with open('/etc/resolv.conf', 'r') as file:
+            return NameServers([
+                words_on_line[1]
+                for words_on_line in [
+                    line.split() for line in file
+                ]
+                if len(words_on_line) >= 2 and words_on_line[0] == 'nameserver'
+            ])
 
     async def get_remote(self, nameservers, req):
         while True:
