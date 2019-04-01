@@ -456,10 +456,6 @@ async def udp_request(req, addr):
 
 
 class Resolver:
-    '''
-    Asynchronous DNS resolver.
-    '''
-    recursive = 1
 
     def __init__(self, protocol=UDP, timeout=3.0):
         self.futures = {}
