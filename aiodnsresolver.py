@@ -435,12 +435,9 @@ async def udp_request(req, addr):
             sock.close()
 
 
-class Resolver:
+def Resolver():
 
-    def __init__(self):
-        self.query_remote_memoized = memoize_concurrent(self.query_remote)
-
-    def get_nameservers(self):
+    def get_nameservers():
         with open('/etc/resolv.conf', 'r') as file:
             return NameServers([
                 words_on_line[1]
@@ -450,7 +447,7 @@ class Resolver:
                 if len(words_on_line) >= 2 and words_on_line[0] == 'nameserver'
             ])
 
-    async def get_remote(self, nameservers, req):
+    async def get_remote(nameservers, req):
         while True:
             addr = nameservers.get()
             try:
@@ -463,13 +460,13 @@ class Resolver:
             else:
                 return cres
 
-    async def query_remote(self, fqdn, qtype):
-        nameservers = self.get_nameservers()
+    async def query_remote(fqdn, qtype):
+        nameservers = get_nameservers()
 
         while True:
             req = DNSMessage(qr=REQUEST, qid=secrets.randbelow(65536), o=0, aa=0, tc=0, rd=1, ra=0, r=0)
             req.qd = [Record(REQUEST, fqdn, qtype)]
-            res = await self.get_remote(nameservers, req)
+            res = await get_remote(nameservers, req)
 
             if res.an and res.an[0].qtype == qtype:
                 return [answer.data for answer in res.an]
@@ -478,9 +475,13 @@ class Resolver:
             else:
                 raise Exception()
 
-    async def __call__(self, fqdn, qtype):
+    async def resolve(fqdn, qtype):
         with timeout(5.0):
-            return await self.query_remote_memoized(fqdn, qtype)
+            return await query_remote_memoized(fqdn, qtype)
+
+    query_remote_memoized = memoize_concurrent(query_remote)
+
+    return resolve
 
 
 def memoize_concurrent(func):
