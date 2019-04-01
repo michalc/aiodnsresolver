@@ -439,8 +439,7 @@ async def udp_request(req, addr):
 
 class Resolver:
 
-    def __init__(self, timeout=3.0):
-        self.timeout = timeout
+    def __init__(self):
         self.query_remote_memoized = memoize_concurrent(self.query_remote)
 
     def get_nameservers(self):
@@ -486,7 +485,7 @@ class Resolver:
                 raise Exception()
 
     async def __call__(self, fqdn, qtype=TYPES.ANY):
-        with timeout(self.timeout):
+        with timeout(3.0):
             return await self.query_remote_memoized(fqdn, qtype)
 
 
