@@ -1,6 +1,3 @@
-'''
-Asynchronous DNS client
-'''
 import asyncio
 import collections
 import contextlib
