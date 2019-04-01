@@ -387,33 +387,6 @@ class Address:
     def to_addr(self):
         return self.host, self.port
 
-class NameServers:
-    def __init__(self, nameservers=None, default_port=53):
-        self.default_port = default_port
-        self.data = []
-        if nameservers:
-            for nameserver in nameservers:
-                self.add(nameserver)
-
-    def __bool__(self):
-        return len(self.data) > 0
-
-    def __iter__(self):
-        return iter(tuple(self.data))
-
-    def __repr__(self):
-        return '<NameServers [%s]>' % ','.join(map(str, self.data))
-
-    def get(self):
-        return random.choice(self.data)
-
-    def add(self, addr):
-        self.data.append(Address(addr, self.default_port))
-
-    def fail(self, addr):
-        # TODO
-        pass
-
 
 async def udp_request(req, addr):
     loop = asyncio.get_event_loop()
@@ -436,8 +409,7 @@ async def udp_request(req, addr):
 
 
 async def get_remote(nameservers, req):
-    while True:
-        addr = nameservers.get()
+    for addr in nameservers:
         try:
             cres = await udp_request(req, addr.to_addr())
             assert cres.r != 2
@@ -451,13 +423,13 @@ async def get_remote(nameservers, req):
 
 def get_nameservers():
     with open('/etc/resolv.conf', 'r') as file:
-        return NameServers([
-            words_on_line[1]
+        return [
+            Address(words_on_line[1], 53)
             for words_on_line in [
                 line.split() for line in file
             ]
             if len(words_on_line) >= 2 and words_on_line[0] == 'nameserver'
-        ])
+        ]
 
 
 async def query_remote(fqdn, qtype):
