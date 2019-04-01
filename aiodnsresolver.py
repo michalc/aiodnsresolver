@@ -472,7 +472,6 @@ class Resolver:
         self.futures = {}
         self.protocol = InternetProtocol.get(protocol)
         self.timeout = timeout
-        self.qid = 0
         self.query_remote_memoized = memoize_concurrent(self.query_remote)
 
     def get_nameservers(self):
