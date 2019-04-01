@@ -434,8 +434,6 @@ async def udp_request(req, addr):
         finally:
             sock.close()
 
-    return result
-
 
 class Resolver:
 
