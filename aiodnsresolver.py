@@ -251,15 +251,6 @@ class DNSMessage:
         self.ns = []
         self.ar = []
 
-    def __getitem__(self, i):
-        return self.an[i]
-
-    def __iter__(self):
-        return iter(self.an)
-
-    def __repr__(self):
-        return 'QD: %s\nAN: %s\nNS: %s\nAR: %s' % (self.qd, self.an, self.ns, self.ar)
-
     def pack(self):
         z = 0
         # TODO update self.tc
@@ -307,10 +298,6 @@ class DNSMessage:
         l, ans.ns = ans.parse_entry(RESPONSE, data, l, ns)
         l, ans.ar = ans.parse_entry(RESPONSE, data, l, ar)
         return ans
-
-
-class InvalidHost(Exception):
-    pass
 
 
 async def udp_request(req, addr):
