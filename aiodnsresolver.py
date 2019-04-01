@@ -5,6 +5,7 @@ import asyncio
 import collections
 import contextlib
 import io
+import ipaddress
 import os
 import random
 import secrets
@@ -311,82 +312,6 @@ class DNSMessage:
 class InvalidHost(Exception):
     pass
 
-class Address:
-    def __init__(self, hostname, port=0, allow_domain=False):
-        self.parse(hostname, port, allow_domain)
-
-    def __eq__(self, other):
-        return self.host == other.host and self.port == other.port
-
-    def __repr__(self):
-        return self.to_str()
-
-    def parse(self, hostname, port=0, allow_domain=False):
-        if isinstance(hostname, tuple):
-            self.parse_tuple(hostname, allow_domain)
-        elif isinstance(hostname, Address):
-            self.parse_address(hostname)
-        elif hostname.count(':') > 1:
-            self.parse_ipv6(hostname, port)
-        else:
-            self.parse_ipv4_or_domain(hostname, port, allow_domain)
-
-    def parse_tuple(self, addr, allow_domain=False):
-        host, port = addr
-        self.parse(host, port, allow_domain)
-
-    def parse_address(self, addr):
-        self.host, self.port, self.ip_type = addr.host, addr.port, addr.ip_type
-
-    def parse_ipv4_or_domain(self, hostname, port=None, allow_domain=False):
-        try:
-            self.parse_ipv4(hostname, port)
-        except InvalidHost as e:
-            if not allow_domain:
-                raise e
-            host, _, port_s = hostname.partition(':')
-            if _:
-                port = int(port_s)
-            self.host, self.port, self.ip_type = host, port, None
-
-    def parse_ipv4(self, hostname, port=None):
-        host, _, port_s = hostname.partition(':')
-        if _:
-            port = int(port_s)
-        try:
-            socket.inet_pton(socket.AF_INET, host)
-        except OSError:
-            raise InvalidHost(host)
-        self.host, self.port, self.ip_type = host, port, TYPES.A
-
-    def parse_ipv6(self, hostname, port=None):
-        if hostname.startswith('['):
-            i = hostname.index(']')
-            host = hostname[1 : i]
-            port_s = hostname[i + 1 :]
-            if port_s:
-                if not port_s.startswith(':'):
-                    raise InvalidHost(hostname)
-                port = int(port_s[1:])
-        else:
-            host = hostname
-        try:
-            socket.inet_pton(socket.AF_INET6, host)
-        except OSError:
-            raise InvalidHost(host)
-        self.host, self.port, self.ip_type = host, port, TYPES.AAAA
-
-    def to_str(self, default_port = 0):
-        if default_port is None or self.port == default_port:
-            return self.host
-        if self.ip_type is TYPES.A:
-            return '%s:%d' % self.to_addr()
-        elif self.ip_type is TYPES.AAAA:
-            return '[%s]:%d' % self.to_addr()
-
-    def to_addr(self):
-        return self.host, self.port
-
 
 async def udp_request(req, addr):
     loop = asyncio.get_event_loop()
@@ -411,7 +336,7 @@ async def udp_request(req, addr):
 async def get_remote(nameservers, req):
     for addr in nameservers:
         try:
-            cres = await udp_request(req, addr.to_addr())
+            cres = await udp_request(req, addr)
             assert cres.r != 2
         except (asyncio.TimeoutError, AssertionError):
             nameservers.fail(addr)
@@ -424,7 +349,7 @@ async def get_remote(nameservers, req):
 def get_nameservers():
     with open('/etc/resolv.conf', 'r') as file:
         return [
-            Address(words_on_line[1], 53)
+            (words_on_line[1], 53)
             for words_on_line in [
                 line.split() for line in file
             ]
