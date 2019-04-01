@@ -85,19 +85,6 @@ def get_name(code, default=None):
         name = str(code)
     return name
 
-class DNSError(Exception):
-    errors = {
-        1: 'Format error: bad request',
-        2: 'Server failure: error occurred',
-        3: 'Name error: not exist',
-        4: 'Not implemented: query type not supported',
-        5: 'Refused: policy reasons'
-    }
-    def __init__(self, code, message=None):
-        message = self.errors.get(code, message) or 'Unknown reply code: %d' % code
-        super().__init__(message)
-        self.code = code
-
 
 class Record:
     def __init__(self, q=RESPONSE, name='', qtype=TYPES.ANY, qclass=1, ttl=0, data=None):
@@ -216,10 +203,8 @@ class DNSMessage:
         return l, res
 
     @classmethod
-    def parse(cls, data, qid=None):
+    def parse(cls, data):
         rqid, x, qd, an, ns, ar = struct.unpack('!HHHHHH', data[:12])
-        if qid is not None and qid != rqid:
-            raise DNSError(-1, 'Message id does not match!')
         r, x = get_bits(x, 4)   # rcode: 0 for no error
         z, x = get_bits(x, 3)   # reserved
         ra, x = get_bits(x, 1)  # recursion available
