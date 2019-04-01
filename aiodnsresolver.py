@@ -461,30 +461,26 @@ def get_nameservers():
 
 
 async def query_remote(fqdn, qtype):
-    nameservers = get_nameservers()
 
-    while True:
-        req = DNSMessage(qr=REQUEST, qid=secrets.randbelow(65536), o=0, aa=0, tc=0, rd=1, ra=0, r=0)
-        req.qd = [Record(REQUEST, fqdn, qtype)]
-        res = await get_remote(nameservers, req)
+    with timeout(5.0):
+        nameservers = get_nameservers()
 
-        if res.an and res.an[0].qtype == qtype:
-            return [answer.data for answer in res.an]
-        elif res.an and res.an[0].qtype == TYPES.CNAME:
-            fqdn = res.an[0].data
-        else:
-            raise Exception()
+        while True:
+            req = DNSMessage(qr=REQUEST, qid=secrets.randbelow(65536), o=0, aa=0, tc=0, rd=1, ra=0, r=0)
+            req.qd = [Record(REQUEST, fqdn, qtype)]
+            res = await get_remote(nameservers, req)
+
+            if res.an and res.an[0].qtype == qtype:
+                return [answer.data for answer in res.an]
+            elif res.an and res.an[0].qtype == TYPES.CNAME:
+                fqdn = res.an[0].data
+            else:
+                raise Exception()
 
 
 def Resolver():
 
-    async def resolve(fqdn, qtype):
-        with timeout(5.0):
-            return await query_remote_memoized(fqdn, qtype)
-
-    query_remote_memoized = memoize_concurrent(query_remote)
-
-    return resolve
+    return memoize_concurrent(query_remote)
 
 
 def memoize_concurrent(func):
