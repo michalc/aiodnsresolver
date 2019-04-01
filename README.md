@@ -16,5 +16,5 @@ pip install aiodnsresolver
 from aiodnsresolver import Resolver, types
 
 resolve = Resolver()
-ip_address = await resolve('www.google.com', types.A)
+ip_addresses = await resolve('www.google.com', types.A)
 ```

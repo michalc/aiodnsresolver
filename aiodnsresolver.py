@@ -606,7 +606,7 @@ class Resolver:
             res = await self.get_remote(nameservers, req)
 
             if res.an and res.an[0].qtype == qtype:
-                return res.an[0].data
+                return [answer.data for answer in res.an]
             elif res.an and res.an[0].qtype == types.CNAME:
                 fqdn = res.an[0].data
             else:
