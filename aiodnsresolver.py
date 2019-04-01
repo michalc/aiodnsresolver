@@ -478,7 +478,7 @@ class Resolver:
             else:
                 raise Exception()
 
-    async def __call__(self, fqdn, qtype=TYPES.ANY):
+    async def __call__(self, fqdn, qtype):
         with timeout(5.0):
             return await self.query_remote_memoized(fqdn, qtype)
 
