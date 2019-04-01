@@ -16,7 +16,7 @@ REQUEST = 0
 RESPONSE = 1
 MAXAGE = 3600000
 
-types = collections.namedtuple('Types', [
+TYPES = collections.namedtuple('Types', [
     'NONE', 'A', 'NS', 'CNAME', 'SOA', 'PTR', 'MX', 'AAAA', 'SRV', 'NAPTR', 'ANY',
 ])(
     NONE=0,
@@ -32,7 +32,7 @@ types = collections.namedtuple('Types', [
     ANY=255,
 )
 
-A_TYPES = types.A, types.AAAA
+A_TYPES = TYPES.A, TYPES.AAAA
 
 def _is_type(name):
     return not name.startswith('_') and name.upper() == name
@@ -149,7 +149,7 @@ class RData:
 
 class SOA_RData(RData):
     '''Start of Authority record'''
-    rtype = types.SOA
+    rtype = TYPES.SOA
 
     def __init__(self, *k):
         (
@@ -186,7 +186,7 @@ class SOA_RData(RData):
 
 
 class Record:
-    def __init__(self, q=RESPONSE, name='', qtype=types.ANY, qclass=1, ttl=0, data=None):
+    def __init__(self, q=RESPONSE, name='', qtype=TYPES.ANY, qclass=1, ttl=0, data=None):
         self.q = q
         self.name = name
         self.qtype = qtype
@@ -226,13 +226,13 @@ class Record:
             self.timestamp = int(time.time())
             self.ttl, dl = struct.unpack('!LH', data[l: l + 6])
             l += 6
-            if self.qtype == types.A:
+            if self.qtype == TYPES.A:
                 self.data = socket.inet_ntoa(data[l: l + dl])
-            elif self.qtype == types.AAAA:
+            elif self.qtype == TYPES.AAAA:
                 self.data = socket.inet_ntop(socket.AF_INET6, data[l: l + dl])
-            elif self.qtype == types.SOA:
+            elif self.qtype == TYPES.SOA:
                 _, self.data = SOA_RData.load(data, l)
-            elif self.qtype in (types.CNAME, types.NS, types.PTR):
+            elif self.qtype in (TYPES.CNAME, TYPES.NS, TYPES.PTR):
                 _, self.data = load_name(data, l)
             else:
                 self.data = data[l: l + dl]
@@ -259,11 +259,11 @@ class Record:
             if isinstance(self.data, RData):
                 data_str = b''.join(self.data.dump(pack_name_local, offset + buf.tell()))
                 buf.write(pack_string(data_str, '!H'))
-            elif self.qtype == types.A:
+            elif self.qtype == TYPES.A:
                 buf.write(pack_string(socket.inet_aton(self.data), '!H'))
-            elif self.qtype == types.AAAA:
+            elif self.qtype == TYPES.AAAA:
                 buf.write(pack_string(socket.inet_pton(socket.AF_INET6, self.data), '!H'))
-            elif self.qtype in (types.CNAME, types.NS, types.PTR):
+            elif self.qtype in (TYPES.CNAME, TYPES.NS, TYPES.PTR):
                 name = pack_name_local(self.data, offset + buf.tell() + 2)
                 buf.write(pack_string(name, '!H'))
             else:
@@ -392,7 +392,7 @@ class Address:
             socket.inet_pton(socket.AF_INET, host)
         except OSError:
             raise InvalidHost(host)
-        self.host, self.port, self.ip_type = host, port, types.A
+        self.host, self.port, self.ip_type = host, port, TYPES.A
 
     def parse_ipv6(self, hostname, port=None):
         if hostname.startswith('['):
@@ -409,14 +409,14 @@ class Address:
             socket.inet_pton(socket.AF_INET6, host)
         except OSError:
             raise InvalidHost(host)
-        self.host, self.port, self.ip_type = host, port, types.AAAA
+        self.host, self.port, self.ip_type = host, port, TYPES.AAAA
 
     def to_str(self, default_port = 0):
         if default_port is None or self.port == default_port:
             return self.host
-        if self.ip_type is types.A:
+        if self.ip_type is TYPES.A:
             return '%s:%d' % self.to_addr()
-        elif self.ip_type is types.AAAA:
+        elif self.ip_type is TYPES.AAAA:
             return '[%s]:%d' % self.to_addr()
 
     def to_addr(self):
@@ -522,12 +522,12 @@ class Resolver:
 
             if res.an and res.an[0].qtype == qtype:
                 return [answer.data for answer in res.an]
-            elif res.an and res.an[0].qtype == types.CNAME:
+            elif res.an and res.an[0].qtype == TYPES.CNAME:
                 fqdn = res.an[0].data
             else:
                 raise Exception()
 
-    async def __call__(self, fqdn, qtype=types.ANY):
+    async def __call__(self, fqdn, qtype=TYPES.ANY):
         with timeout(self.timeout):
             return await self.query_remote_memoized(fqdn, qtype)
 
