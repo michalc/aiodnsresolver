@@ -98,45 +98,6 @@ class DNSError(Exception):
         super().__init__(message)
         self.code = code
 
-class RData:
-    '''Base class of RData'''
-    rtype = -1
-
-
-class SOA_RData(RData):
-    '''Start of Authority record'''
-    rtype = TYPES.SOA
-
-    def __init__(self, *k):
-        (
-            self.mname,
-            self.rname,
-            self.serial,
-            self.refresh,
-            self.retry,
-            self.expire,
-            self.minimum,
-        ) = k
-
-    @classmethod
-    def load(cls, data, l):
-        i, mname = load_name(data, l)
-        i, rname = load_name(data, i)
-        (
-            serial,
-            refresh,
-            retry,
-            expire,
-            minimum,
-        ) = struct.unpack('!LLLLL', data[i: i + 20])
-        return i + 20, cls(mname, rname, serial, refresh, retry, expire, minimum)
-
-    def dump(self, pack_name, offset):
-        mname = pack_name(self.mname, offset + 2)
-        yield mname
-        yield pack_name(self.rname, offset + 2 + len(mname))
-        yield struct.pack('!LLLLL', self.serial, self.refresh, self.retry, self.expire, self.minimum)
-
 
 class Record:
     def __init__(self, q=RESPONSE, name='', qtype=TYPES.ANY, qclass=1, ttl=0, data=None):
@@ -183,9 +144,7 @@ class Record:
                 self.data = socket.inet_ntoa(data[l: l + dl])
             elif self.qtype == TYPES.AAAA:
                 self.data = socket.inet_ntop(socket.AF_INET6, data[l: l + dl])
-            elif self.qtype == TYPES.SOA:
-                _, self.data = SOA_RData.load(data, l)
-            elif self.qtype in (TYPES.CNAME, TYPES.NS, TYPES.PTR):
+            elif self.qtype == TYPES.CNAME:
                 _, self.data = load_name(data, l)
             else:
                 self.data = data[l: l + dl]
