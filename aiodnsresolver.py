@@ -448,6 +448,7 @@ async def get_remote(nameservers, req):
         else:
             return cres
 
+
 def get_nameservers():
     with open('/etc/resolv.conf', 'r') as file:
         return NameServers([
