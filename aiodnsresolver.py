@@ -27,7 +27,6 @@ A_TYPES = TYPES.A, TYPES.AAAA
 def _is_type(name):
     return not name.startswith('_') and name.upper() == name
 
-_NAME_MAPPING = dict((name, code) for name, code in globals().items() if _is_type(name))
 _CODE_MAPPING = dict((code, name) for name, code in globals().items() if _is_type(name))
 
 
@@ -91,12 +90,6 @@ def get_name(code, default=None):
     if name is None:
         name = str(code)
     return name
-
-def get_code(name, default=None):
-    '''
-    Get code from type name
-    '''
-    return _NAME_MAPPING.get(name, default)
 
 
 class InternetProtocol:
