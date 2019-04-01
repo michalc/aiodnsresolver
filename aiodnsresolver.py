@@ -91,24 +91,6 @@ def get_name(code, default=None):
         name = str(code)
     return name
 
-
-class InternetProtocol:
-    protocols = {}
-
-    def __init__(self, name):
-        self.protocol = name
-        self.protocols[name] = self
-
-    @classmethod
-    def get(cls, name):
-        if isinstance(name, cls):
-            return name
-        if isinstance(name, str):
-            name = name.lower()
-        return cls.protocols.get(name, UDP)
-
-UDP = InternetProtocol('udp')
-
 class DNSError(Exception):
     errors = {
         1: 'Format error: bad request',
@@ -457,9 +439,7 @@ async def udp_request(req, addr):
 
 class Resolver:
 
-    def __init__(self, protocol=UDP, timeout=3.0):
-        self.futures = {}
-        self.protocol = InternetProtocol.get(protocol)
+    def __init__(self, timeout=3.0):
         self.timeout = timeout
         self.query_remote_memoized = memoize_concurrent(self.query_remote)
 
