@@ -435,6 +435,20 @@ async def udp_request(req, addr):
             sock.close()
 
 
+async def get_remote(nameservers, req):
+    while True:
+        addr = nameservers.get()
+        try:
+            cres = await udp_request(req, addr.to_addr())
+            assert cres.r != 2
+        except (asyncio.TimeoutError, AssertionError):
+            nameservers.fail(addr)
+        except DNSError:
+            pass
+        else:
+            return cres
+
+
 def Resolver():
 
     def get_nameservers():
@@ -446,19 +460,6 @@ def Resolver():
                 ]
                 if len(words_on_line) >= 2 and words_on_line[0] == 'nameserver'
             ])
-
-    async def get_remote(nameservers, req):
-        while True:
-            addr = nameservers.get()
-            try:
-                cres = await udp_request(req, addr.to_addr())
-                assert cres.r != 2
-            except (asyncio.TimeoutError, AssertionError):
-                nameservers.fail(addr)
-            except DNSError:
-                pass
-            else:
-                return cres
 
     async def query_remote(fqdn, qtype):
         nameservers = get_nameservers()
