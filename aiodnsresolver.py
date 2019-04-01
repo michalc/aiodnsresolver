@@ -25,11 +25,6 @@ TYPES = collections.namedtuple('Types', [
 
 A_TYPES = TYPES.A, TYPES.AAAA
 
-def _is_type(name):
-    return not name.startswith('_') and name.upper() == name
-
-_CODE_MAPPING = dict((code, name) for name, code in globals().items() if _is_type(name))
-
 
 def load_name(data, offset, lower=True):
     '''Return the full name and offset from packed data.'''
@@ -109,9 +104,6 @@ class RData:
     '''Base class of RData'''
     rtype = -1
 
-    @property
-    def type_name(self):
-        return get_name(self.rtype).lower()
 
 class SOA_RData(RData):
     '''Start of Authority record'''
@@ -127,9 +119,6 @@ class SOA_RData(RData):
             self.expire,
             self.minimum,
         ) = k
-
-    def __repr__(self):
-        return '<%s: %s>' % (self.type_name, self.rname)
 
     @classmethod
     def load(cls, data, l):
