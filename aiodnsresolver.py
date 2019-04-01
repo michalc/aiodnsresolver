@@ -312,11 +312,9 @@ async def udp_request(req, addr):
 async def get_remote(nameservers, req):
     for addr in nameservers:
         try:
-            cres = await udp_request(req, addr)
+            return await udp_request(req, addr)
         except:
             pass
-        else:
-            return cres
 
 
 def get_nameservers():
