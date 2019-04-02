@@ -107,6 +107,13 @@ class TestResolver(unittest.TestCase):
         res = await resolve('support.dnsimple.com', TYPES.A)
         self.assertIsInstance(ipaddress.ip_address(res[0]), ipaddress.IPv4Address)
 
+    @async_test
+    async def test_cname_query_cname(self):
+        resolve = Resolver()
+        res = await resolve('support.dnsimple.com', TYPES.CNAME)
+        self.assertEqual(res[0].split('.')[-2:], ['cloudfront', 'net'])
+        self.assertIsInstance(res[0], str)
+
 
 class TestMemoizeTtl(unittest.TestCase):
 
