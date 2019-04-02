@@ -46,10 +46,9 @@ def load_name(data, offset, lower=True):
 
 def pack_string(string, btype):
     '''Pack string into `{length}{data}` format.'''
-    if not isinstance(string, bytes):
-        string = string.encode()
-    length = len(string)
-    return struct.pack('%s%ds' % (btype, length), length, string)
+    string_ascii = string.encode()
+    length = len(string_ascii)
+    return struct.pack('%s%ds' % (btype, length), length, string_ascii)
 
 def get_bits(num, bit_len):
     '''Get lower and higher bits breaking at bit_len from num.'''
