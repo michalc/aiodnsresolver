@@ -242,14 +242,6 @@ async def udp_request(addr, fqdn, qtype):
             sock.close()
 
 
-async def get_remote(nameservers, fqdn, qtype):
-    for addr in nameservers:
-        try:
-            return await udp_request(addr, fqdn, qtype)
-        except:
-            pass
-
-
 def get_nameservers():
     with open('/etc/resolv.conf', 'r') as file:
         return [
@@ -261,24 +253,27 @@ def get_nameservers():
         ]
 
 
-async def query_remote(fqdn, qtype):
-
-    with timeout(5.0):
-        nameservers = get_nameservers()
-
-        while True:
-
-            answers = await get_remote(nameservers, fqdn, qtype)
-
-            if answers and answers[0].qtype == qtype:
-                return [answer.data for answer in answers]
-            elif answers and answers[0].qtype == TYPES.CNAME:
-                fqdn = answers[0].data
-            else:
-                raise Exception()
-
-
 def Resolver():
+
+    async def query_remote(fqdn, qtype):
+
+        with timeout(5.0):
+            nameservers = get_nameservers()
+
+            while True:
+
+                for addr in nameservers:
+                    try:
+                        answers = await udp_request(addr, fqdn, qtype)
+                    except:
+                        continue
+
+                if answers and answers[0].qtype == qtype:
+                    return [answer.data for answer in answers]
+                elif answers and answers[0].qtype == TYPES.CNAME:
+                    fqdn = answers[0].data
+                else:
+                    raise Exception()
 
     return memoize_concurrent(query_remote)
 
