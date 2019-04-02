@@ -56,12 +56,11 @@ def get_bits(num, bit_len):
     low = num - (high << bit_len)
     return low, high
 
-def pack_name(name, names, offset=0):
+def pack_name(name, offset=0):
     parts = name.split('.')
     buf = io.BytesIO()
     while parts:
         subname = '.'.join(parts)
-        names[subname] = buf.tell() + offset
         buf.write(pack_string(parts.pop(0), 'B'))
     else:
         buf.write(b'\0')
@@ -104,11 +103,11 @@ class Record:
             l += dl
         return l
 
-    def pack(self, names, offset=0):
+    def pack(self, offset=0):
         def pack_name_local(name, pack_offset):
-            return pack_name(name, names, pack_offset)
+            return pack_name(name, pack_offset)
         buf = io.BytesIO()
-        buf.write(pack_name(self.name, names, offset))
+        buf.write(pack_name(self.name, offset))
         buf.write(struct.pack('!HH', self.qtype, self.qclass))
         if self.q == RESPONSE:
             if self.ttl < 0:
@@ -154,7 +153,6 @@ class DNSMessage:
         z = 0
         # TODO update self.tc
         buf = io.BytesIO()
-        names = {}
         buf.write(struct.pack(
             '!HHHHHH',
             self.qid,
@@ -166,7 +164,7 @@ class DNSMessage:
         ))
         for group in self.qd, self.an, self.ns, self.ar:
             for rec in group:
-                buf.write(rec.pack(names, buf.tell()))
+                buf.write(rec.pack(buf.tell()))
         return buf.getvalue()
 
     @staticmethod
