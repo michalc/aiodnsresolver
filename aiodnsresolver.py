@@ -241,7 +241,7 @@ def get_nameservers():
 
 def Resolver():
 
-    async def query_remote(fqdn, qtype):
+    async def resolve(fqdn, qtype):
 
         with timeout(5.0):
             nameservers = get_nameservers()
@@ -267,7 +267,7 @@ def Resolver():
 
     memoized_udp_request = memoize_ttl(udp_request, get_ttl)
 
-    return query_remote
+    return resolve
 
 
 def memoize_ttl(func, get_ttl):
