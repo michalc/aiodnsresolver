@@ -61,11 +61,13 @@ def pack_string(string, btype):
     length = len(string_ascii)
     return struct.pack('%s%ds' % (btype, length), length, string_ascii)
 
+
 def get_bits(num, bit_len):
     '''Get lower and higher bits breaking at bit_len from num.'''
     high = num >> bit_len
     low = num - (high << bit_len)
     return low, high
+
 
 def pack_name(name):
     return b''.join([
