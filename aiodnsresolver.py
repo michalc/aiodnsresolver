@@ -266,7 +266,7 @@ def Resolver():
 
                 for addr in nameservers:
                     try:
-                        answers = await udp_request(addr, fqdn, qtype)
+                        answers = await memoized_udp_request(addr, fqdn, qtype)
                     except:
                         continue
 
