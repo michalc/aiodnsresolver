@@ -237,7 +237,7 @@ async def udp_request(addr, fqdn, qtype):
                 if cres.r == 2:
                     raise Exception()
                 if cres.qid == req.qid and cres.qd[0].name == req.qd[0].name:
-                    return cres
+                    return cres.an
         finally:
             sock.close()
 
@@ -268,12 +268,12 @@ async def query_remote(fqdn, qtype):
 
         while True:
 
-            res = await get_remote(nameservers, fqdn, qtype)
+            answers = await get_remote(nameservers, fqdn, qtype)
 
-            if res.an and res.an[0].qtype == qtype:
-                return [answer.data for answer in res.an]
-            elif res.an and res.an[0].qtype == TYPES.CNAME:
-                fqdn = res.an[0].data
+            if answers and answers[0].qtype == qtype:
+                return [answer.data for answer in answers]
+            elif answers and answers[0].qtype == TYPES.CNAME:
+                fqdn = answers[0].data
             else:
                 raise Exception()
 
