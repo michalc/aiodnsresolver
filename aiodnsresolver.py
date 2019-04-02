@@ -21,26 +21,39 @@ TYPES = collections.namedtuple('Types', [
 )
 
 
-def load_name(data, offset):
-    '''Return the full name and offset from packed data.'''
-    parts = []
-    cursor = None
+def load_name(data, cursor):
+
+    def byte(offset):
+        return data[offset:offset + 1][0]
+
+    def load_label(offset):
+        length = byte(offset)
+        return offset + length + 1, data[offset + 1:offset + 1 + length]
+
+    def is_pointer(offset):
+        return byte(offset) >= 192
+
+    labels = []
+    followed_pointer = False
+
     while True:
-        length = ord(data[offset : offset + 1])
-        offset += 1
-        if length == 0:
-            if cursor is None:
-                cursor = offset
+        if not followed_pointer and is_pointer(cursor):
+            followed_pointer = True
+            pointer_cursor = (byte(cursor) - 192) * 256 + byte(cursor + 1)
+            cursor += 2
+
+        if followed_pointer:
+            pointer_cursor, label = load_label(pointer_cursor)
+        else:
+            cursor, label = load_label(cursor)
+
+        if label:
+            labels.append(label)
+        else:
             break
-        elif length >= 0xc0:
-            if cursor is None:
-                cursor = offset + 1
-            offset = (length - 0xc0) * 256 + ord(data[offset : offset + 1])
-            continue
-        parts.append(data[offset : offset + length])
-        offset += length
-    data = b'.'.join(parts).decode()
-    return cursor, data.lower()
+
+    return cursor, (b'.'.join(labels)).lower().decode()
+
 
 def pack_string(string, btype):
     '''Pack string into `{length}{data}` format.'''
