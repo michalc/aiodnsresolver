@@ -218,7 +218,7 @@ class DNSMessage:
         return ans
 
 
-async def udp_request(fqdn, qtype, addr):
+async def udp_request(addr, fqdn, qtype):
     loop = asyncio.get_event_loop()
     req = DNSMessage(qr=REQUEST, qid=secrets.randbelow(65536), o=0, aa=0, tc=0, rd=1, ra=0, r=0)
     req.qd = [Record(REQUEST, fqdn, qtype)]
@@ -242,10 +242,10 @@ async def udp_request(fqdn, qtype, addr):
             sock.close()
 
 
-async def get_remote(fqdn, qtype, nameservers):
+async def get_remote(nameservers, fqdn, qtype):
     for addr in nameservers:
         try:
-            return await udp_request(fqdn, qtype, addr)
+            return await udp_request(addr, fqdn, qtype)
         except:
             pass
 
@@ -268,7 +268,7 @@ async def query_remote(fqdn, qtype):
 
         while True:
 
-            res = await get_remote(fqdn, qtype, nameservers)
+            res = await get_remote(nameservers, fqdn, qtype)
 
             if res.an and res.an[0].qtype == qtype:
                 return [answer.data for answer in res.an]
