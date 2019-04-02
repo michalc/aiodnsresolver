@@ -56,7 +56,7 @@ def get_bits(num, bit_len):
     low = num - (high << bit_len)
     return low, high
 
-def pack_name(name, offset=0):
+def pack_name(name):
     parts = name.split('.')
     buf = io.BytesIO()
     while parts:
@@ -104,7 +104,7 @@ class Record:
 
     def pack(self, offset=0):
         buf = io.BytesIO()
-        buf.write(pack_name(self.name, offset))
+        buf.write(pack_name(self.name))
         buf.write(struct.pack('!HH', self.qtype, self.qclass))
         if self.q == RESPONSE:
             if self.ttl < 0:
@@ -125,7 +125,7 @@ class Record:
             elif self.qtype == TYPES.AAAA:
                 buf.write(pack_string(socket.inet_pton(socket.AF_INET6, self.data), '!H'))
             elif self.qtype in (TYPES.CNAME, TYPES.NS, TYPES.PTR):
-                name = pack_name(self.data, offset + buf.tell() + 2)
+                name = pack_name(self.data)
                 buf.write(pack_string(name, '!H'))
             else:
                 buf.write(pack_string(self.data, '!H'))
