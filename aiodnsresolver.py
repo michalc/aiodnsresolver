@@ -60,7 +60,6 @@ def pack_name(name, offset=0):
     parts = name.split('.')
     buf = io.BytesIO()
     while parts:
-        subname = '.'.join(parts)
         buf.write(pack_string(parts.pop(0), 'B'))
     else:
         buf.write(b'\0')
