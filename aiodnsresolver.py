@@ -276,9 +276,11 @@ def Resolver():
                     raise Exception()
 
     def get_ttl(answers):
-        return 0
+        return min([answer.ttl for answer in answers])
 
-    return memoize_ttl(query_remote, get_ttl)
+    memoized_udp_request = memoize_ttl(udp_request, get_ttl)
+
+    return query_remote
 
 
 def memoize_ttl(func, get_ttl):
