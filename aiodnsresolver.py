@@ -104,8 +104,6 @@ class Record:
         return l
 
     def pack(self, offset=0):
-        def pack_name_local(name, pack_offset):
-            return pack_name(name, pack_offset)
         buf = io.BytesIO()
         buf.write(pack_name(self.name, offset))
         buf.write(struct.pack('!HH', self.qtype, self.qclass))
@@ -121,14 +119,14 @@ class Record:
                 ttl = self.ttl
             buf.write(struct.pack('!L', ttl))
             if isinstance(self.data, RData):
-                data_str = b''.join(self.data.dump(pack_name_local, offset + buf.tell()))
+                data_str = b''.join(self.data.dump(pack_name, offset + buf.tell()))
                 buf.write(pack_string(data_str, '!H'))
             elif self.qtype == TYPES.A:
                 buf.write(pack_string(socket.inet_aton(self.data), '!H'))
             elif self.qtype == TYPES.AAAA:
                 buf.write(pack_string(socket.inet_pton(socket.AF_INET6, self.data), '!H'))
             elif self.qtype in (TYPES.CNAME, TYPES.NS, TYPES.PTR):
-                name = pack_name_local(self.data, offset + buf.tell() + 2)
+                name = pack_name(self.data, offset + buf.tell() + 2)
                 buf.write(pack_string(name, '!H'))
             else:
                 buf.write(pack_string(self.data, '!H'))
