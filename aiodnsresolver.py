@@ -57,13 +57,10 @@ def get_bits(num, bit_len):
     return low, high
 
 def pack_name(name):
-    parts = name.split('.')
-    buf = io.BytesIO()
-    while parts:
-        buf.write(pack_string(parts.pop(0), 'B'))
-    else:
-        buf.write(b'\0')
-    return buf.getvalue()
+    return b''.join([
+        pack_string(part, 'B')
+        for part in name.split('.')
+    ]) + b'\0'
 
 
 class Record:
