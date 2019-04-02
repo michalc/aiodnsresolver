@@ -21,7 +21,7 @@ TYPES = collections.namedtuple('Types', [
 )
 
 
-def load_name(data, offset, lower=True):
+def load_name(data, offset):
     '''Return the full name and offset from packed data.'''
     parts = []
     cursor = None
@@ -40,9 +40,7 @@ def load_name(data, offset, lower=True):
         parts.append(data[offset : offset + length])
         offset += length
     data = b'.'.join(parts).decode()
-    if lower:
-        data = data.lower()
-    return cursor, data
+    return cursor, data.lower()
 
 def pack_string(string, btype):
     '''Pack string into `{length}{data}` format.'''
