@@ -61,12 +61,7 @@ def pack_name(name, names, offset=0):
     buf = io.BytesIO()
     while parts:
         subname = '.'.join(parts)
-        u = names.get(subname)
-        if u:
-            buf.write(struct.pack('!H', 0xc000 + u))
-            break
-        else:
-            names[subname] = buf.tell() + offset
+        names[subname] = buf.tell() + offset
         buf.write(pack_string(parts.pop(0), 'B'))
     else:
         buf.write(b'\0')
