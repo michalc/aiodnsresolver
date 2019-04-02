@@ -44,7 +44,7 @@ def load_name(data, offset, lower=True):
         data = data.lower()
     return cursor, data
 
-def pack_string(string, btype='B'):
+def pack_string(string, btype):
     '''Pack string into `{length}{data}` format.'''
     if not isinstance(string, bytes):
         string = string.encode()
@@ -68,7 +68,7 @@ def pack_name(name, names, offset=0):
             break
         else:
             names[subname] = buf.tell() + offset
-        buf.write(pack_string(parts.pop(0)))
+        buf.write(pack_string(parts.pop(0), 'B'))
     else:
         buf.write(b'\0')
     return buf.getvalue()
