@@ -275,14 +275,18 @@ def Resolver():
                 else:
                     raise Exception()
 
-    return memoize_concurrent(query_remote)
+    def get_ttl(answers):
+        return 0
+
+    return memoize_ttl(query_remote, get_ttl)
 
 
-def memoize_concurrent(func):
+def memoize_ttl(func, get_ttl):
 
+    loop = asyncio.get_event_loop()
     cache = {}
 
-    async def memoized(*args, **kwargs):
+    async def cached(*args, **kwargs):
         key = (args, tuple(kwargs.items()))
 
         try:
@@ -292,17 +296,25 @@ def memoize_concurrent(func):
             cache[key] = future
 
             try:
+                start = loop.time()
                 result = await func(*args, **kwargs)
             except BaseException as exception:
+                del cache[key]
                 future.set_exception(exception)
             else:
                 future.set_result(result)
-            finally:
-                del cache[key]
+                # Err on the side of invalidation, and count TTL
+                # from before we call the underlying function
+                end = loop.time()
+                delay = max(0, get_ttl(result) - (end - start))
+                loop.call_later(delay, invalidate, key)
 
         return await future
 
-    return memoized
+    def invalidate(key):
+        del cache[key]
+
+    return cached
 
 
 @contextlib.contextmanager

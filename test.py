@@ -13,7 +13,7 @@ from aiofastforward import (
 from aiodnsresolver import (
     TYPES,
     Resolver,
-    memoize_concurrent,
+    memoize_ttl,
     timeout,
 )
 
@@ -108,20 +108,21 @@ class TestResolver(unittest.TestCase):
         self.assertIsInstance(ipaddress.ip_address(res[0]), ipaddress.IPv4Address)
 
 
-class TestMemoizeConcurrent(unittest.TestCase):
+class TestMemoizeTtl(unittest.TestCase):
 
     @async_test
     async def test_identical_concurrent_memoized_coroutine(self):
         loop = asyncio.get_event_loop()
         mock = Mock()
+        ttls = [2, 1]
 
         async def func(*args, **kwargs):
             mock(*args, **kwargs)
-            # Yield so the other task can run
+            # Allow to another task to run
             await asyncio.sleep(0)
             return 'value'
 
-        memoized = memoize_concurrent(func)
+        memoized = memoize_ttl(func, lambda _: 100)
 
         task_a = asyncio.ensure_future(memoized(10, 20, a='val_a', b='val_b'))
         task_b = asyncio.ensure_future(memoized(10, 20, a='val_a', b='val_b'))
@@ -142,7 +143,7 @@ class TestMemoizeConcurrent(unittest.TestCase):
             mock(*args, **kwargs)
             return future
 
-        memoized = memoize_concurrent(func)
+        memoized = memoize_ttl(func, lambda _: 100)
 
         task_a = asyncio.ensure_future(memoized(10, 20, a='val_a', b='val_b'))
         task_b = asyncio.ensure_future(memoized(10, 20, a='val_a', b='val_b'))
@@ -166,32 +167,33 @@ class TestMemoizeConcurrent(unittest.TestCase):
         async def func(*args, **kwargs):
             mock(*args, **kwargs)
             await until_called_twice()
-            return 'value'
+            return kwargs['b']
 
-        memoized = memoize_concurrent(func)
+        memoized = memoize_ttl(func, lambda _: 100)
 
-        task_a = asyncio.ensure_future(memoized(10, 20, a='val_a', b='val_b'))
-        task_b = asyncio.ensure_future(memoized(10, 20, a='val_a', b='val_d'))
+        task_a = asyncio.ensure_future(memoized(10, 20, a='val_a', b='val_b_a'))
+        task_b = asyncio.ensure_future(memoized(10, 20, a='val_a', b='val_b_b'))
 
         task_a_result = await task_a
         task_b_result = await task_b
-        self.assertEqual(task_a_result, 'value')
-        self.assertEqual(task_b_result, 'value')
+        self.assertEqual(task_a_result, 'val_b_a')
+        self.assertEqual(task_b_result, 'val_b_b')
         self.assertEqual(mock.mock_calls, [
-            call(10, 20, a='val_a', b='val_b'),
-            call(10, 20, a='val_a', b='val_d'),
+            call(10, 20, a='val_a', b='val_b_a'),
+            call(10, 20, a='val_a', b='val_b_b'),
         ])
 
     @async_test
-    async def test_identical_sequential_not_memoized(self):
+    async def test_identical_sequential_memoized(self):
         loop = asyncio.get_event_loop()
         mock = Mock()
+        results = ['b', 'a']
 
         async def func(*args, **kwargs):
             mock(*args, **kwargs)
-            return 'value'
+            return results.pop()
 
-        memoized = memoize_concurrent(func)
+        memoized = memoize_ttl(func, lambda _: 100)
 
         task_a = asyncio.ensure_future(memoized(10, 20, a='val_a', b='val_b'))
         task_a_result = await task_a
@@ -199,36 +201,126 @@ class TestMemoizeConcurrent(unittest.TestCase):
         task_b = asyncio.ensure_future(memoized(10, 20, a='val_a', b='val_b'))
 
         task_b_result = await task_b
-        self.assertEqual(task_a_result, 'value')
-        self.assertEqual(task_b_result, 'value')
+        self.assertEqual(task_a_result, 'a')
+        self.assertEqual(task_b_result, 'a')
         self.assertEqual(mock.mock_calls, [
             call(10, 20, a='val_a', b='val_b'),
-            call(10, 20, a='val_a', b='val_b'),
         ])
+
+    @async_test
+    async def test_identical_sequential_invalidate(self):
+        loop = asyncio.get_event_loop()
+        mock = Mock()
+        results = [4, 3, 2, 1]
+
+        async def func(*args, **kwargs):
+            mock(*args, **kwargs)
+            return results.pop()
+
+        with FastForward(loop) as forward:
+            memoized = memoize_ttl(func, lambda result: result)
+
+            task_a = asyncio.ensure_future(memoized(10, 20, a='val_a', b='val_b_a'))
+            task_b = asyncio.ensure_future(memoized(10, 20, a='val_a', b='val_b_b'))
+            task_a_result = await task_a
+            task_b_result = await task_b
+
+            await forward(1)
+            task_c = asyncio.ensure_future(memoized(10, 20, a='val_a', b='val_b_a'))
+            task_d = asyncio.ensure_future(memoized(10, 20, a='val_a', b='val_b_b'))
+            task_c_result = await task_c
+            task_d_result = await task_d
+
+            self.assertEqual(task_c_result, 3)
+            self.assertEqual(task_d_result, 2)
+            self.assertEqual(mock.mock_calls, [
+                call(10, 20, a='val_a', b='val_b_a'),
+                call(10, 20, a='val_a', b='val_b_b'),
+                call(10, 20, a='val_a', b='val_b_a'),
+            ])
+
+    @async_test
+    async def test_identical_sequential_with_sleep_invalidate(self):
+        loop = asyncio.get_event_loop()
+        mock = Mock()
+        results = [3, 2, 1]
+
+        async def func(*args, **kwargs):
+            await asyncio.sleep(0.5)
+            mock(*args, **kwargs)
+            return results.pop()
+
+        with FastForward(loop) as forward:
+            memoized = memoize_ttl(func, lambda result: result)
+
+            forward(0.5)
+            result_a = await memoized(10, 20, a='val_a', b='val_b')
+            result_b = await memoized(10, 20, a='val_a', b='val_b')
+
+            forward(1)
+            result_c = await memoized(10, 20, a='val_a', b='val_b')
+
+            self.assertEqual(result_a, 1)
+            self.assertEqual(result_b, 1)
+            self.assertEqual(result_c, 2)
+            self.assertEqual(mock.mock_calls, [
+                call(10, 20, a='val_a', b='val_b'),
+                call(10, 20, a='val_a', b='val_b'),
+            ])
 
     @async_test
     async def test_identical_concurrent_memoized_exception(self):
         loop = asyncio.get_event_loop()
         mock = Mock()
+        results = ['b', 'a']
 
         async def func(*args, **kwargs):
             mock(*args, **kwargs)
             # Yield so the other task can run
             await asyncio.sleep(0)
-            raise Exception('inner')
+            raise Exception(results.pop())
 
-        memoized = memoize_concurrent(func)
+        memoized = memoize_ttl(func, lambda _: 100)
 
         task_a = asyncio.ensure_future(memoized(10, 20, a='val_a', b='val_b'))
         task_b = asyncio.ensure_future(memoized(10, 20, a='val_a', b='val_b'))
 
-        with self.assertRaisesRegex(Exception, 'inner'):
+        with self.assertRaisesRegex(Exception, 'a'):
             await task_a
 
-        with self.assertRaisesRegex(Exception, 'inner'):
+        with self.assertRaisesRegex(Exception, 'a'):
             await task_b
 
         self.assertEqual(mock.mock_calls, [call(10, 20, a='val_a', b='val_b')])
+
+    @async_test
+    async def test_identical_sequential_not_memoized_exception(self):
+        loop = asyncio.get_event_loop()
+        mock = Mock()
+        results = ['b', 'a']
+
+        async def func(*args, **kwargs):
+            mock(*args, **kwargs)
+            # Yield so the other task can run
+            await asyncio.sleep(0)
+            raise Exception(results.pop())
+
+        memoized = memoize_ttl(func, lambda _: 100)
+
+        task_a = asyncio.ensure_future(memoized(10, 20, a='val_a', b='val_b'))
+
+        with self.assertRaisesRegex(Exception, 'a'):
+            await task_a
+
+        task_b = asyncio.ensure_future(memoized(10, 20, a='val_a', b='val_b'))
+
+        with self.assertRaisesRegex(Exception, 'b'):
+            await task_b
+
+        self.assertEqual(mock.mock_calls, [
+            call(10, 20, a='val_a', b='val_b'),
+            call(10, 20, a='val_a', b='val_b'),
+        ])
 
     @async_test
     async def test_identical_concurrent_memoized_cancelled(self):
@@ -241,7 +333,7 @@ class TestMemoizeConcurrent(unittest.TestCase):
             called.set()
             await asyncio.Future()
 
-        memoized = memoize_concurrent(func)
+        memoized = memoize_ttl(func, lambda _: 100)
 
         task_a = asyncio.ensure_future(memoized(10, 20, a='val_a', b='val_b'))
         task_b = asyncio.ensure_future(memoized(10, 20, a='val_a', b='val_b'))
@@ -250,6 +342,7 @@ class TestMemoizeConcurrent(unittest.TestCase):
 
         with self.assertRaises(asyncio.CancelledError):
             await task_b
+
 
 
 class TestTimeout(unittest.TestCase):
