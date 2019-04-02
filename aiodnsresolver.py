@@ -114,10 +114,7 @@ class Record:
                 self.timestamp = now
                 ttl = self.ttl
             buf.write(struct.pack('!L', ttl))
-            if isinstance(self.data, RData):
-                data_str = b''.join(self.data.dump(pack_name, offset + buf.tell()))
-                buf.write(pack_string(data_str, '!H'))
-            elif self.qtype == TYPES.A:
+            if self.qtype == TYPES.A:
                 buf.write(pack_string(socket.inet_aton(self.data), '!H'))
             elif self.qtype == TYPES.AAAA:
                 buf.write(pack_string(socket.inet_pton(socket.AF_INET6, self.data), '!H'))
