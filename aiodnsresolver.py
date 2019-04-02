@@ -72,15 +72,6 @@ def pack_name(name, names, offset=0):
         buf.write(b'\0')
     return buf.getvalue()
 
-def get_name(code, default=None):
-    '''
-    Get type name from code
-    '''
-    name = _CODE_MAPPING.get(code, default)
-    if name is None:
-        name = str(code)
-    return name
-
 
 class Record:
     def __init__(self, q=RESPONSE, name='', qtype=TYPES.ANY, qclass=1, ttl=0, data=None):
@@ -92,12 +83,6 @@ class Record:
             self.ttl = ttl
             self.data = data
             self.timestamp = int(time.time())
-
-    def __repr__(self):
-        if self.q == REQUEST:
-            return str((self.name, get_name(self.qtype)))
-        else:
-            return str((self.name, get_name(self.qtype), self.data, self.ttl))
 
     def update(self, other):
         if (self.name, self.qtype, self.data) == (other.name, other.qtype, other.data):
