@@ -57,7 +57,7 @@ def pack_string(string, btype):
     '''Pack string into `{length}{data}` format.'''
     string_ascii = string.encode()
     length = len(string_ascii)
-    return struct.pack('%s%ds' % (btype, length), length, string_ascii)
+    return struct.pack('B%ds' % (length), length, string_ascii)
 
 
 def pack_name(name):
