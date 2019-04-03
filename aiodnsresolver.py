@@ -30,15 +30,12 @@ def load_name(data, cursor):
         length = byte(offset)
         return offset + length + 1, data[offset + 1:offset + 1 + length]
 
-    def is_pointer(offset):
-        return byte(offset) >= 192
-
     labels = []
     followed_pointers = []
     local_cursor = cursor
 
     while True:
-        if is_pointer(local_cursor):
+        if byte(local_cursor) >= 192:  # is pointer
             local_cursor = (byte(local_cursor) - 192) * 256 + byte(local_cursor + 1)
             followed_pointers.append(local_cursor)
             if len(followed_pointers) != len(set(followed_pointers)):
