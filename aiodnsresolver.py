@@ -91,7 +91,7 @@ class Record:
             self.ttl, dl = struct.unpack('!LH', data[l: l + 6])
             l += 6
             if self.qtype == TYPES.A:
-                self.data = socket.inet_ntoa(data[l: l + dl])
+                self.data = socket.inet_ntop(socket.AF_INET, data[l: l + dl])
             elif self.qtype == TYPES.AAAA:
                 self.data = socket.inet_ntop(socket.AF_INET6, data[l: l + dl])
             elif self.qtype == TYPES.CNAME:
