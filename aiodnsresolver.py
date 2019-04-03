@@ -76,7 +76,7 @@ def load_name(data, cursor):
     return cursor, (b'.'.join(labels)).lower().decode()
 
 
-def pack_message(message):
+def pack(message):
 
     def pack_string(string, btype):
         string_ascii = string.encode()
@@ -107,7 +107,7 @@ def pack_message(message):
     return header + records
 
 
-def parse_message(data):
+def parse(data):
 
     def split_bits(num, *lengths):
         for length in lengths:
@@ -170,11 +170,11 @@ async def udp_request(addr, fqdn, qtype):
         try:
             sock.setblocking(False)
             await loop.sock_connect(sock, addr)
-            await loop.sock_sendall(sock, pack_message(req))
+            await loop.sock_sendall(sock, pack(req))
 
             while True:
                 response_data = await loop.sock_recv(sock, 512)
-                cres = parse_message(response_data)
+                cres = parse(response_data)
 
                 if cres.qid == req.qid and cres.qd[0].name == req.qd[0].name:
                     if cres.r != 0:
