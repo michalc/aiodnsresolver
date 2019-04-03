@@ -62,11 +62,11 @@ def pack_string(string, btype):
     return struct.pack('%s%ds' % (btype, length), length, string_ascii)
 
 
-def get_bits(num, bit_len):
-    '''Get lower and higher bits breaking at bit_len from num.'''
-    high = num >> bit_len
-    low = num - (high << bit_len)
-    return low, high
+def split_bits(num, *lengths):
+    for length in lengths:
+        high = num >> length
+        yield num - (high << length)
+        num = high
 
 
 def pack_name(name):
@@ -176,14 +176,7 @@ class DNSMessage:
     @classmethod
     def parse(cls, data):
         rqid, x, qd, an, ns, ar = struct.unpack('!HHHHHH', data[:12])
-        r, x = get_bits(x, 4)   # rcode: 0 for no error
-        z, x = get_bits(x, 3)   # reserved
-        ra, x = get_bits(x, 1)  # recursion available
-        rd, x = get_bits(x, 1)  # recursion desired
-        tc, x = get_bits(x, 1)  # truncation
-        aa, x = get_bits(x, 1)  # authoritative answer
-        o, x = get_bits(x, 4)   # opcode
-        qr, x = get_bits(x, 1)  # qr: 0 for query and 1 for response
+        r, z, ra, rd, tc, aa, o, qr = split_bits(x, 4, 3, 1, 1, 1, 1, 4, 1)
         ans = cls(qr, rqid, o, aa, tc, rd, ra, r)
         l, ans.qd = ans.parse_entry(REQUEST, data, 12, qd)
         l, ans.an = ans.parse_entry(RESPONSE, data, l, an)
