@@ -33,8 +33,12 @@ DNSMessage = collections.namedtuple('DNSMessage', [
     'ar',
 ])
 
-Record = collections.namedtuple('Record', [
-    'q', 'name', 'qtype', 'qclass', 'ttl', 'data',
+RequestRecord = collections.namedtuple('Record', [
+    'name', 'qtype', 'qclass',
+])
+
+ResponseRecord = collections.namedtuple('Record', [
+    'name', 'qtype', 'qclass', 'ttl', 'data',
 ])
 
 
@@ -72,27 +76,30 @@ def load_name(data, cursor):
     return cursor, (b'.'.join(labels)).lower().decode()
 
 
-def parse_record(qr, data, l):
+def parse_request_record(data, l):
     l, name = load_name(data, l)
     qtype, qclass = struct.unpack('!HH', data[l: l + 4])
     l += 4
-    if qr == RESPONSE:
-        ttl, dl = struct.unpack('!LH', data[l: l + 6])
-        l += 6
-        if qtype == TYPES.A:
-            record_data = socket.inet_ntop(socket.AF_INET, data[l: l + dl])
-        elif qtype == TYPES.AAAA:
-            record_data = socket.inet_ntop(socket.AF_INET6, data[l: l + dl])
-        elif qtype == TYPES.CNAME:
-            _, record_data = load_name(data, l)
-        else:
-            record_data = data[l: l + dl]
-        l += dl
-    else:
-        ttl = 0
-        record_data = b''
+    return l, RequestRecord(name, qtype, qclass)
 
-    return l, Record(qr, name, qtype, qclass, ttl, record_data)
+
+def parse_response_record(data, l):
+    l, name = load_name(data, l)
+    qtype, qclass = struct.unpack('!HH', data[l: l + 4])
+    l += 4
+    ttl, dl = struct.unpack('!LH', data[l: l + 6])
+    l += 6
+    if qtype == TYPES.A:
+        record_data = socket.inet_ntop(socket.AF_INET, data[l: l + dl])
+    elif qtype == TYPES.AAAA:
+        record_data = socket.inet_ntop(socket.AF_INET6, data[l: l + dl])
+    elif qtype == TYPES.CNAME:
+        _, record_data = load_name(data, l)
+    else:
+        record_data = data[l: l + dl]
+    l += dl
+
+    return l, ResponseRecord(name, qtype, qclass, ttl, record_data)
 
 
 def pack_message(message):
@@ -134,20 +141,20 @@ def parse_message(data):
             yield num - (high << length)
             num = high
 
-    def parse_entry(qr, l, n):
+    def parse_entry(record_parser, l, n):
         res = []
         for i in range(n):
-            l, r = parse_record(qr, data, l)
+            l, r = record_parser(data, l)
             res.append(r)
         return l, res
 
     rqid, x, qd_num, an_num, ns_num, ar_num = struct.unpack('!HHHHHH', data[:12])
     r, z, ra, rd, tc, aa, o, qr = split_bits(x, 4, 3, 1, 1, 1, 1, 4, 1)
 
-    l, qd = parse_entry(REQUEST, 12, qd_num)
-    l, an = parse_entry(RESPONSE, l, an_num)
-    l, ns = parse_entry(RESPONSE, l, ns_num)
-    l, ar = parse_entry(RESPONSE, l, ar_num)
+    l, qd = parse_entry(parse_request_record, 12, qd_num)
+    l, an = parse_entry(parse_response_record, l, an_num)
+    l, ns = parse_entry(parse_response_record, l, ns_num)
+    l, ar = parse_entry(parse_response_record, l, ar_num)
 
     return DNSMessage(qr, rqid, o, aa, tc, rd, ra, r, qd, an, ns, ar)
 
@@ -156,7 +163,7 @@ async def udp_request(addr, fqdn, qtype):
     loop = asyncio.get_event_loop()
     req = DNSMessage(
         qr=REQUEST, qid=secrets.randbelow(65536), o=0, aa=0, tc=0, rd=1, ra=0, r=0,
-        qd=[Record(REQUEST, fqdn, qtype, qclass=1, ttl=0, data=b'')], an=[], ns=[], ar=[],
+        qd=[RequestRecord(fqdn, qtype, qclass=1)], an=[], ns=[], ar=[],
     )
 
     with timeout(3.0):
