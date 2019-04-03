@@ -136,22 +136,23 @@ class DNSMessage:
         ])
         return header + records
 
-    @staticmethod
-    def parse_entry(qr, data, l, n):
-        res = []
-        for i in range(n):
-            l, r = parse_record(qr, data, l)
-            res.append(r)
-        return l, res
+
+def parse_message_entry(qr, data, l, n):
+    res = []
+    for i in range(n):
+        l, r = parse_record(qr, data, l)
+        res.append(r)
+    return l, res
+
 
 def parse_message(data):
     rqid, x, qd, an, ns, ar = struct.unpack('!HHHHHH', data[:12])
     r, z, ra, rd, tc, aa, o, qr = split_bits(x, 4, 3, 1, 1, 1, 1, 4, 1)
     ans = DNSMessage(qr, rqid, o, aa, tc, rd, ra, r)
-    l, ans.qd = ans.parse_entry(REQUEST, data, 12, qd)
-    l, ans.an = ans.parse_entry(RESPONSE, data, l, an)
-    l, ans.ns = ans.parse_entry(RESPONSE, data, l, ns)
-    l, ans.ar = ans.parse_entry(RESPONSE, data, l, ar)
+    l, ans.qd = parse_message_entry(REQUEST, data, 12, qd)
+    l, ans.an = parse_message_entry(RESPONSE, data, l, an)
+    l, ans.ns = parse_message_entry(RESPONSE, data, l, ns)
+    l, ans.ar = parse_message_entry(RESPONSE, data, l, ar)
     return ans
 
 
