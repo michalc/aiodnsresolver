@@ -34,18 +34,21 @@ def load_name(data, cursor):
         return byte(offset) >= 192
 
     labels = []
-    followed_pointer = False
+    followed_pointers = []
+    local_cursor = cursor
 
     while True:
-        if not followed_pointer and is_pointer(cursor):
-            followed_pointer = True
-            pointer_cursor = (byte(cursor) - 192) * 256 + byte(cursor + 1)
-            cursor += 2
+        if is_pointer(local_cursor):
+            if not followed_pointers:
+                cursor += 2
+            local_cursor = (byte(local_cursor) - 192) * 256 + byte(local_cursor + 1)
+            followed_pointers.append(local_cursor)
+            if len(followed_pointers) != len(set(followed_pointers)):
+                raise Exception('Pointer loop')
 
-        if followed_pointer:
-            pointer_cursor, label = load_label(pointer_cursor)
-        else:
-            cursor, label = load_label(cursor)
+        local_cursor, label = load_label(local_cursor)
+        if not followed_pointers:
+            cursor = local_cursor
 
         if label:
             labels.append(label)
