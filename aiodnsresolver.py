@@ -80,9 +80,8 @@ class Record:
         self.name = name
         self.qtype = qtype
         self.qclass = qclass
-        if q == RESPONSE:
-            self.ttl = ttl
-            self.data = data
+        self.ttl = ttl
+        self.data = data
 
     def parse(self, data, l):
         l, self.name = load_name(data, l)
