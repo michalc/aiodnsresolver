@@ -53,20 +53,6 @@ def load_name(data, cursor):
     return cursor, (b'.'.join(labels)).lower().decode()
 
 
-def pack_string(string, btype):
-    '''Pack string into `{length}{data}` format.'''
-    string_ascii = string.encode()
-    length = len(string_ascii)
-    return struct.pack('B%ds' % (length), length, string_ascii)
-
-
-def pack_name(name):
-    return b''.join([
-        pack_string(part, 'B')
-        for part in name.split('.')
-    ]) + b'\0'
-
-
 class Record:
     def __init__(self, q=RESPONSE, name='', qtype=TYPES.ANY, qclass=1, ttl=0, data=None):
         self.q = q
@@ -113,6 +99,18 @@ class DNSMessage:
         self.ar = []
 
     def pack(self):
+
+        def pack_string(string, btype):
+            string_ascii = string.encode()
+            length = len(string_ascii)
+            return struct.pack('B%ds' % (length), length, string_ascii)
+
+        def pack_name(name):
+            return b''.join([
+                pack_string(part, 'B')
+                for part in name.split('.')
+            ]) + b'\0'
+
         header = struct.pack(
             '!HHHHHH',
             self.qid,
