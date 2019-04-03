@@ -121,9 +121,8 @@ def parse(data):
         return l, RequestRecord(name, qtype, qclass)
 
     def parse_response_record(l):
-        l, name = load_name(data, l)
-        qtype, qclass = struct.unpack('!HH', data[l: l + 4])
-        l += 4
+        # The start is same as the request record
+        l, (name, qtype, qclass) = parse_request_record(l)
         ttl, dl = struct.unpack('!LH', data[l: l + 6])
         l += 6
         if qtype == TYPES.A:
