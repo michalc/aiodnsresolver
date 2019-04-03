@@ -204,11 +204,11 @@ def Resolver():
             while True:
 
                 for addr in nameservers:
-                    # try:
+                    try:
                         answers = await memoized_udp_request(addr, fqdn, qtype)
                         break
-                    # except:
-                    #     continue
+                    except:
+                        continue
 
                 if answers and answers[0].qtype == qtype:
                     return [answer.data for answer in answers if answer.name == fqdn]
