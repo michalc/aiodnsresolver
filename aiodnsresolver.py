@@ -129,14 +129,6 @@ def pack_message(message):
     return header + records
 
 
-def parse_message_entry(qr, data, l, n):
-    res = []
-    for i in range(n):
-        l, r = parse_record(qr, data, l)
-        res.append(r)
-    return l, res
-
-
 def parse_message(data):
 
     def split_bits(num, *lengths):
@@ -145,13 +137,20 @@ def parse_message(data):
             yield num - (high << length)
             num = high
 
+    def parse_entry(qr, l, n):
+        res = []
+        for i in range(n):
+            l, r = parse_record(qr, data, l)
+            res.append(r)
+        return l, res
+
     rqid, x, qd_num, an_num, ns_num, ar_num = struct.unpack('!HHHHHH', data[:12])
     r, z, ra, rd, tc, aa, o, qr = split_bits(x, 4, 3, 1, 1, 1, 1, 4, 1)
 
-    l, qd = parse_message_entry(REQUEST, data, 12, qd_num)
-    l, an = parse_message_entry(RESPONSE, data, l, an_num)
-    l, ns = parse_message_entry(RESPONSE, data, l, ns_num)
-    l, ar = parse_message_entry(RESPONSE, data, l, ar_num)
+    l, qd = parse_entry(REQUEST, 12, qd_num)
+    l, an = parse_entry(RESPONSE, l, an_num)
+    l, ns = parse_entry(RESPONSE, l, ns_num)
+    l, ar = parse_entry(RESPONSE, l, ar_num)
 
     return DNSMessage(qr, rqid, o, aa, tc, rd, ra, r, qd, an, ns, ar)
 
