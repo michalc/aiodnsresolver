@@ -155,9 +155,7 @@ class DNSMessage:
 
     def pack(self):
         z = 0
-        # TODO update self.tc
-        buf = io.BytesIO()
-        buf.write(struct.pack(
+        header = struct.pack(
             '!HHHHHH',
             self.qid,
             (self.qr << 15) + (self.o << 11) + (self.aa << 10) + (self.tc << 9) + (self.rd << 8) + (self.ra << 7) + (z << 4) + self.r,
@@ -165,11 +163,13 @@ class DNSMessage:
             len(self.an),
             len(self.ns),
             len(self.ar)
-        ))
-        for group in self.qd, self.an, self.ns, self.ar:
-            for rec in group:
-                buf.write(rec.pack())
-        return buf.getvalue()
+        )
+        records = b''.join([
+            rec.pack()
+            for group in (self.qd, self.an, self.ns, self.ar)
+            for rec in group
+        ])
+        return header + records
 
     @staticmethod
     def parse_entry(qr, data, l, n):
