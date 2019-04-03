@@ -7,7 +7,6 @@ import os
 import secrets
 import socket
 import struct
-import time
 
 REQUEST = 0
 RESPONSE = 1
@@ -84,14 +83,12 @@ class Record:
         if q == RESPONSE:
             self.ttl = ttl
             self.data = data
-            self.timestamp = int(time.time())
 
     def parse(self, data, l):
         l, self.name = load_name(data, l)
         self.qtype, self.qclass = struct.unpack('!HH', data[l: l + 4])
         l += 4
         if self.q == RESPONSE:
-            self.timestamp = int(time.time())
             self.ttl, dl = struct.unpack('!LH', data[l: l + 6])
             l += 6
             if self.qtype == TYPES.A:
