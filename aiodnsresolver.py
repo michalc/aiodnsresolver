@@ -252,8 +252,8 @@ def Resolver():
                         continue
 
                 if answers and answers[0].qtype == qtype:
-                    return [answer.data for answer in answers]
-                elif answers and answers[0].qtype == TYPES.CNAME:
+                    return [answer.data for answer in answers if answer.name == fqdn]
+                elif answers and answers[0].qtype == TYPES.CNAME and answers[0].name == fqdn:
                     fqdn = answers[0].data
                 else:
                     raise Exception()
