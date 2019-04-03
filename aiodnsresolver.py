@@ -18,8 +18,8 @@ TYPES = collections.namedtuple('Types', [
 )
 
 DNSMessage = collections.namedtuple('DNSMessage', [
-    'qr',   # 0: request, 1: response
     'qid',  # query id
+    'qr',   # 0: request, 1: response
     'o',    # opcode, 0: for standard query
     'aa',   # Authoritative Answer
     'tc',   # TrunCation
@@ -152,13 +152,13 @@ def parse(data):
     l, ns = parse_entry(parse_response_record, l, ns_num)
     l, ar = parse_entry(parse_response_record, l, ar_num)
 
-    return DNSMessage(qr, qid, o, aa, tc, rd, ra, r, qd, an, ns, ar)
+    return DNSMessage(qid, qr, o, aa, tc, rd, ra, r, qd, an, ns, ar)
 
 
 async def udp_request(addr, fqdn, qtype):
     loop = asyncio.get_event_loop()
     req = DNSMessage(
-        qr=REQUEST, qid=secrets.randbelow(65536), o=0, aa=0, tc=0, rd=1, ra=0, r=0,
+        qid=secrets.randbelow(65536), qr=REQUEST, o=0, aa=0, tc=0, rd=1, ra=0, r=0,
         qd=[RequestRecord(fqdn, qtype, qclass=1)], an=[], ns=[], ar=[],
     )
 
