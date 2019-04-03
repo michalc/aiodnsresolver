@@ -159,7 +159,7 @@ async def udp_request(addr, fqdn, qtype):
     loop = asyncio.get_event_loop()
     req = DNSMessage(
         qr=REQUEST, qid=secrets.randbelow(65536), o=0, aa=0, tc=0, rd=1, ra=0, r=0,
-        qd=[Record(REQUEST, fqdn, qtype)], an=[], ns=[], ar=[],
+        qd=[Record(REQUEST, fqdn, qtype, qclass=1, ttl=0, data=b'')], an=[], ns=[], ar=[],
     )
 
     with timeout(3.0):
