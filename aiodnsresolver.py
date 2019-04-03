@@ -4,7 +4,6 @@ import contextlib
 import io
 import ipaddress
 import os
-import random
 import secrets
 import socket
 import struct
