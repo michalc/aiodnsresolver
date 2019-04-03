@@ -10,7 +10,6 @@ import struct
 
 REQUEST = 0
 RESPONSE = 1
-MAXAGE = 3600000
 
 TYPES = collections.namedtuple('Types', [
     'NONE', 'A', 'NS', 'CNAME', 'SOA', 'PTR', 'MX', 'AAAA', 'SRV', 'NAPTR', 'ANY',
