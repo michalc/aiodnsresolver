@@ -162,7 +162,7 @@ class DNSMessage:
             len(self.qd),
             len(self.an),
             len(self.ns),
-            len(self.ar)
+            len(self.ar),
         )
         records = b''.join([
             rec.pack()
