@@ -154,11 +154,10 @@ class DNSMessage:
         self.ar = []
 
     def pack(self):
-        z = 0
         header = struct.pack(
             '!HHHHHH',
             self.qid,
-            (self.qr << 15) + (self.o << 11) + (self.aa << 10) + (self.tc << 9) + (self.rd << 8) + (self.ra << 7) + (z << 4) + self.r,
+            (self.qr << 15) + (self.o << 11) + (self.aa << 10) + (self.tc << 9) + (self.rd << 8) + (self.ra << 7) + self.r,
             len(self.qd),
             len(self.an),
             len(self.ns),
