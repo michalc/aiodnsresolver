@@ -144,16 +144,15 @@ class DNSMessage:
             res.append(r)
         return l, res
 
-    @classmethod
-    def parse(cls, data):
-        rqid, x, qd, an, ns, ar = struct.unpack('!HHHHHH', data[:12])
-        r, z, ra, rd, tc, aa, o, qr = split_bits(x, 4, 3, 1, 1, 1, 1, 4, 1)
-        ans = cls(qr, rqid, o, aa, tc, rd, ra, r)
-        l, ans.qd = ans.parse_entry(REQUEST, data, 12, qd)
-        l, ans.an = ans.parse_entry(RESPONSE, data, l, an)
-        l, ans.ns = ans.parse_entry(RESPONSE, data, l, ns)
-        l, ans.ar = ans.parse_entry(RESPONSE, data, l, ar)
-        return ans
+def parse_message(data):
+    rqid, x, qd, an, ns, ar = struct.unpack('!HHHHHH', data[:12])
+    r, z, ra, rd, tc, aa, o, qr = split_bits(x, 4, 3, 1, 1, 1, 1, 4, 1)
+    ans = DNSMessage(qr, rqid, o, aa, tc, rd, ra, r)
+    l, ans.qd = ans.parse_entry(REQUEST, data, 12, qd)
+    l, ans.an = ans.parse_entry(RESPONSE, data, l, an)
+    l, ans.ns = ans.parse_entry(RESPONSE, data, l, ns)
+    l, ans.ar = ans.parse_entry(RESPONSE, data, l, ar)
+    return ans
 
 
 async def udp_request(addr, fqdn, qtype):
@@ -171,7 +170,7 @@ async def udp_request(addr, fqdn, qtype):
 
             while True:
                 response_data = await loop.sock_recv(sock, 512)
-                cres = DNSMessage.parse(response_data)
+                cres = parse_message(response_data)
 
                 if cres.qid == req.qid and cres.qd[0].name == req.qd[0].name:
                     if cres.r != 0:
