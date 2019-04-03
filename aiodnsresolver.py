@@ -145,7 +145,7 @@ def parse(data):
             res.append(r)
         return l, res
 
-    rqid, x, qd_num, an_num, ns_num, ar_num = struct.unpack('!HHHHHH', data[:12])
+    qid, x, qd_num, an_num, ns_num, ar_num = struct.unpack('!HHHHHH', data[:12])
     r, z, ra, rd, tc, aa, o, qr = split_bits(x, 4, 3, 1, 1, 1, 1, 4, 1)
 
     l, qd = parse_entry(parse_request_record, 12, qd_num)
@@ -153,7 +153,7 @@ def parse(data):
     l, ns = parse_entry(parse_response_record, l, ns_num)
     l, ar = parse_entry(parse_response_record, l, ar_num)
 
-    return DNSMessage(qr, rqid, o, aa, tc, rd, ra, r, qd, an, ns, ar)
+    return DNSMessage(qr, qid, o, aa, tc, rd, ra, r, qd, an, ns, ar)
 
 
 async def udp_request(addr, fqdn, qtype):
