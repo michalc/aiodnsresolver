@@ -60,13 +60,6 @@ def pack_string(string, btype):
     return struct.pack('%s%ds' % (btype, length), length, string_ascii)
 
 
-def split_bits(num, *lengths):
-    for length in lengths:
-        high = num >> length
-        yield num - (high << length)
-        num = high
-
-
 def pack_name(name):
     return b''.join([
         pack_string(part, 'B')
@@ -146,6 +139,13 @@ def parse_message_entry(qr, data, l, n):
 
 
 def parse_message(data):
+
+    def split_bits(num, *lengths):
+        for length in lengths:
+            high = num >> length
+            yield num - (high << length)
+            num = high
+
     rqid, x, qd, an, ns, ar = struct.unpack('!HHHHHH', data[:12])
     r, z, ra, rd, tc, aa, o, qr = split_bits(x, 4, 3, 1, 1, 1, 1, 4, 1)
     ans = DNSMessage(qr, rqid, o, aa, tc, rd, ra, r)
