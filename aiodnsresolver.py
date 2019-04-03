@@ -87,12 +87,6 @@ class Record:
             self.data = data
             self.timestamp = int(time.time())
 
-    def update(self, other):
-        if (self.name, self.qtype, self.data) == (other.name, other.qtype, other.data):
-            if self.ttl and other.ttl > self.ttl:
-                self.ttl = other.ttl
-            return self
-
     def parse(self, data, l):
         l, self.name = load_name(data, l)
         self.qtype, self.qclass = struct.unpack('!HH', data[l: l + 4])
