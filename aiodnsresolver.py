@@ -98,34 +98,35 @@ class DNSMessage:
         self.ns = []
         self.ar = []
 
-    def pack(self):
+def pack_message(message):
 
-        def pack_string(string, btype):
-            string_ascii = string.encode()
-            length = len(string_ascii)
-            return struct.pack('B%ds' % (length), length, string_ascii)
+    def pack_string(string, btype):
+        string_ascii = string.encode()
+        length = len(string_ascii)
+        return struct.pack('B%ds' % (length), length, string_ascii)
 
-        def pack_name(name):
-            return b''.join([
-                pack_string(part, 'B')
-                for part in name.split('.')
-            ]) + b'\0'
+    def pack_name(name):
+        return b''.join([
+            pack_string(part, 'B')
+            for part in name.split('.')
+        ]) + b'\0'
 
-        header = struct.pack(
-            '!HHHHHH',
-            self.qid,
-            (self.qr << 15) + (self.o << 11) + (self.aa << 10) + (self.tc << 9) + (self.rd << 8) + (self.ra << 7) + self.r,
-            len(self.qd),
-            len(self.an),
-            len(self.ns),
-            len(self.ar),
-        )
-        records = b''.join([
-            pack_name(rec.name) + struct.pack('!HH', rec.qtype, rec.qclass)
-            for group in (self.qd, self.an, self.ns, self.ar)
-            for rec in group
-        ])
-        return header + records
+    header = struct.pack(
+        '!HHHHHH',
+        message.qid,
+        (message.qr << 15) + (message.o << 11) + (message.aa << 10) + (message.tc << 9) +
+        (message.rd << 8) + (message.ra << 7) + message.r,
+        len(message.qd),
+        len(message.an),
+        len(message.ns),
+        len(message.ar),
+    )
+    records = b''.join([
+        pack_name(rec.name) + struct.pack('!HH', rec.qtype, rec.qclass)
+        for group in (message.qd, message.an, message.ns, message.ar)
+        for rec in group
+    ])
+    return header + records
 
 
 def parse_message_entry(qr, data, l, n):
@@ -165,7 +166,7 @@ async def udp_request(addr, fqdn, qtype):
         try:
             sock.setblocking(False)
             await loop.sock_connect(sock, addr)
-            await loop.sock_sendall(sock, req.pack())
+            await loop.sock_sendall(sock, pack_message(req))
 
             while True:
                 response_data = await loop.sock_recv(sock, 512)
