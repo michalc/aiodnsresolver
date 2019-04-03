@@ -109,26 +109,6 @@ class Record:
         buf = io.BytesIO()
         buf.write(pack_name(self.name))
         buf.write(struct.pack('!HH', self.qtype, self.qclass))
-        if self.q == RESPONSE:
-            if self.ttl < 0:
-                ttl = MAXAGE
-            else:
-                now = int(time.time())
-                self.ttl -= now - self.timestamp
-                if self.ttl < 0:
-                    self.ttl = 0
-                self.timestamp = now
-                ttl = self.ttl
-            buf.write(struct.pack('!L', ttl))
-            if self.qtype == TYPES.A:
-                buf.write(pack_string(socket.inet_aton(self.data), '!H'))
-            elif self.qtype == TYPES.AAAA:
-                buf.write(pack_string(socket.inet_pton(socket.AF_INET6, self.data), '!H'))
-            elif self.qtype in (TYPES.CNAME, TYPES.NS, TYPES.PTR):
-                name = pack_name(self.data)
-                buf.write(pack_string(name, '!H'))
-            else:
-                buf.write(pack_string(self.data, '!H'))
         return buf.getvalue()
 
 class DNSMessage:
