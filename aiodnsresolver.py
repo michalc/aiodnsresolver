@@ -102,10 +102,6 @@ class Record:
         return l
 
 
-def pack_record(record):
-    return pack_name(record.name) + struct.pack('!HH', record.qtype, record.qclass)
-
-
 class DNSMessage:
     def __init__(self, qr, qid, o, aa, tc, rd, ra, r):
         self.qr = qr      # 0 for request, 1 for response
@@ -132,7 +128,7 @@ class DNSMessage:
             len(self.ar),
         )
         records = b''.join([
-            pack_record(rec)
+            pack_name(rec.name) + struct.pack('!HH', rec.qtype, rec.qclass)
             for group in (self.qd, self.an, self.ns, self.ar)
             for rec in group
         ])
