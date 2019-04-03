@@ -18,6 +18,21 @@ TYPES = collections.namedtuple('Types', [
     NONE=0, A=1, NS=2, CNAME=5, SOA=6, PTR=12, MX=15, AAAA=28, SRV=33, NAPTR=35, ANY=255,
 )
 
+DNSMessage = collections.namedtuple('DNSMessage', [
+    'qr',   # 0: request, 1: response
+    'qid',  # query id
+    'o',    # opcode, 0: for standard query
+    'aa',   # Authoritative Answer
+    'tc',   # TrunCation
+    'rd',   # Recursion Desired
+    'ra',   # Recursion Available
+    'r',    # rcode, 0: success
+    'qd',
+    'an',
+    'ns',
+    'ar',
+])
+
 
 def load_name(data, cursor):
 
@@ -83,21 +98,6 @@ def parse_record(qr, data, l):
     return l, r
 
 
-class DNSMessage:
-    def __init__(self, qr, qid, o, aa, tc, rd, ra, r):
-        self.qr = qr      # 0 for request, 1 for response
-        self.qid = qid    # id for UDP package
-        self.o = o        # opcode: 0 for standard query
-        self.aa = aa      # Authoritative Answer
-        self.tc = tc      # TrunCation
-        self.rd = rd      # Recursion Desired for request
-        self.ra = ra      # Recursion Available for response
-        self.r = r        # rcode: 0 for success
-        self.qd = []
-        self.an = []
-        self.ns = []
-        self.ar = []
-
 def pack_message(message):
 
     def pack_string(string, btype):
@@ -145,20 +145,23 @@ def parse_message(data):
             yield num - (high << length)
             num = high
 
-    rqid, x, qd, an, ns, ar = struct.unpack('!HHHHHH', data[:12])
+    rqid, x, qd_num, an_num, ns_num, ar_num = struct.unpack('!HHHHHH', data[:12])
     r, z, ra, rd, tc, aa, o, qr = split_bits(x, 4, 3, 1, 1, 1, 1, 4, 1)
-    ans = DNSMessage(qr, rqid, o, aa, tc, rd, ra, r)
-    l, ans.qd = parse_message_entry(REQUEST, data, 12, qd)
-    l, ans.an = parse_message_entry(RESPONSE, data, l, an)
-    l, ans.ns = parse_message_entry(RESPONSE, data, l, ns)
-    l, ans.ar = parse_message_entry(RESPONSE, data, l, ar)
-    return ans
+
+    l, qd = parse_message_entry(REQUEST, data, 12, qd_num)
+    l, an = parse_message_entry(RESPONSE, data, l, an_num)
+    l, ns = parse_message_entry(RESPONSE, data, l, ns_num)
+    l, ar = parse_message_entry(RESPONSE, data, l, ar_num)
+
+    return DNSMessage(qr, rqid, o, aa, tc, rd, ra, r, qd, an, ns, ar)
 
 
 async def udp_request(addr, fqdn, qtype):
     loop = asyncio.get_event_loop()
-    req = DNSMessage(qr=REQUEST, qid=secrets.randbelow(65536), o=0, aa=0, tc=0, rd=1, ra=0, r=0)
-    req.qd = [Record(REQUEST, fqdn, qtype)]
+    req = DNSMessage(
+        qr=REQUEST, qid=secrets.randbelow(65536), o=0, aa=0, tc=0, rd=1, ra=0, r=0,
+        qd=[Record(REQUEST, fqdn, qtype)], an=[], ns=[], ar=[],
+    )
 
     with timeout(3.0):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
