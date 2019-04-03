@@ -76,32 +76,6 @@ def load_name(data, cursor):
     return cursor, (b'.'.join(labels)).lower().decode()
 
 
-def parse_request_record(data, l):
-    l, name = load_name(data, l)
-    qtype, qclass = struct.unpack('!HH', data[l: l + 4])
-    l += 4
-    return l, RequestRecord(name, qtype, qclass)
-
-
-def parse_response_record(data, l):
-    l, name = load_name(data, l)
-    qtype, qclass = struct.unpack('!HH', data[l: l + 4])
-    l += 4
-    ttl, dl = struct.unpack('!LH', data[l: l + 6])
-    l += 6
-    if qtype == TYPES.A:
-        record_data = socket.inet_ntop(socket.AF_INET, data[l: l + dl])
-    elif qtype == TYPES.AAAA:
-        record_data = socket.inet_ntop(socket.AF_INET6, data[l: l + dl])
-    elif qtype == TYPES.CNAME:
-        _, record_data = load_name(data, l)
-    else:
-        record_data = data[l: l + dl]
-    l += dl
-
-    return l, ResponseRecord(name, qtype, qclass, ttl, record_data)
-
-
 def pack_message(message):
 
     def pack_string(string, btype):
@@ -141,10 +115,34 @@ def parse_message(data):
             yield num - (high << length)
             num = high
 
+    def parse_request_record(l):
+        l, name = load_name(data, l)
+        qtype, qclass = struct.unpack('!HH', data[l: l + 4])
+        l += 4
+        return l, RequestRecord(name, qtype, qclass)
+
+    def parse_response_record(l):
+        l, name = load_name(data, l)
+        qtype, qclass = struct.unpack('!HH', data[l: l + 4])
+        l += 4
+        ttl, dl = struct.unpack('!LH', data[l: l + 6])
+        l += 6
+        if qtype == TYPES.A:
+            record_data = socket.inet_ntop(socket.AF_INET, data[l: l + dl])
+        elif qtype == TYPES.AAAA:
+            record_data = socket.inet_ntop(socket.AF_INET6, data[l: l + dl])
+        elif qtype == TYPES.CNAME:
+            _, record_data = load_name(data, l)
+        else:
+            record_data = data[l: l + dl]
+        l += dl
+
+        return l, ResponseRecord(name, qtype, qclass, ttl, record_data)
+
     def parse_entry(record_parser, l, n):
         res = []
         for i in range(n):
-            l, r = record_parser(data, l)
+            l, r = record_parser(l)
             res.append(r)
         return l, res
 
