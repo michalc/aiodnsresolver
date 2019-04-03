@@ -69,7 +69,7 @@ def load_name(data, cursor):
 
 
 class Record:
-    def __init__(self, q=RESPONSE, name='', qtype=TYPES.ANY, qclass=1, ttl=0, data=None):
+    def __init__(self, q, name, qtype, qclass, ttl, data):
         self.q = q
         self.name = name
         self.qtype = qtype
@@ -79,7 +79,7 @@ class Record:
 
 
 def parse_record(qr, data, l):
-    r = Record(qr)
+    r = Record(qr, '', TYPES.ANY, qclass=1, ttl=0, data=None)
     l, r.name = load_name(data, l)
     r.qtype, r.qclass = struct.unpack('!HH', data[l: l + 4])
     l += 4
