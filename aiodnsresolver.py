@@ -112,7 +112,7 @@ class Record:
             l += dl
         return l
 
-    def pack(self, offset=0):
+    def pack(self):
         buf = io.BytesIO()
         buf.write(pack_name(self.name))
         buf.write(struct.pack('!HH', self.qtype, self.qclass))
@@ -168,7 +168,7 @@ class DNSMessage:
         ))
         for group in self.qd, self.an, self.ns, self.ar:
             for rec in group:
-                buf.write(rec.pack(buf.tell()))
+                buf.write(rec.pack())
         return buf.getvalue()
 
     @staticmethod
