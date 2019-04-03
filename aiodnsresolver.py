@@ -106,10 +106,8 @@ class Record:
         return l
 
     def pack(self):
-        buf = io.BytesIO()
-        buf.write(pack_name(self.name))
-        buf.write(struct.pack('!HH', self.qtype, self.qclass))
-        return buf.getvalue()
+        return pack_name(self.name) + struct.pack('!HH', self.qtype, self.qclass)
+
 
 class DNSMessage:
     def __init__(self, qr, qid, o, aa, tc, rd, ra, r):
