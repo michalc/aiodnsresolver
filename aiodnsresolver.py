@@ -83,23 +83,25 @@ class Record:
         self.ttl = ttl
         self.data = data
 
-    def parse(self, data, l):
-        l, self.name = load_name(data, l)
-        self.qtype, self.qclass = struct.unpack('!HH', data[l: l + 4])
-        l += 4
-        if self.q == RESPONSE:
-            self.ttl, dl = struct.unpack('!LH', data[l: l + 6])
-            l += 6
-            if self.qtype == TYPES.A:
-                self.data = socket.inet_ntop(socket.AF_INET, data[l: l + dl])
-            elif self.qtype == TYPES.AAAA:
-                self.data = socket.inet_ntop(socket.AF_INET6, data[l: l + dl])
-            elif self.qtype == TYPES.CNAME:
-                _, self.data = load_name(data, l)
-            else:
-                self.data = data[l: l + dl]
-            l += dl
-        return l
+
+def parse_record(qr, data, l):
+    r = Record(qr)
+    l, r.name = load_name(data, l)
+    r.qtype, r.qclass = struct.unpack('!HH', data[l: l + 4])
+    l += 4
+    if r.q == RESPONSE:
+        r.ttl, dl = struct.unpack('!LH', data[l: l + 6])
+        l += 6
+        if r.qtype == TYPES.A:
+            r.data = socket.inet_ntop(socket.AF_INET, data[l: l + dl])
+        elif r.qtype == TYPES.AAAA:
+            r.data = socket.inet_ntop(socket.AF_INET6, data[l: l + dl])
+        elif r.qtype == TYPES.CNAME:
+            _, r.data = load_name(data, l)
+        else:
+            r.data = data[l: l + dl]
+        l += dl
+    return l, r
 
 
 class DNSMessage:
@@ -138,8 +140,7 @@ class DNSMessage:
     def parse_entry(qr, data, l, n):
         res = []
         for i in range(n):
-            r = Record(qr)
-            l = r.parse(data, l)
+            l, r = parse_record(qr, data, l)
             res.append(r)
         return l, res
 
