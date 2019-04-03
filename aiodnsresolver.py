@@ -33,6 +33,10 @@ DNSMessage = collections.namedtuple('DNSMessage', [
     'ar',
 ])
 
+Record = collections.namedtuple('Record', [
+    'q', 'name', 'qtype', 'qclass', 'ttl', 'data',
+])
+
 
 def load_name(data, cursor):
 
@@ -68,34 +72,27 @@ def load_name(data, cursor):
     return cursor, (b'.'.join(labels)).lower().decode()
 
 
-class Record:
-    def __init__(self, q, name, qtype, qclass, ttl, data):
-        self.q = q
-        self.name = name
-        self.qtype = qtype
-        self.qclass = qclass
-        self.ttl = ttl
-        self.data = data
-
-
 def parse_record(qr, data, l):
-    r = Record(qr, '', TYPES.ANY, qclass=1, ttl=0, data=None)
-    l, r.name = load_name(data, l)
-    r.qtype, r.qclass = struct.unpack('!HH', data[l: l + 4])
+    l, name = load_name(data, l)
+    qtype, qclass = struct.unpack('!HH', data[l: l + 4])
     l += 4
-    if r.q == RESPONSE:
-        r.ttl, dl = struct.unpack('!LH', data[l: l + 6])
+    if qr == RESPONSE:
+        ttl, dl = struct.unpack('!LH', data[l: l + 6])
         l += 6
-        if r.qtype == TYPES.A:
-            r.data = socket.inet_ntop(socket.AF_INET, data[l: l + dl])
-        elif r.qtype == TYPES.AAAA:
-            r.data = socket.inet_ntop(socket.AF_INET6, data[l: l + dl])
-        elif r.qtype == TYPES.CNAME:
-            _, r.data = load_name(data, l)
+        if qtype == TYPES.A:
+            record_data = socket.inet_ntop(socket.AF_INET, data[l: l + dl])
+        elif qtype == TYPES.AAAA:
+            record_data = socket.inet_ntop(socket.AF_INET6, data[l: l + dl])
+        elif qtype == TYPES.CNAME:
+            _, record_data = load_name(data, l)
         else:
-            r.data = data[l: l + dl]
+            record_data = data[l: l + dl]
         l += dl
-    return l, r
+    else:
+        ttl = 0
+        record_data = b''
+
+    return l, Record(qr, name, qtype, qclass, ttl, record_data)
 
 
 def pack_message(message):
@@ -204,11 +201,11 @@ def Resolver():
             while True:
 
                 for addr in nameservers:
-                    try:
+                    # try:
                         answers = await memoized_udp_request(addr, fqdn, qtype)
                         break
-                    except:
-                        continue
+                    # except:
+                    #     continue
 
                 if answers and answers[0].qtype == qtype:
                     return [answer.data for answer in answers if answer.name == fqdn]
