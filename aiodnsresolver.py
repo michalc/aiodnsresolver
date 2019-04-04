@@ -202,7 +202,7 @@ def Resolver():
 
             while True:
 
-                for addr in nameservers:
+                for addr in get_nameservers():
                     try:
                         answers = await memoized_udp_request(addr, fqdn, qtype)
                         break
@@ -219,7 +219,6 @@ def Resolver():
     def get_ttl(answers):
         return min([answer.ttl for answer in answers])
 
-    nameservers = get_nameservers()
     memoized_udp_request = memoize_ttl(udp_request, get_ttl)
 
     return resolve
