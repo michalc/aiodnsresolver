@@ -1,8 +1,6 @@
 import asyncio
 import collections
 import contextlib
-import io
-import ipaddress
 import os
 import secrets
 import socket
