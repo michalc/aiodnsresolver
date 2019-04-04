@@ -18,14 +18,14 @@ TYPES = collections.namedtuple('Types', [
 )
 
 DNSMessage = collections.namedtuple('DNSMessage', [
-    'qid',  # query id
-    'qr',   # 0: request, 1: response
-    'o',    # opcode, 0: for standard query
-    'aa',   # Authoritative Answer
-    'tc',   # TrunCation
-    'rd',   # Recursion Desired
-    'ra',   # Recursion Available
-    'r',    # rcode, 0: success
+    'qid',     # query id
+    'qr',      # 0: request, 1: response
+    'opcode',  # 0: for standard query
+    'aa',      # Authoritative Answer
+    'tc',      # TrunCation
+    'rd',      # Recursion Desired
+    'ra',      # Recursion Available
+    'rcode',   # 0: success
     'qd',
     'an',
     'ns',
@@ -57,8 +57,8 @@ def pack(message):
     header = struct.pack(
         '!HHHHHH',
         message.qid,
-        (message.qr << 15) + (message.o << 11) + (message.aa << 10) + (message.tc << 9) +
-        (message.rd << 8) + (message.ra << 7) + message.r,
+        (message.qr << 15) + (message.opcode << 11) + (message.aa << 10) + (message.tc << 9) +
+        (message.rd << 8) + (message.ra << 7) + message.rcode,
         len(message.qd),
         len(message.an),
         len(message.ns),
@@ -142,7 +142,7 @@ def parse(data):
         return tuple(record_parser() for _ in range(n))
 
     qid, x, qd_num, an_num, ns_num, ar_num = struct.unpack('!HHHHHH', data[:12])
-    r, z, ra, rd, tc, aa, o, qr = split_bits(x, 4, 3, 1, 1, 1, 1, 4, 1)
+    rcode, z, ra, rd, tc, aa, opcode, qr = split_bits(x, 4, 3, 1, 1, 1, 1, 4, 1)
 
     l = 12
     qd = parse_group(parse_request_record, qd_num)
@@ -150,13 +150,13 @@ def parse(data):
     ns = parse_group(parse_response_record, ns_num)
     ar = parse_group(parse_response_record, ar_num)
 
-    return DNSMessage(qid, qr, o, aa, tc, rd, ra, r, qd, an, ns, ar)
+    return DNSMessage(qid, qr, opcode, aa, tc, rd, ra, rcode, qd, an, ns, ar)
 
 
 async def udp_request(addr, fqdn, qtype):
     loop = asyncio.get_event_loop()
     req = DNSMessage(
-        qid=secrets.randbelow(65536), qr=REQUEST, o=0, aa=0, tc=0, rd=1, ra=0, r=0,
+        qid=secrets.randbelow(65536), qr=REQUEST, opcode=0, aa=0, tc=0, rd=1, ra=0, rcode=0,
         qd=(RequestRecord(fqdn, qtype, qclass=1),), an=[], ns=[], ar=[],
     )
 
@@ -173,7 +173,7 @@ async def udp_request(addr, fqdn, qtype):
                 cres = parse(response_data)
 
                 if cres.qid == req.qid and cres.qd[0].name == req.qd[0].name:
-                    if cres.r != 0:
+                    if cres.rcode != 0:
                         raise Exception()
                     else:
                         return cres.an
