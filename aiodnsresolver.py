@@ -81,11 +81,12 @@ def parse(data):
         length = byte(offset)
         return offset + length + 1, data[offset + 1:offset + 1 + length]
 
-    def load_name(data, cursor):
+    def load_name(data):
+        nonlocal l
 
         labels = []
         followed_pointers = []
-        local_cursor = cursor
+        local_cursor = l
 
         while True:
             if byte(local_cursor) >= 192:  # is pointer
@@ -94,18 +95,18 @@ def parse(data):
                 if len(followed_pointers) != len(set(followed_pointers)):
                     raise Exception('Pointer loop')
                 if len(followed_pointers) == 1:
-                    cursor += 2
+                    l += 2
 
             local_cursor, label = load_label(local_cursor)
             if not followed_pointers:
-                cursor = local_cursor
+                l = local_cursor
 
             if label:
                 labels.append(label)
             else:
                 break
 
-        return cursor, (b'.'.join(labels)).lower().decode()
+        return (b'.'.join(labels)).lower().decode()
 
     def split_bits(num, *lengths):
         for length in lengths:
@@ -115,7 +116,7 @@ def parse(data):
 
     def parse_request_record():
         nonlocal l
-        l, name = load_name(data, l)
+        name = load_name(data)
         qtype, qclass = struct.unpack('!HH', data[l: l + 4])
         l += 4
         return RequestRecord(name, qtype, qclass)
@@ -133,7 +134,7 @@ def parse(data):
             record_data = socket.inet_ntop(socket.AF_INET6, data[l: l + dl])
             l += dl
         elif qtype == TYPES.CNAME:
-            l, record_data = load_name(data, l)
+            record_data = load_name(data)
         else:
             record_data = data[l: l + dl]
             l += dl
