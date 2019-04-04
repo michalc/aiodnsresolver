@@ -28,7 +28,7 @@ RequestRecord = collections.namedtuple('Record', [
 ])
 
 ResponseRecord = collections.namedtuple('Record', [
-    'name', 'qtype', 'qclass', 'ttl', 'data',
+    'name', 'qtype', 'qclass', 'ttl', 'rdata',
 ])
 
 
@@ -199,9 +199,9 @@ def Resolver():
                         continue
 
                 if answers and answers[0].qtype == qtype:
-                    return [answer.data for answer in answers if answer.name == fqdn]
+                    return [answer.rdata for answer in answers if answer.name == fqdn]
                 elif answers and answers[0].qtype == TYPES.CNAME and answers[0].name == fqdn:
-                    fqdn = answers[0].data
+                    fqdn = answers[0].rdata
                 else:
                     raise Exception()
 
