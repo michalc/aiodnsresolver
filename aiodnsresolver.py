@@ -41,40 +41,6 @@ ResponseRecord = collections.namedtuple('Record', [
 ])
 
 
-def load_name(data, cursor):
-
-    def byte(offset):
-        return data[offset:offset + 1][0]
-
-    def load_label(offset):
-        length = byte(offset)
-        return offset + length + 1, data[offset + 1:offset + 1 + length]
-
-    labels = []
-    followed_pointers = []
-    local_cursor = cursor
-
-    while True:
-        if byte(local_cursor) >= 192:  # is pointer
-            local_cursor = (byte(local_cursor) - 192) * 256 + byte(local_cursor + 1)
-            followed_pointers.append(local_cursor)
-            if len(followed_pointers) != len(set(followed_pointers)):
-                raise Exception('Pointer loop')
-            if len(followed_pointers) == 1:
-                cursor += 2
-
-        local_cursor, label = load_label(local_cursor)
-        if not followed_pointers:
-            cursor = local_cursor
-
-        if label:
-            labels.append(label)
-        else:
-            break
-
-    return cursor, (b'.'.join(labels)).lower().decode()
-
-
 def pack(message):
 
     def pack_string(string, btype):
@@ -107,6 +73,39 @@ def pack(message):
 
 
 def parse(data):
+
+    def load_name(data, cursor):
+
+        def byte(offset):
+            return data[offset:offset + 1][0]
+
+        def load_label(offset):
+            length = byte(offset)
+            return offset + length + 1, data[offset + 1:offset + 1 + length]
+
+        labels = []
+        followed_pointers = []
+        local_cursor = cursor
+
+        while True:
+            if byte(local_cursor) >= 192:  # is pointer
+                local_cursor = (byte(local_cursor) - 192) * 256 + byte(local_cursor + 1)
+                followed_pointers.append(local_cursor)
+                if len(followed_pointers) != len(set(followed_pointers)):
+                    raise Exception('Pointer loop')
+                if len(followed_pointers) == 1:
+                    cursor += 2
+
+            local_cursor, label = load_label(local_cursor)
+            if not followed_pointers:
+                cursor = local_cursor
+
+            if label:
+                labels.append(label)
+            else:
+                break
+
+        return cursor, (b'.'.join(labels)).lower().decode()
 
     def split_bits(num, *lengths):
         for length in lengths:
