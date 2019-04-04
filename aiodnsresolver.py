@@ -128,13 +128,15 @@ def parse(data):
         l += 6
         if qtype == TYPES.A:
             record_data = socket.inet_ntop(socket.AF_INET, data[l: l + dl])
+            l += dl
         elif qtype == TYPES.AAAA:
             record_data = socket.inet_ntop(socket.AF_INET6, data[l: l + dl])
+            l += dl
         elif qtype == TYPES.CNAME:
-            _, record_data = load_name(data, l)
+            l, record_data = load_name(data, l)
         else:
             record_data = data[l: l + dl]
-        l += dl
+            l += dl
 
         return ResponseRecord(name, qtype, qclass, ttl, record_data)
 
