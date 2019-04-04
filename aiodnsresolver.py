@@ -12,9 +12,9 @@ REQUEST = 0
 RESPONSE = 1
 
 TYPES = collections.namedtuple('Types', [
-    'NONE', 'A', 'NS', 'CNAME', 'SOA', 'PTR', 'MX', 'AAAA', 'SRV', 'NAPTR', 'ANY',
+    'A', 'CNAME', 'AAAA',
 ])(
-    NONE=0, A=1, NS=2, CNAME=5, SOA=6, PTR=12, MX=15, AAAA=28, SRV=33, NAPTR=35, ANY=255,
+    A=1, CNAME=5, AAAA=28,
 )
 
 DNSMessage = collections.namedtuple('DNSMessage', [
@@ -199,7 +199,6 @@ def Resolver():
     async def resolve(fqdn, qtype):
 
         with timeout(5.0):
-            nameservers = get_nameservers()
 
             while True:
 
@@ -220,6 +219,7 @@ def Resolver():
     def get_ttl(answers):
         return min([answer.ttl for answer in answers])
 
+    nameservers = get_nameservers()
     memoized_udp_request = memoize_ttl(udp_request, get_ttl)
 
     return resolve
