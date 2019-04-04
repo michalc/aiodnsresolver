@@ -26,7 +26,7 @@ ip_addresses = await resolve('www.google.com', TYPE_A)
 
 The scope of this project is deliberately restricted to operations that are used to resolve A or AAAA records: to resolve a domain name to one of its IP addresses, and have similar responsibilities to `gethostbyname`. Some limited extra behaviour is present/may be added, but great care is taken to prevent scope creep, especially to not add complexity that isn't required to resolve A or AAAA records.
 
-- UDP queries are made, but not TCP. DNS servers must support UDP; and for a A and AAAA records, it's impossible for such a record to not fit into the maximum size of a UDP DNS response, 512 bytes. There may be other data that the DNS server would return in TCP connections, but this isn't required to resolve a domain name to a single IP address.
+- UDP queries are made, but not TCP. DNS servers must support UDP, and it's impossible for a single A and AAAA record to not fit into the maximum size of a UDP DNS response, 512 bytes. There may be other data that the DNS server would return in TCP connections, but this isn't required to resolve a domain name to a single IP address.
 
 - CNAME records are followed transparently.
 
