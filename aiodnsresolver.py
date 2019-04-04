@@ -74,14 +74,14 @@ def pack(message):
 
 def parse(data):
 
+    def byte(offset):
+        return data[offset:offset + 1][0]
+
+    def load_label(offset):
+        length = byte(offset)
+        return offset + length + 1, data[offset + 1:offset + 1 + length]
+
     def load_name(data, cursor):
-
-        def byte(offset):
-            return data[offset:offset + 1][0]
-
-        def load_label(offset):
-            length = byte(offset)
-            return offset + length + 1, data[offset + 1:offset + 1 + length]
 
         labels = []
         followed_pointers = []
