@@ -114,15 +114,17 @@ def parse(data):
             yield num - (high << length)
             num = high
 
-    def parse_request_record(l):
+    def parse_request_record():
+        nonlocal l
         l, name = load_name(data, l)
         qtype, qclass = struct.unpack('!HH', data[l: l + 4])
         l += 4
-        return l, RequestRecord(name, qtype, qclass)
+        return RequestRecord(name, qtype, qclass)
 
-    def parse_response_record(l):
+    def parse_response_record():
+        nonlocal l
         # The start is same as the request record
-        l, (name, qtype, qclass) = parse_request_record(l)
+        name, qtype, qclass = parse_request_record()
         ttl, dl = struct.unpack('!LH', data[l: l + 6])
         l += 6
         if qtype == TYPES.A:
@@ -135,23 +137,19 @@ def parse(data):
             record_data = data[l: l + dl]
         l += dl
 
-        return l, ResponseRecord(name, qtype, qclass, ttl, record_data)
+        return ResponseRecord(name, qtype, qclass, ttl, record_data)
 
-    def parse_group(record_parser, l, n):
-        res = []
-        for i in range(n):
-            l, r = record_parser(l)
-            res.append(r)
-        return l, res
+    def parse_group(record_parser, n):
+        return tuple(record_parser() for _ in range(n))
 
     qid, x, qd_num, an_num, ns_num, ar_num = struct.unpack('!HHHHHH', data[:12])
     r, z, ra, rd, tc, aa, o, qr = split_bits(x, 4, 3, 1, 1, 1, 1, 4, 1)
 
     l = 12
-    l, qd = parse_group(parse_request_record, l, qd_num)
-    l, an = parse_group(parse_response_record, l, an_num)
-    l, ns = parse_group(parse_response_record, l, ns_num)
-    l, ar = parse_group(parse_response_record, l, ar_num)
+    qd = parse_group(parse_request_record, qd_num)
+    an = parse_group(parse_response_record, an_num)
+    ns = parse_group(parse_response_record, ns_num)
+    ar = parse_group(parse_response_record, ar_num)
 
     return DNSMessage(qid, qr, o, aa, tc, rd, ra, r, qd, an, ns, ar)
 
