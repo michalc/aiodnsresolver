@@ -79,7 +79,7 @@ def parse(data):
 
     def load_label(offset):
         length = byte(offset)
-        return offset + length + 1, data[offset + 1:offset + 1 + length]
+        return offset + length + 1, data[offset + 1:offset + 1 + length].lower().decode()
 
     def load_name(data):
         nonlocal l
@@ -106,7 +106,7 @@ def parse(data):
             else:
                 break
 
-        return (b'.'.join(labels)).lower().decode()
+        return '.'.join(labels)
 
     def split_bits(num, *lengths):
         for length in lengths:
