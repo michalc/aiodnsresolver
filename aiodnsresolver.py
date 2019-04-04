@@ -81,10 +81,9 @@ def parse(data):
         length = byte(offset)
         return offset + length + 1, data[offset + 1:offset + 1 + length].lower().decode()
 
-    def load_name(data):
+    def load_labels(data):
         nonlocal l
 
-        labels = []
         followed_pointers = []
         local_cursor = l
 
@@ -102,11 +101,9 @@ def parse(data):
                 l = local_cursor
 
             if label:
-                labels.append(label)
+                yield label
             else:
                 break
-
-        return '.'.join(labels)
 
     def split_bits(num, *lengths):
         for length in lengths:
@@ -116,7 +113,7 @@ def parse(data):
 
     def parse_request_record():
         nonlocal l
-        name = load_name(data)
+        name = '.'.join(load_labels(data))
         qtype, qclass = struct.unpack('!HH', data[l: l + 4])
         l += 4
         return RequestRecord(name, qtype, qclass)
@@ -134,7 +131,7 @@ def parse(data):
             record_data = socket.inet_ntop(socket.AF_INET6, data[l: l + dl])
             l += dl
         elif qtype == TYPES.CNAME:
-            record_data = load_name(data)
+            record_data = '.'.join(load_labels(data))
         else:
             record_data = data[l: l + dl]
             l += dl
