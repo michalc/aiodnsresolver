@@ -17,19 +17,10 @@ TYPES = collections.namedtuple('Types', [
     A=1, CNAME=5, AAAA=28,
 )
 
+# Field names chosen to be consistent with RFC 1035
 DNSMessage = collections.namedtuple('DNSMessage', [
-    'qid',     # query id
-    'qr',      # 0: request, 1: response
-    'opcode',  # 0: for standard query
-    'aa',      # Authoritative Answer
-    'tc',      # TrunCation
-    'rd',      # Recursion Desired
-    'ra',      # Recursion Available
-    'rcode',   # 0: success
-    'qd',
-    'an',
-    'ns',
-    'ar',
+    'qid', 'qr', 'opcode', 'aa', 'tc', 'rd', 'ra', 'rcode',
+    'qd', 'an', 'ns', 'ar',
 ])
 
 RequestRecord = collections.namedtuple('Record', [
