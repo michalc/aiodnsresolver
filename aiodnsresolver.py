@@ -81,7 +81,7 @@ def parse(data):
         length = byte(offset)
         return offset + length + 1, data[offset + 1:offset + 1 + length].lower().decode()
 
-    def load_labels(data):
+    def load_labels():
         nonlocal l
 
         followed_pointers = []
@@ -113,7 +113,7 @@ def parse(data):
 
     def parse_request_record():
         nonlocal l
-        name = '.'.join(load_labels(data))
+        name = '.'.join(load_labels())
         qtype, qclass = struct.unpack('!HH', data[l: l + 4])
         l += 4
         return RequestRecord(name, qtype, qclass)
@@ -131,7 +131,7 @@ def parse(data):
             record_data = socket.inet_ntop(socket.AF_INET6, data[l: l + dl])
             l += dl
         elif qtype == TYPES.CNAME:
-            record_data = '.'.join(load_labels(data))
+            record_data = '.'.join(load_labels())
         else:
             record_data = data[l: l + dl]
             l += dl
