@@ -11,7 +11,8 @@ from aiofastforward import (
 )
 
 from aiodnsresolver import (
-    TYPES,
+    TYPE_A,
+    TYPE_AAAA,
     Resolver,
     memoize_ttl,
     timeout,
@@ -45,13 +46,13 @@ class TestResolver(unittest.TestCase):
     @async_test
     async def test_a_query(self):
         resolve = Resolver()
-        res = await resolve('www.google.com', TYPES.A)
+        res = await resolve('www.google.com', TYPE_A)
         self.assertIsInstance(ipaddress.ip_address(res[0]), ipaddress.IPv4Address)
 
     @async_test
     async def test_a_query_multiple(self):
         resolve = Resolver()
-        res = await resolve('charemza.name', TYPES.A)
+        res = await resolve('charemza.name', TYPE_A)
         self.assertIsInstance(ipaddress.ip_address(res[0]), ipaddress.IPv4Address)
         self.assertIsInstance(ipaddress.ip_address(res[1]), ipaddress.IPv4Address)
         self.assertIsInstance(ipaddress.ip_address(res[2]), ipaddress.IPv4Address)
@@ -60,51 +61,51 @@ class TestResolver(unittest.TestCase):
     @async_test
     async def test_a_query_twice_sequential(self):
         resolve = Resolver()
-        res_a = await resolve('www.google.com', TYPES.A)
+        res_a = await resolve('www.google.com', TYPE_A)
         self.assertIsInstance(ipaddress.ip_address(res_a[0]), ipaddress.IPv4Address)
 
-        res_b = await resolve('www.google.com', TYPES.A)
+        res_b = await resolve('www.google.com', TYPE_A)
         self.assertIsInstance(ipaddress.ip_address(res_b[0]), ipaddress.IPv4Address)
 
     @async_test
     async def test_a_query_twice_concurrent(self):
         resolve = Resolver()
-        res_a = asyncio.ensure_future(resolve('www.google.com', TYPES.A))
-        res_b = asyncio.ensure_future(resolve('www.google.com', TYPES.A))
+        res_a = asyncio.ensure_future(resolve('www.google.com', TYPE_A))
+        res_b = asyncio.ensure_future(resolve('www.google.com', TYPE_A))
         self.assertIsInstance(ipaddress.ip_address((await res_a)[0]), ipaddress.IPv4Address)
         self.assertIsInstance(ipaddress.ip_address((await res_b)[0]), ipaddress.IPv4Address)
 
     @async_test
     async def test_a_query_different_concurrent(self):
         resolve = Resolver()
-        res_a = asyncio.ensure_future(resolve('www.google.com', TYPES.A))
-        res_b = asyncio.ensure_future(resolve('charemza.name', TYPES.A))
+        res_a = asyncio.ensure_future(resolve('www.google.com', TYPE_A))
+        res_b = asyncio.ensure_future(resolve('charemza.name', TYPE_A))
         self.assertIsInstance(ipaddress.ip_address((await res_a)[0]), ipaddress.IPv4Address)
         self.assertIsInstance(ipaddress.ip_address((await res_b)[0]), ipaddress.IPv4Address)
 
     @async_test
     async def test_aaaa_query(self):
         resolve = Resolver()
-        res = await resolve('www.google.com', TYPES.AAAA)
+        res = await resolve('www.google.com', TYPE_AAAA)
         self.assertIsInstance(ipaddress.ip_address(res[0]), ipaddress.IPv6Address)
 
     @async_test
     async def test_a_query_not_exists(self):
         resolve = Resolver()
         with self.assertRaises(Exception):
-            res = await resolve('doenotexist.charemza.name', TYPES.A)
+            res = await resolve('doenotexist.charemza.name', TYPE_A)
 
     @async_test
     async def test_aaaa_query_not_exists(self):
         resolve = Resolver()
 
         with self.assertRaises(Exception):
-            res = await resolve('doenotexist.charemza.name', TYPES.AAAA)
+            res = await resolve('doenotexist.charemza.name', TYPE_AAAA)
 
     @async_test
     async def test_a_query_cname(self):
         resolve = Resolver()
-        res = await resolve('support.dnsimple.com', TYPES.A)
+        res = await resolve('support.dnsimple.com', TYPE_A)
         self.assertIsInstance(ipaddress.ip_address(res[0]), ipaddress.IPv4Address)
 
 

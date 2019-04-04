@@ -11,11 +11,9 @@ import struct
 REQUEST = 0
 RESPONSE = 1
 
-TYPES = collections.namedtuple('Types', [
-    'A', 'CNAME', 'AAAA',
-])(
-    A=1, CNAME=5, AAAA=28,
-)
+TYPE_A = 1
+TYPE_CNAME = 5
+TYPE_AAAA = 28
 
 # Field names chosen to be consistent with RFC 1035
 DNSMessage = collections.namedtuple('DNSMessage', [
@@ -115,13 +113,13 @@ def parse(data):
         name, qtype, qclass = parse_request_record()
         ttl, dl = struct.unpack('!LH', data[l: l + 6])
         l += 6
-        if qtype == TYPES.A:
+        if qtype == TYPE_A:
             record_data = socket.inet_ntop(socket.AF_INET, data[l: l + dl])
             l += dl
-        elif qtype == TYPES.AAAA:
+        elif qtype == TYPE_AAAA:
             record_data = socket.inet_ntop(socket.AF_INET6, data[l: l + dl])
             l += dl
-        elif qtype == TYPES.CNAME:
+        elif qtype == TYPE_CNAME:
             record_data = '.'.join(load_labels())
         else:
             record_data = data[l: l + dl]
@@ -200,7 +198,7 @@ def Resolver():
 
                 if answers and answers[0].qtype == qtype:
                     return [answer.rdata for answer in answers if answer.name == fqdn]
-                elif answers and answers[0].qtype == TYPES.CNAME and answers[0].name == fqdn:
+                elif answers and answers[0].qtype == TYPE_CNAME and answers[0].name == fqdn:
                     fqdn = answers[0].rdata
                 else:
                     raise Exception()

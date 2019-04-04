@@ -15,10 +15,10 @@ pip install aiodnsresolver
 ## Usage
 
 ```python
-from aiodnsresolver import Resolver, TYPES
+from aiodnsresolver import Resolver, TYPE_A
 
 resolve = Resolver()
-ip_addresses = await resolve('www.google.com', TYPES.A)
+ip_addresses = await resolve('www.google.com', TYPE_A)
 ```
 
 
