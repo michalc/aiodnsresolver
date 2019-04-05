@@ -193,7 +193,8 @@ def Resolver():
                         answers = await memoized_udp_request(addr, fqdn, qtype)
                         break
                     except:
-                        continue
+                        if i == len(nameservers) - 1:
+                            raise
 
                 if answers and answers[0].qtype == qtype:
                     return [answer.rdata for answer in answers if answer.name == fqdn][0]
@@ -218,9 +219,9 @@ def memoize_ttl(func, get_ttl):
     async def cached(*args, **kwargs):
         key = (args, tuple(kwargs.items()))
 
-        try:
+        if key in cache:
             future = cache[key]
-        except KeyError:
+        else:
             future = asyncio.Future()
             cache[key] = future
 
