@@ -147,7 +147,7 @@ async def udp_request(addr, fqdn, qtype):
 
         try:
             sock.setblocking(False)
-            await loop.sock_connect(sock, addr)
+            await loop.sock_connect(sock, (str(addr), 53))
             await loop.sock_sendall(sock, pack(req))
 
             while True:
@@ -166,7 +166,7 @@ async def udp_request(addr, fqdn, qtype):
 def get_nameservers():
     with open('/etc/resolv.conf', 'r') as file:
         return [
-            (words_on_line[1], 53)
+            ipaddress.ip_address(words_on_line[1])
             for words_on_line in [
                 line.split() for line in file
                 if line[0] not in ['#', ';']
