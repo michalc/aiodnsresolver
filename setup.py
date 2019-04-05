@@ -9,7 +9,7 @@ def long_description():
 setuptools.setup(
     name='aiodnsresolver',
     version='0.0.38',
-    description='Asyncio Python DNS resolver',
+    description='Pure asyncio Python DNS resolver',
     long_description=long_description(),
     long_description_content_type='text/markdown',
     url='https://github.com/michalc/aiodnsresolver',
