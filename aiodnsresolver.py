@@ -146,9 +146,13 @@ async def udp_request(addr, fqdn, qtype):
         try:
             with timeout(1.0):
                 qid = secrets.randbelow(65536)
+                fqdn_0x20 = bytes(
+                    char
+                    for char in fqdn
+                )
                 req = Message(
                     qid=qid, qr=QUESTION, opcode=0, aa=0, tc=0, rd=1, ra=0, z=0, rcode=0,
-                    qd=(QuestionRecord(fqdn, qtype, qclass=1),), an=(), ns=(), ar=(),
+                    qd=(QuestionRecord(fqdn_0x20, qtype, qclass=1),), an=(), ns=(), ar=(),
                 )
                 with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
 
