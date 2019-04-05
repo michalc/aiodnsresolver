@@ -10,9 +10,9 @@ import struct
 REQUEST = 0
 RESPONSE = 1
 
-TYPE_A = 1
-TYPE_CNAME = 5
-TYPE_AAAA = 28
+TYPES = collections.namedtuple('Types', [
+    'A', 'CNAME', 'AAAA'
+])(A=1, CNAME=5, AAAA=28)
 
 # Field names chosen to be consistent with RFC 1035
 Message = collections.namedtuple('Message', [
@@ -112,10 +112,10 @@ def parse(data):
         name, qtype, qclass = parse_question_record()
         ttl, dl = struct.unpack('!LH', data[l: l + 6])
         l += 6
-        if qtype in (TYPE_A, TYPE_AAAA):
+        if qtype in (TYPES.A, TYPES.AAAA):
             rdata = ipaddress.ip_address(data[l: l + dl])
             l += dl
-        elif qtype == TYPE_CNAME:
+        elif qtype == TYPES.CNAME:
             rdata = '.'.join(load_labels())
         else:
             rdata = data[l: l + dl]
@@ -192,7 +192,7 @@ def Resolver():
 
                 if answers and answers[0].qtype == qtype:
                     return [answer.rdata for answer in answers if answer.name == fqdn][0]
-                elif answers and answers[0].qtype == TYPE_CNAME and answers[0].name == fqdn:
+                elif answers and answers[0].qtype == TYPES.CNAME and answers[0].name == fqdn:
                     fqdn = answers[0].rdata
                 else:
                     raise Exception()
