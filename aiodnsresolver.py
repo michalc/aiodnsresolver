@@ -15,7 +15,7 @@ TYPE_CNAME = 5
 TYPE_AAAA = 28
 
 # Field names chosen to be consistent with RFC 1035
-DNSMessage = collections.namedtuple('DNSMessage', [
+Message = collections.namedtuple('Message', [
     'qid', 'qr', 'opcode', 'aa', 'tc', 'rd', 'ra', 'rcode',
     'qd', 'an', 'ns', 'ar',
 ])
@@ -132,12 +132,12 @@ def parse(data):
     ns = tuple(parse_resource_record() for _ in range(ns_count))
     ar = tuple(parse_resource_record() for _ in range(ar_count))
 
-    return DNSMessage(qid, qr, opcode, aa, tc, rd, ra, rcode, qd, an, ns, ar)
+    return Message(qid, qr, opcode, aa, tc, rd, ra, rcode, qd, an, ns, ar)
 
 
 async def udp_request(addr, fqdn, qtype):
     loop = asyncio.get_event_loop()
-    req = DNSMessage(
+    req = Message(
         qid=secrets.randbelow(65536), qr=REQUEST, opcode=0, aa=0, tc=0, rd=1, ra=0, rcode=0,
         qd=(QuestionRecord(fqdn, qtype, qclass=1),), an=[], ns=[], ar=[],
     )
