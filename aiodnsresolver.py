@@ -146,10 +146,9 @@ async def udp_request(addr, fqdn, qtype):
         try:
             with timeout(2.0):
                 qid = secrets.randbelow(65536)
-                fqdn_upper = fqdn.upper()
                 fqdn_0x20 = bytes(
                     (char | secrets.choice((32, 0))) if 65 <= char < 91 else char
-                    for char in fqdn_upper
+                    for char in fqdn.upper()
                 )
                 req = Message(
                     qid=qid, qr=QUESTION, opcode=0, aa=0, tc=0, rd=1, ra=0, z=0, rcode=0,
