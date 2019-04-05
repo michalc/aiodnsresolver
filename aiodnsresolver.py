@@ -169,14 +169,14 @@ async def udp_request(addr, fqdn, qtype):
 
 def get_nameservers():
     with open('/etc/resolv.conf', 'r') as file:
-        return [
+        return (
             ipaddress.ip_address(words_on_line[1])
             for words_on_line in [
                 line.split() for line in file
                 if line[0] not in ['#', ';']
             ]
             if len(words_on_line) >= 2 and words_on_line[0] == 'nameserver'
-        ]
+        )
 
 
 def Resolver():
