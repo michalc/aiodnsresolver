@@ -20,11 +20,11 @@ DNSMessage = collections.namedtuple('DNSMessage', [
     'qd', 'an', 'ns', 'ar',
 ])
 
-RequestRecord = collections.namedtuple('Record', [
+QuestionRecord = collections.namedtuple('Record', [
     'name', 'qtype', 'qclass',
 ])
 
-ResponseRecord = collections.namedtuple('Record', [
+ResourceRecord = collections.namedtuple('Record', [
     'name', 'qtype', 'qclass', 'ttl', 'rdata',
 ])
 
@@ -99,17 +99,17 @@ def parse(data):
             yield num - (high << length)
             num = high
 
-    def parse_request_record():
+    def parse_question_record():
         nonlocal l
         name = '.'.join(load_labels())
         qtype, qclass = struct.unpack('!HH', data[l: l + 4])
         l += 4
-        return RequestRecord(name, qtype, qclass)
+        return QuestionRecord(name, qtype, qclass)
 
-    def parse_response_record():
+    def parse_resource_record():
         nonlocal l
-        # The start is same as the request record
-        name, qtype, qclass = parse_request_record()
+        # The start is same as the question record
+        name, qtype, qclass = parse_question_record()
         ttl, dl = struct.unpack('!LH', data[l: l + 6])
         l += 6
         if qtype in (TYPE_A, TYPE_AAAA):
@@ -121,16 +121,16 @@ def parse(data):
             rdata = data[l: l + dl]
             l += dl
 
-        return ResponseRecord(name, qtype, qclass, ttl, rdata)
+        return ResourceRecord(name, qtype, qclass, ttl, rdata)
 
     qid, x, qd_count, an_count, ns_count, ar_count = struct.unpack('!HHHHHH', data[:12])
     rcode, z, ra, rd, tc, aa, opcode, qr = split_bits(x, 4, 3, 1, 1, 1, 1, 4, 1)
 
     l = 12
-    qd = tuple(parse_request_record() for _ in range(qd_count))
-    an = tuple(parse_response_record() for _ in range(an_count))
-    ns = tuple(parse_response_record() for _ in range(ns_count))
-    ar = tuple(parse_response_record() for _ in range(ar_count))
+    qd = tuple(parse_question_record() for _ in range(qd_count))
+    an = tuple(parse_resource_record() for _ in range(an_count))
+    ns = tuple(parse_resource_record() for _ in range(ns_count))
+    ar = tuple(parse_resource_record() for _ in range(ar_count))
 
     return DNSMessage(qid, qr, opcode, aa, tc, rd, ra, rcode, qd, an, ns, ar)
 
@@ -139,7 +139,7 @@ async def udp_request(addr, fqdn, qtype):
     loop = asyncio.get_event_loop()
     req = DNSMessage(
         qid=secrets.randbelow(65536), qr=REQUEST, opcode=0, aa=0, tc=0, rd=1, ra=0, rcode=0,
-        qd=(RequestRecord(fqdn, qtype, qclass=1),), an=[], ns=[], ar=[],
+        qd=(QuestionRecord(fqdn, qtype, qclass=1),), an=[], ns=[], ar=[],
     )
 
     with timeout(3.0):
