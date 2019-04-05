@@ -16,7 +16,7 @@ TYPES = collections.namedtuple('Types', [
 
 # Field names chosen to be consistent with RFC 1035
 Message = collections.namedtuple('Message', [
-    'qid', 'qr', 'opcode', 'aa', 'tc', 'rd', 'ra', 'rcode',
+    'qid', 'qr', 'opcode', 'aa', 'tc', 'rd', 'ra', 'z', 'rcode',
     'qd', 'an', 'ns', 'ar',
 ])
 
@@ -132,13 +132,13 @@ def parse(data):
     ns = tuple(parse_resource_record() for _ in range(ns_count))
     ar = tuple(parse_resource_record() for _ in range(ar_count))
 
-    return Message(qid, qr, opcode, aa, tc, rd, ra, rcode, qd, an, ns, ar)
+    return Message(qid, qr, opcode, aa, tc, rd, ra, rcode, z, qd, an, ns, ar)
 
 
 async def udp_request(addr, fqdn, qtype):
     loop = asyncio.get_event_loop()
     req = Message(
-        qid=secrets.randbelow(65536), qr=QUESTION, opcode=0, aa=0, tc=0, rd=1, ra=0, rcode=0,
+        qid=secrets.randbelow(65536), qr=QUESTION, opcode=0, aa=0, tc=0, rd=1, ra=0, rcode=0, z=0,
         qd=(QuestionRecord(fqdn, qtype, qclass=1),), an=[], ns=[], ar=[],
     )
 
