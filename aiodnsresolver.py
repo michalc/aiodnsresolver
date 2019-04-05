@@ -149,14 +149,13 @@ async def udp_request(addr, fqdn, qtype):
     for i in range(3):
         try:
             with timeout(1.0):
-                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
 
-                try:
                     sock.setblocking(False)
                     await loop.sock_connect(sock, (str(addr), 53))
                     await loop.sock_sendall(sock, pack(req))
 
-                    while True:
+                    while True:  # We might be getting spoofed messages
                         response_data = await loop.sock_recv(sock, 512)
                         res = parse(response_data)
 
@@ -165,8 +164,7 @@ async def udp_request(addr, fqdn, qtype):
                                 raise Exception()
                             else:
                                 return res.an
-                finally:
-                    sock.close()
+
         except asyncio.TimeoutError:
             pass
 
