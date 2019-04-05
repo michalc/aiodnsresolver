@@ -128,14 +128,14 @@ def parse(data):
     def parse_group(record_parser, n):
         return tuple(record_parser() for _ in range(n))
 
-    qid, x, qd_num, an_num, ns_num, ar_num = struct.unpack('!HHHHHH', data[:12])
+    qid, x, qd_count, an_count, ns_count, ar_count = struct.unpack('!HHHHHH', data[:12])
     rcode, z, ra, rd, tc, aa, opcode, qr = split_bits(x, 4, 3, 1, 1, 1, 1, 4, 1)
 
     l = 12
-    qd = parse_group(parse_request_record, qd_num)
-    an = parse_group(parse_response_record, an_num)
-    ns = parse_group(parse_response_record, ns_num)
-    ar = parse_group(parse_response_record, ar_num)
+    qd = parse_group(parse_request_record, qd_count)
+    an = parse_group(parse_response_record, an_count)
+    ns = parse_group(parse_response_record, ns_count)
+    ar = parse_group(parse_response_record, ar_count)
 
     return DNSMessage(qid, qr, opcode, aa, tc, rd, ra, rcode, qd, an, ns, ar)
 
