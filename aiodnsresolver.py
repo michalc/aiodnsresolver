@@ -99,19 +99,23 @@ def parse(data):
             yield num - (high << length)
             num = high
 
-    def parse_question_record():
+    def unpack(struct_format):
         nonlocal l
+        dl = struct.calcsize(struct_format)
+        unpacked = struct.unpack(struct_format, data[l: l + dl])
+        l += dl
+        return unpacked
+
+    def parse_question_record():
         name = '.'.join(load_labels())
-        qtype, qclass = struct.unpack('!HH', data[l: l + 4])
-        l += 4
+        qtype, qclass = unpack('!HH')
         return QuestionRecord(name, qtype, qclass)
 
     def parse_resource_record():
         nonlocal l
         # The start is same as the question record
         name, qtype, qclass = parse_question_record()
-        ttl, dl = struct.unpack('!LH', data[l: l + 6])
-        l += 6
+        ttl, dl = unpack('!LH')
         if qtype in (TYPES.A, TYPES.AAAA):
             rdata = ipaddress.ip_address(data[l: l + dl])
             l += dl
@@ -123,10 +127,10 @@ def parse(data):
 
         return ResourceRecord(name, qtype, qclass, ttl, rdata)
 
-    qid, x, qd_count, an_count, ns_count, ar_count = struct.unpack('!HHHHHH', data[:12])
+    l = 0
+    qid, x, qd_count, an_count, ns_count, ar_count = unpack('!HHHHHH')
     rcode, z, ra, rd, tc, aa, opcode, qr = split_bits(x, 4, 3, 1, 1, 1, 1, 4, 1)
 
-    l = 12
     qd = tuple(parse_question_record() for _ in range(qd_count))
     an = tuple(parse_resource_record() for _ in range(an_count))
     ns = tuple(parse_resource_record() for _ in range(ns_count))
