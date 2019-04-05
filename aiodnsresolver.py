@@ -139,7 +139,7 @@ async def udp_request(addr, fqdn, qtype):
     loop = asyncio.get_event_loop()
     req = Message(
         qid=secrets.randbelow(65536), qr=QUESTION, opcode=0, aa=0, tc=0, rd=1, ra=0, z=0, rcode=0,
-        qd=(QuestionRecord(fqdn, qtype, qclass=1),), an=[], ns=[], ar=[],
+        qd=(QuestionRecord(fqdn, qtype, qclass=1),), an=(), ns=(), ar=(),
     )
 
     with timeout(3.0):
