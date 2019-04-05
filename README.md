@@ -21,7 +21,7 @@ resolve = Resolver()
 ip_address = await resolve('www.google.com', TYPE_A)
 ```
 
-The IP address returned is an instance of [IPv4Address](https://docs.python.org/3/library/ipaddress.html#ipaddress.IPv4Address) or [IPv6Address](https://docs.python.org/3/library/ipaddress.html#ipaddress.IPv6Address). Both support conversion to their usualy string form by passing them to `str`.
+The IP address returned is an instance of [IPv4Address](https://docs.python.org/3/library/ipaddress.html#ipaddress.IPv4Address) or [IPv6Address](https://docs.python.org/3/library/ipaddress.html#ipaddress.IPv6Address). Both support conversion to their usual string form by passing them to `str`.
 
 
 ## Scope
