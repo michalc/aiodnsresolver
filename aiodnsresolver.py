@@ -32,14 +32,13 @@ ResourceRecord = collections.namedtuple('Record', [
 def pack(message):
 
     def pack_string(string, btype):
-        string_ascii = string.encode()
-        length = len(string_ascii)
-        return struct.pack('B%ds' % (length), length, string_ascii)
+        length = len(string)
+        return struct.pack('B%ds' % (length), length, string)
 
     def pack_name(name):
         return b''.join([
             pack_string(part, 'B')
-            for part in name.split('.')
+            for part in name.split(b'.')
         ]) + b'\0'
 
     header = struct.pack(
@@ -67,7 +66,7 @@ def parse(data):
 
     def load_label(offset):
         length = byte(offset)
-        return offset + length + 1, data[offset + 1:offset + 1 + length].lower().decode()
+        return offset + length + 1, data[offset + 1:offset + 1 + length].lower()
 
     def load_labels():
         nonlocal l
@@ -107,7 +106,7 @@ def parse(data):
         return unpacked
 
     def parse_question_record():
-        name = '.'.join(load_labels())
+        name = b'.'.join(load_labels())
         qtype, qclass = unpack('!HH')
         return QuestionRecord(name, qtype, qclass)
 
@@ -120,7 +119,7 @@ def parse(data):
             rdata = ipaddress.ip_address(data[l: l + dl])
             l += dl
         elif qtype == TYPES.CNAME:
-            rdata = '.'.join(load_labels())
+            rdata = b'.'.join(load_labels())
         else:
             rdata = data[l: l + dl]
             l += dl
@@ -186,7 +185,8 @@ def get_nameservers():
 
 def Resolver():
 
-    async def resolve(fqdn, qtype):
+    async def resolve(fqdn_str, qtype):
+        fqdn = fqdn_str.encode()
 
         with timeout(5.0):
 
