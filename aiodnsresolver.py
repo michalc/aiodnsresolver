@@ -112,10 +112,7 @@ def parse(data):
         name, qtype, qclass = parse_request_record()
         ttl, dl = struct.unpack('!LH', data[l: l + 6])
         l += 6
-        if qtype == TYPE_A:
-            record_data = ipaddress.ip_address(data[l: l + dl])
-            l += dl
-        elif qtype == TYPE_AAAA:
+        if qtype in (TYPE_A, TYPE_AAAA):
             record_data = ipaddress.ip_address(data[l: l + dl])
             l += dl
         elif qtype == TYPE_CNAME:
