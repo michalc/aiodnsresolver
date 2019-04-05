@@ -146,7 +146,8 @@ async def udp_request(addr, fqdn, qtype):
         qd=(QuestionRecord(fqdn, qtype, qclass=1),), an=(), ns=(), ar=(),
     )
 
-    for i in range(3):
+    max_attempts = 3
+    for i in range(max_attempts):
         try:
             with timeout(1.0):
                 with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
@@ -166,7 +167,8 @@ async def udp_request(addr, fqdn, qtype):
                                 return res.an
 
         except asyncio.TimeoutError:
-            pass
+            if i == max_attempts - 1:
+                raise
 
 
 def get_nameservers():
