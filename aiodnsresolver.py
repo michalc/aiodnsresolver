@@ -154,7 +154,7 @@ async def udp_request(addr, fqdn, qtype):
                 response_data = await loop.sock_recv(sock, 512)
                 res = parse(response_data)
 
-                if res.qid == req.qid and res.qd[0].name == req.qd[0].name:
+                if res.qid == req.qid and res.qd == req.qd:
                     if res.rcode != 0:
                         raise Exception()
                     else:
