@@ -141,15 +141,16 @@ def parse(data):
 
 async def udp_request(addr, fqdn, qtype):
     loop = asyncio.get_event_loop()
-    req = Message(
-        qid=secrets.randbelow(65536), qr=QUESTION, opcode=0, aa=0, tc=0, rd=1, ra=0, z=0, rcode=0,
-        qd=(QuestionRecord(fqdn, qtype, qclass=1),), an=(), ns=(), ar=(),
-    )
 
     max_attempts = 3
     for i in range(max_attempts):
         try:
             with timeout(1.0):
+                req = Message(
+                    qid=secrets.randbelow(65536), qr=QUESTION,
+                    opcode=0, aa=0, tc=0, rd=1, ra=0, z=0, rcode=0,
+                    qd=(QuestionRecord(fqdn, qtype, qclass=1),), an=(), ns=(), ar=(),
+                )
                 with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
 
                     sock.setblocking(False)
