@@ -202,7 +202,7 @@ def Resolver():
                     raise Exception()
 
     def get_ttl(answers):
-        return min([answer.ttl for answer in answers])
+        return min([answer.ttl for answer in answers]) if answers else 0
 
     memoized_udp_request = memoize_ttl(udp_request, get_ttl)
 
