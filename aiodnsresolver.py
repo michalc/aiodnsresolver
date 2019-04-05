@@ -169,7 +169,7 @@ async def udp_request(addr, fqdn, qtype):
 
 def get_nameservers():
     with open('/etc/resolv.conf', 'r') as file:
-        return (
+        return tuple(
             ipaddress.ip_address(words_on_line[1])
             for words_on_line in [
                 line.split() for line in file
@@ -186,8 +186,9 @@ def Resolver():
         with timeout(5.0):
 
             while True:
-
-                for addr in get_nameservers():
+                nameservers = get_nameservers()
+                for i in range(len(nameservers)):
+                    addr = nameservers[i]
                     try:
                         answers = await memoized_udp_request(addr, fqdn, qtype)
                         break
