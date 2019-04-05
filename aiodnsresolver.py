@@ -195,7 +195,7 @@ def Resolver():
                         continue
 
                 if answers and answers[0].qtype == qtype:
-                    return [answer.rdata for answer in answers if answer.name == fqdn]
+                    return [answer.rdata for answer in answers if answer.name == fqdn][0]
                 elif answers and answers[0].qtype == TYPE_CNAME and answers[0].name == fqdn:
                     fqdn = answers[0].rdata
                 else:
