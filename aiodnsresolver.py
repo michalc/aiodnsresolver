@@ -146,25 +146,29 @@ async def udp_request(addr, fqdn, qtype):
         qd=(QuestionRecord(fqdn, qtype, qclass=1),), an=(), ns=(), ar=(),
     )
 
-    with timeout(3.0):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
+    for i in range(3):
         try:
-            sock.setblocking(False)
-            await loop.sock_connect(sock, (str(addr), 53))
-            await loop.sock_sendall(sock, pack(req))
+            with timeout(1.0):
+                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-            while True:
-                response_data = await loop.sock_recv(sock, 512)
-                res = parse(response_data)
+                try:
+                    sock.setblocking(False)
+                    await loop.sock_connect(sock, (str(addr), 53))
+                    await loop.sock_sendall(sock, pack(req))
 
-                if res.qid == req.qid and res.qd == req.qd:
-                    if res.rcode != 0:
-                        raise Exception()
-                    else:
-                        return res.an
-        finally:
-            sock.close()
+                    while True:
+                        response_data = await loop.sock_recv(sock, 512)
+                        res = parse(response_data)
+
+                        if res.qid == req.qid and res.qd == req.qd:
+                            if res.rcode != 0:
+                                raise Exception()
+                            else:
+                                return res.an
+                finally:
+                    sock.close()
+        except asyncio.TimeoutError:
+            pass
 
 
 def get_nameservers():
