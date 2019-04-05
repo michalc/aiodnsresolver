@@ -174,6 +174,7 @@ def get_nameservers():
             (words_on_line[1], 53)
             for words_on_line in [
                 line.split() for line in file
+                if line[0] not in ['#', ';']
             ]
             if len(words_on_line) >= 2 and words_on_line[0] == 'nameserver'
         ]
