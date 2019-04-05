@@ -1,6 +1,7 @@
 import asyncio
 import collections
 import contextlib
+import ipaddress
 import os
 import secrets
 import socket
@@ -112,10 +113,10 @@ def parse(data):
         ttl, dl = struct.unpack('!LH', data[l: l + 6])
         l += 6
         if qtype == TYPE_A:
-            record_data = socket.inet_ntop(socket.AF_INET, data[l: l + dl])
+            record_data = ipaddress.ip_address(data[l: l + dl])
             l += dl
         elif qtype == TYPE_AAAA:
-            record_data = socket.inet_ntop(socket.AF_INET6, data[l: l + dl])
+            record_data = ipaddress.ip_address(data[l: l + dl])
             l += dl
         elif qtype == TYPE_CNAME:
             record_data = '.'.join(load_labels())

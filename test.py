@@ -47,30 +47,30 @@ class TestResolver(unittest.TestCase):
     async def test_a_query(self):
         resolve = Resolver()
         res = await resolve('www.google.com', TYPE_A)
-        self.assertIsInstance(ipaddress.ip_address(res), ipaddress.IPv4Address)
+        self.assertIsInstance(res, ipaddress.IPv4Address)
 
     @async_test
     async def test_a_query_multiple(self):
         resolve = Resolver()
         res = await resolve('charemza.name', TYPE_A)
-        self.assertIsInstance(ipaddress.ip_address(res), ipaddress.IPv4Address)
+        self.assertIsInstance(res, ipaddress.IPv4Address)
 
     @async_test
     async def test_a_query_twice_sequential(self):
         resolve = Resolver()
         res_a = await resolve('www.google.com', TYPE_A)
-        self.assertIsInstance(ipaddress.ip_address(res_a), ipaddress.IPv4Address)
+        self.assertIsInstance(res_a, ipaddress.IPv4Address)
 
         res_b = await resolve('www.google.com', TYPE_A)
-        self.assertIsInstance(ipaddress.ip_address(res_b), ipaddress.IPv4Address)
+        self.assertIsInstance(res_b, ipaddress.IPv4Address)
 
     @async_test
     async def test_a_query_twice_concurrent(self):
         resolve = Resolver()
         res_a = asyncio.ensure_future(resolve('www.google.com', TYPE_A))
         res_b = asyncio.ensure_future(resolve('www.google.com', TYPE_A))
-        self.assertIsInstance(ipaddress.ip_address(await res_a), ipaddress.IPv4Address)
-        self.assertIsInstance(ipaddress.ip_address(await res_b), ipaddress.IPv4Address)
+        self.assertIsInstance(await res_a, ipaddress.IPv4Address)
+        self.assertIsInstance(await res_b, ipaddress.IPv4Address)
         self.assertEqual(await res_a, await res_b)
 
     @async_test
@@ -78,15 +78,15 @@ class TestResolver(unittest.TestCase):
         resolve = Resolver()
         res_a = asyncio.ensure_future(resolve('www.google.com', TYPE_A))
         res_b = asyncio.ensure_future(resolve('charemza.name', TYPE_A))
-        self.assertIsInstance(ipaddress.ip_address(await res_a), ipaddress.IPv4Address)
-        self.assertIsInstance(ipaddress.ip_address(await res_b), ipaddress.IPv4Address)
+        self.assertIsInstance(await res_a, ipaddress.IPv4Address)
+        self.assertIsInstance(await res_b, ipaddress.IPv4Address)
         self.assertNotEqual(res_a, res_b)
 
     @async_test
     async def test_aaaa_query(self):
         resolve = Resolver()
         res = await resolve('www.google.com', TYPE_AAAA)
-        self.assertIsInstance(ipaddress.ip_address(res), ipaddress.IPv6Address)
+        self.assertIsInstance(res, ipaddress.IPv6Address)
 
     @async_test
     async def test_a_query_not_exists(self):
@@ -105,7 +105,7 @@ class TestResolver(unittest.TestCase):
     async def test_a_query_cname(self):
         resolve = Resolver()
         res = await resolve('support.dnsimple.com', TYPE_A)
-        self.assertIsInstance(ipaddress.ip_address(res), ipaddress.IPv4Address)
+        self.assertIsInstance(res, ipaddress.IPv4Address)
 
 
 class TestMemoizeTtl(unittest.TestCase):
