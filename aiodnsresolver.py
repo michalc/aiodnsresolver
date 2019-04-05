@@ -113,15 +113,15 @@ def parse(data):
         ttl, dl = struct.unpack('!LH', data[l: l + 6])
         l += 6
         if qtype in (TYPE_A, TYPE_AAAA):
-            record_data = ipaddress.ip_address(data[l: l + dl])
+            rdata = ipaddress.ip_address(data[l: l + dl])
             l += dl
         elif qtype == TYPE_CNAME:
-            record_data = '.'.join(load_labels())
+            rdata = '.'.join(load_labels())
         else:
-            record_data = data[l: l + dl]
+            rdata = data[l: l + dl]
             l += dl
 
-        return ResponseRecord(name, qtype, qclass, ttl, record_data)
+        return ResponseRecord(name, qtype, qclass, ttl, rdata)
 
     def parse_group(record_parser, n):
         return tuple(record_parser() for _ in range(n))
