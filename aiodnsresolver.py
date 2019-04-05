@@ -7,7 +7,7 @@ import secrets
 import socket
 import struct
 
-REQUEST = 0
+QUESTION = 0
 RESPONSE = 1
 
 TYPES = collections.namedtuple('Types', [
@@ -138,7 +138,7 @@ def parse(data):
 async def udp_request(addr, fqdn, qtype):
     loop = asyncio.get_event_loop()
     req = Message(
-        qid=secrets.randbelow(65536), qr=REQUEST, opcode=0, aa=0, tc=0, rd=1, ra=0, rcode=0,
+        qid=secrets.randbelow(65536), qr=QUESTION, opcode=0, aa=0, tc=0, rd=1, ra=0, rcode=0,
         qd=(QuestionRecord(fqdn, qtype, qclass=1),), an=[], ns=[], ar=[],
     )
 
