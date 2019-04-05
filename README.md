@@ -24,6 +24,17 @@ ip_address = await resolve('www.google.com', TYPES.A)
 The IP address returned is an instance of [IPv4Address](https://docs.python.org/3/library/ipaddress.html#ipaddress.IPv4Address) or [IPv6Address](https://docs.python.org/3/library/ipaddress.html#ipaddress.IPv6Address). Both support conversion to their usual string form by passing them to `str`.
 
 
+## Security considerations
+
+To migitate spoofing, several techniques are used.
+
+- Each query is given a random ID, which is checked against any response.
+
+- Each domain name is encoded with [0x20-bit encoding](https://astrolavos.gatech.edu/articles/increased_dns_resistance.pdf), which is checked against any response.
+
+- A new socket, and so a new random local port, is used for each query.
+
+
 ## Scope
 
 The scope of this project is deliberately restricted to operations that are used to resolve A or AAAA records: to resolve a domain name to one of its IP addresses, and have similar responsibilities to `gethostbyname`. Some limited extra behaviour is present/may be added, but great care is taken to prevent scope creep, especially to not add complexity that isn't required to resolve A or AAAA records.

@@ -66,7 +66,7 @@ def parse(data):
 
     def load_label(offset):
         length = byte(offset)
-        return offset + length + 1, data[offset + 1:offset + 1 + length].lower()
+        return offset + length + 1, data[offset + 1:offset + 1 + length]
 
     def load_labels():
         nonlocal l
@@ -146,10 +146,10 @@ async def udp_request(addr, fqdn, qtype):
         try:
             with timeout(1.0):
                 qid = secrets.randbelow(65536)
-                fqdn_lower = fqdn.lower()
+                fqdn_upper = fqdn.upper()
                 fqdn_0x20 = bytes(
-                    char
-                    for char in fqdn_lower
+                    (char | secrets.choice((32, 0))) if 65 <= char < 91 else char
+                    for char in fqdn_upper
                 )
                 req = Message(
                     qid=qid, qr=QUESTION, opcode=0, aa=0, tc=0, rd=1, ra=0, z=0, rcode=0,
@@ -169,7 +169,7 @@ async def udp_request(addr, fqdn, qtype):
                             if res.rcode != 0:
                                 raise Exception()
                             else:
-                                return res.an
+                                return [answer for answer in res.an if answer.name == fqdn_0x20]
 
         except asyncio.TimeoutError:
             if i == max_attempts - 1:
@@ -207,8 +207,8 @@ def Resolver():
                             raise
 
                 if answers and answers[0].qtype == qtype:
-                    return [answer.rdata for answer in answers if answer.name == fqdn][0]
-                elif answers and answers[0].qtype == TYPES.CNAME and answers[0].name == fqdn:
+                    return answers[0].rdata
+                elif answers and answers[0].qtype == TYPES.CNAME:
                     fqdn = answers[0].rdata
                 else:
                     raise Exception()
