@@ -31,3 +31,5 @@ The scope of this project is deliberately restricted to operations that are used
 - CNAME records are followed transparently.
 
 - Responses are cached, adhering to their TTL.
+
+- The resolver is a _stub_ resolver: it delegates the responsibility of recursion to the nameserver(s) it queries. In the vast majority of envisioned use cases this is acceptable, since the nameservers in `/etc/resolve.conf` will be recursive.
