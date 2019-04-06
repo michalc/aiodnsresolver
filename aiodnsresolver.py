@@ -168,7 +168,8 @@ async def udp_request(addr, fqdn, qtype):
                             if res.rcode != 0:
                                 raise Exception()
                             else:
-                                return [answer for answer in res.an if answer.name == fqdn_0x20]
+                                answers = [answer for answer in res.an if answer.name == fqdn_0x20]
+                                return answers[0] if answers else None
 
         except asyncio.TimeoutError:
             if i == max_attempts - 1:
@@ -199,21 +200,21 @@ def Resolver():
                 for i in range(len(nameservers)):
                     addr = nameservers[i]
                     try:
-                        answers = await memoized_udp_request(addr, fqdn, qtype)
+                        answer = await memoized_udp_request(addr, fqdn, qtype)
                         break
                     except:
                         if i == len(nameservers) - 1:
                             raise
 
-                if answers and answers[0].qtype == qtype:
-                    return answers[0].rdata
-                elif answers and answers[0].qtype == TYPES.CNAME:
-                    fqdn = answers[0].rdata
+                if answer is not None and answer.qtype == qtype:
+                    return answer.rdata
+                elif answer is not None and answer.qtype == TYPES.CNAME:
+                    fqdn = answer.rdata
                 else:
                     raise Exception()
 
-    def get_ttl(answers):
-        return min([answer.ttl for answer in answers]) if answers else 0
+    def get_ttl(answer):
+        return answer.ttl if answer is not None else 0
 
     memoized_udp_request = memoize_ttl(udp_request, get_ttl)
 
