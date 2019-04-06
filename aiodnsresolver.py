@@ -259,9 +259,8 @@ def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_ser
             while True:
                 nameservers = get_nameservers()
                 exception = None
-                for i in range(len(nameservers)):
+                for addr in nameservers:
                     try:
-                        addr = nameservers[i]
                         answers = await memoized_udp_request(
                             udp_response_timeout, udp_attempts_per_server, addr, fqdn, qtype)
                         break
