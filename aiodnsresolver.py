@@ -201,12 +201,13 @@ async def udp_request_attempt(_, addr, fqdn, qtype):
         qid=qid, qr=QUESTION, opcode=0, aa=0, tc=0, rd=1, ra=0, z=0, rcode=0,
         qd=(QuestionRecord(fqdn_0x20, qtype, qclass=1),), an=(), ns=(), ar=(),
     )
-    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+    packed = pack(req)
 
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
         sock.setblocking(False)
         await loop.sock_connect(sock, (str(addr), 53))
         ttl_start = loop.time()
-        await loop.sock_sendall(sock, pack(req))
+        await loop.sock_sendall(sock, packed)
 
         while True:  # We might be getting spoofed messages
             response_data = await loop.sock_recv(sock, 512)
