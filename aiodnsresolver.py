@@ -121,7 +121,10 @@ def parse(data):
         # The start is same as the question record
         name, qtype, qclass = parse_question_record()
         ttl, dl = unpack('!LH')
-        if qtype in (TYPES.A, TYPES.AAAA):
+        if qtype == TYPES.A:
+            rdata = ipaddress.ip_address(data[l: l + dl])
+            l += dl    
+        elif qtype == TYPES.AAAA:
             rdata = ipaddress.ip_address(data[l: l + dl])
             l += dl
         elif qtype == TYPES.CNAME:
