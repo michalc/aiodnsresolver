@@ -61,6 +61,11 @@ for ip_address in ip_address:
 This can be used in HA situations to assist failovers. The timer for TTL starts just _before_ the request to the nameserver is made.
 
 
+## CNAMEs
+
+CNAME records are followed transparently. The `ttl` of IP addresses found via intermediate CNAME(s) is determined by using the minimum TTL of all the records involved in determiniing those IP addresses.
+
+
 ## Example: aiohttp
 
 ```python
@@ -141,9 +146,5 @@ The scope of this project is deliberately restricted to operations that are used
 - UDP queries are made, but not TCP. DNS servers must support UDP, and it's impossible for a single A and AAAA record to not fit into the maximum size of a UDP DNS response, 512 bytes. There may be other data that the DNS server would return in TCP connections, but this isn't required to resolve a domain name to a single IP address.
 
   It is technically possible that in the case of extremely high numbers of A or AAAA records for a domain, they would not fit in a single UDP message. However, this is extremely unlikely, and in this unlikely case, extremely unlikely to affect applications in any meaningful way.
-
-- CNAME records are followed transparently.
-
-- Responses are cached, adhering to their TTL.
 
 - The resolver is a _stub_ resolver: it delegates the responsibility of recursion to the nameserver(s) it queries. In the vast majority of envisioned use cases this is acceptable, since the nameservers in `/etc/resolve.conf` will be recursive.
