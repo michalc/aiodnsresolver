@@ -198,6 +198,7 @@ async def udp_request(udp_response_timeout, udp_attempts_per_server, addr, fqdn,
 
                     sock.setblocking(False)
                     await loop.sock_connect(sock, (str(addr), 53))
+                    ttl_start = loop.time()
                     await loop.sock_sendall(sock, pack(req))
 
                     while True:  # We might be getting spoofed messages
