@@ -149,16 +149,17 @@ def parse(data, ttl_start):
         # The start is same as the question record
         name, qtype, qclass = parse_question_record()
         ttl, dl = unpack('!LH')
+        expires_at = ttl_start + ttl
         if qtype == TYPES.A:
-            rdata = IPv4AddressTTL(data[l: l + dl], ttl_start + ttl)
+            rdata = IPv4AddressTTL(data[l: l + dl], expires_at)
             l += dl    
         elif qtype == TYPES.AAAA:
-            rdata = IPv6AddressTTL(data[l: l + dl], ttl_start + ttl)
+            rdata = IPv6AddressTTL(data[l: l + dl], expires_at)
             l += dl
         elif qtype == TYPES.CNAME:
-            rdata = BytesTTL(b'.'.join(load_labels()), ttl_start + ttl)
+            rdata = BytesTTL(b'.'.join(load_labels()), expires_at)
         else:
-            rdata = BytesTTL(data[l: l + dl], ttl_start + ttl)
+            rdata = BytesTTL(data[l: l + dl], expires_at)
             l += dl
 
         return ResourceRecord(name, qtype, qclass, ttl, rdata)
