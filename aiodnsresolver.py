@@ -251,9 +251,34 @@ def get_nameservers():
         )
 
 
+def get_hosts():
+    with open('/etc/hosts', 'r') as file:
+        hosts = [
+            (host, ipaddress.ip_address(words[0]))
+            for line in file
+            for (line_before_comment, _, __) in [line.partition('#')]
+            for words in [line_before_comment.split()]
+            for host in words[1:]
+        ]
+    return {
+        TYPES.A: {
+            host: IPv4AddressTTL(ip_address, expires_at=0)
+            for host, ip_address in hosts if isinstance(ip_address, ipaddress.IPv4Address)
+        },
+        TYPES.AAAA: {
+            host: IPv6AddressTTL(ip_address, expires_at=0)
+            for host, ip_address in hosts if isinstance(ip_address, ipaddress.IPv6Address)
+        }
+    }
+
+
 def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_server=5):
 
     async def resolve(fqdn_str, qtype):
+        hosts = get_hosts()
+        if fqdn_str in hosts[qtype]:
+            return (hosts[qtype][fqdn_str],)
+
         fqdn = BytesTTL(fqdn_str.encode(), expires_at=float('inf'))
         while True:
             answers = await iterate_until_successful(
