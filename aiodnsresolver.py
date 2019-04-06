@@ -209,21 +209,23 @@ async def udp_request_attempt(_, addr, fqdn, qtype):
                 continue
 
             res = parse(response_data)
+            trusted = res.qid == req.qid and res.qd == req.qd
+
+            if not trusted:
+                continue
 
             name_error = res.rcode == 3
             non_name_error = res.rcode and not name_error
-            trusted = res.qid == req.qid and res.qd == req.qd
             answers = [(rdata_ttl(answer, ttl_start), answer.qtype) for answer in res.an if answer.name == fqdn_0x20]
 
-            if trusted:
-                if non_name_error:
-                    raise TemporaryResolverError()
-                elif name_error or not answers:
-                    # a name error can be returned by some non-authoritative
-                    # servers on not-existing, contradicting RFC 1035
-                    raise DoesNotExist()
-                else:
-                    return answers, ttl_start
+            if non_name_error:
+                raise TemporaryResolverError()
+            elif name_error or not answers:
+                # a name error can be returned by some non-authoritative
+                # servers on not-existing, contradicting RFC 1035
+                raise DoesNotExist()
+            else:
+                return answers, ttl_start
 
 
 def get_nameservers():
