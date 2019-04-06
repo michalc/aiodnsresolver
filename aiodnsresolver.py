@@ -179,52 +179,51 @@ def parse(data):
     return Message(qid, qr, opcode, aa, tc, rd, ra, z, rcode, qd, an, ns, ar)
 
 
-async def udp_request_attempt(_, addr, fqdn, qtype, udp_response_timeout):
+async def udp_request_attempt(_, addr, fqdn, qtype):
     loop = asyncio.get_event_loop()
 
-    with timeout(udp_response_timeout):
-        qid = secrets.randbelow(65536)
-        fqdn_0x20 = bytes(
-            (char | secrets.choice((32, 0))) if 65 <= char < 91 else char
-            for char in fqdn.upper()
-        )
-        req = Message(
-            qid=qid, qr=QUESTION, opcode=0, aa=0, tc=0, rd=1, ra=0, z=0, rcode=0,
-            qd=(QuestionRecord(fqdn_0x20, qtype, qclass=1),), an=(), ns=(), ar=(),
-        )
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+    qid = secrets.randbelow(65536)
+    fqdn_0x20 = bytes(
+        (char | secrets.choice((32, 0))) if 65 <= char < 91 else char
+        for char in fqdn.upper()
+    )
+    req = Message(
+        qid=qid, qr=QUESTION, opcode=0, aa=0, tc=0, rd=1, ra=0, z=0, rcode=0,
+        qd=(QuestionRecord(fqdn_0x20, qtype, qclass=1),), an=(), ns=(), ar=(),
+    )
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
 
-            sock.setblocking(False)
-            await loop.sock_connect(sock, (str(addr), 53))
-            ttl_start = loop.time()
-            await loop.sock_sendall(sock, pack(req))
+        sock.setblocking(False)
+        await loop.sock_connect(sock, (str(addr), 53))
+        ttl_start = loop.time()
+        await loop.sock_sendall(sock, pack(req))
 
-            while True:  # We might be getting spoofed messages
-                response_data = await loop.sock_recv(sock, 512)
+        while True:  # We might be getting spoofed messages
+            response_data = await loop.sock_recv(sock, 512)
 
-                # Some initial peeking before parsing
-                if len(response_data) < 12:
-                    continue
-                qid_matches = req.qid == struct.unpack('!H', response_data[:2])[0]
-                if not qid_matches:
-                    continue
+            # Some initial peeking before parsing
+            if len(response_data) < 12:
+                continue
+            qid_matches = req.qid == struct.unpack('!H', response_data[:2])[0]
+            if not qid_matches:
+                continue
 
-                res = parse(response_data)
+            res = parse(response_data)
 
-                name_error = res.rcode == 3
-                non_name_error = res.rcode and not name_error
-                trusted = res.qid == req.qid and res.qd == req.qd
-                answers = [(rdata_ttl(answer, ttl_start), answer.qtype) for answer in res.an if answer.name == fqdn_0x20]
+            name_error = res.rcode == 3
+            non_name_error = res.rcode and not name_error
+            trusted = res.qid == req.qid and res.qd == req.qd
+            answers = [(rdata_ttl(answer, ttl_start), answer.qtype) for answer in res.an if answer.name == fqdn_0x20]
 
-                if trusted:
-                    if non_name_error:
-                        raise TemporaryResolverError()
-                    elif name_error or not answers:
-                        # a name error can be returned by some non-authoritative
-                        # servers on not-existing, contradicting RFC 1035
-                        raise DoesNotExist()
-                    else:
-                        return answers, ttl_start
+            if trusted:
+                if non_name_error:
+                    raise TemporaryResolverError()
+                elif name_error or not answers:
+                    # a name error can be returned by some non-authoritative
+                    # servers on not-existing, contradicting RFC 1035
+                    raise DoesNotExist()
+                else:
+                    return answers, ttl_start
 
 
 def get_nameservers():
@@ -265,7 +264,7 @@ def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_ser
     async def udp_request(addr, fqdn, qtype):
         return await iterate_until_successful(
             range(udp_attempts_per_server),
-            coro=udp_request_attempt, coro_args=(addr, fqdn, qtype, udp_response_timeout))
+            coro=wrap_timeout(udp_response_timeout, udp_request_attempt), coro_args=(addr, fqdn, qtype))
 
     memoized_udp_request = memoize_ttl(udp_request, get_ttl)
 
