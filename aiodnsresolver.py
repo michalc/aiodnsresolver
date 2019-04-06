@@ -34,6 +34,14 @@ class DnsResolverError(Exception):
 class DoesNotExist(DnsResolverError):
     pass
 
+class IPv4AddressTTL(ipaddress.IPv4Address):
+    def __init__(self, address):
+        return super().__init__(address)
+
+class IPv6AddressTTL(ipaddress.IPv6Address):
+    def __init__(self, address):
+        return super().__init__(address)
+
 
 def pack(message):
 
@@ -122,10 +130,10 @@ def parse(data):
         name, qtype, qclass = parse_question_record()
         ttl, dl = unpack('!LH')
         if qtype == TYPES.A:
-            rdata = ipaddress.IPv4Address(data[l: l + dl])
+            rdata = IPv4AddressTTL(data[l: l + dl])
             l += dl    
         elif qtype == TYPES.AAAA:
-            rdata = ipaddress.IPv6Address(data[l: l + dl])
+            rdata = IPv6AddressTTL(data[l: l + dl])
             l += dl
         elif qtype == TYPES.CNAME:
             rdata = b'.'.join(load_labels())
