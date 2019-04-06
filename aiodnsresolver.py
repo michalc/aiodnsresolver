@@ -262,11 +262,11 @@ def get_hosts():
         ]
     return {
         TYPES.A: {
-            host: IPv4AddressTTL(ip_address, expires_at=0)
+            host.encode(): IPv4AddressTTL(ip_address, expires_at=0)
             for host, ip_address in hosts if isinstance(ip_address, ipaddress.IPv4Address)
         },
         TYPES.AAAA: {
-            host: IPv6AddressTTL(ip_address, expires_at=0)
+            host.encode(): IPv6AddressTTL(ip_address, expires_at=0)
             for host, ip_address in hosts if isinstance(ip_address, ipaddress.IPv6Address)
         }
     }
@@ -276,11 +276,12 @@ def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_ser
 
     async def resolve(fqdn_str, qtype):
         hosts = get_hosts()
-        if fqdn_str in hosts[qtype]:
-            return (hosts[qtype][fqdn_str],)
-
         fqdn = BytesTTL(fqdn_str.encode(), expires_at=float('inf'))
+
         while True:
+            if fqdn in hosts[qtype]:
+                return (hosts[qtype][fqdn],)
+
             answers = await iterate_until_successful(
                 iterator=get_nameservers(),
                 coro=memoized_udp_request, coro_args=(fqdn, qtype))
