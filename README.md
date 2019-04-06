@@ -37,8 +37,7 @@ resolve = Resolver()
 # Will make a request to the nameserver(s)
 ip_addresses = await resolve('www.google.com', TYPES.A)
 
-# Will only make another request to the nameserver(s) if the ip_addresses
-# have expired
+# Will only make another request to the nameserver(s) if the ip_addresses have expired
 ip_addresses = await resolve('www.google.com', TYPES.A)
 ```
 
