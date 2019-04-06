@@ -275,6 +275,7 @@ def get_hosts():
 def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_server=5):
 
     async def resolve(fqdn_str, qtype):
+        nameservers = get_nameservers()
         hosts = get_hosts()
         fqdn = BytesTTL(fqdn_str.encode(), expires_at=float('inf'))
 
@@ -283,7 +284,7 @@ def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_ser
                 return (hosts[qtype][fqdn],)
 
             answers = await iterate_until_successful(
-                iterator=get_nameservers(),
+                iterator=nameservers,
                 coro=memoized_udp_request, coro_args=(fqdn, qtype))
 
             qtype_rdata = rdata_minimised_ttls_that_match_qtype(answers, fqdn._expires_at, qtype)
