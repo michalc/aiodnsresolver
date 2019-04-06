@@ -181,6 +181,7 @@ def parse(data):
 
 async def udp_request(udp_response_timeout, udp_attempts_per_server, addr, fqdn, qtype):
     loop = asyncio.get_event_loop()
+    exception = None
 
     for i in range(udp_attempts_per_server):
         try:
@@ -228,9 +229,10 @@ async def udp_request(udp_response_timeout, udp_attempts_per_server, addr, fqdn,
                             else:
                                 return answers, ttl_start
 
-        except (asyncio.TimeoutError, TemporaryResolverError):
-            if i == udp_attempts_per_server - 1:
-                raise
+        except (asyncio.TimeoutError, TemporaryResolverError) as recent_exception:
+            exception = recent_exception
+
+    raise exception from None
 
 
 def get_nameservers():
@@ -256,15 +258,18 @@ def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_ser
 
             while True:
                 nameservers = get_nameservers()
+                exception = None
                 for i in range(len(nameservers)):
                     try:
                         addr = nameservers[i]
                         answers = await memoized_udp_request(
                             udp_response_timeout, udp_attempts_per_server, addr, fqdn, qtype)
                         break
-                    except (asyncio.TimeoutError, TemporaryResolverError):
-                        if i == len(nameservers) - 1:
-                            raise
+                    except (asyncio.TimeoutError, TemporaryResolverError) as recent_exception:
+                        exception = recent_exception
+
+                if exception is not None:
+                    raise exception from None
 
                 qtype_rdata = rdata_ttl_min((rdata_ttl for rdata_ttl, rdata_qtype in answers if rdata_qtype == qtype), fqdn._expires_at)
                 cname_rdata = rdata_ttl_min((rdata_ttl for rdata_ttl, rdata_qtype in answers if rdata_qtype == TYPES.CNAME), fqdn._expires_at)
