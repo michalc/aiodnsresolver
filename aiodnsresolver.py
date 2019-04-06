@@ -53,7 +53,7 @@ class IPv6AddressTTL(ipaddress.IPv6Address):
     def ttl(self, now):
         return max(0, self._expires_at - now)
 
-class CNAME(bytes):
+class BytesTTL(bytes):
     def __new__(cls, value, expires_at):
         value = super().__new__(cls, value)
         value._expires_at = expires_at
@@ -156,9 +156,9 @@ def parse(data, ttl_start):
             rdata = IPv6AddressTTL(data[l: l + dl], ttl_start + ttl)
             l += dl
         elif qtype == TYPES.CNAME:
-            rdata = CNAME(b'.'.join(load_labels()), ttl_start + ttl)
+            rdata = BytesTTL(b'.'.join(load_labels()), ttl_start + ttl)
         else:
-            rdata = data[l: l + dl]
+            rdata = BytesTTL(data[l: l + dl], ttl_start + ttl)
             l += dl
 
         return ResourceRecord(name, qtype, qclass, ttl, rdata)
