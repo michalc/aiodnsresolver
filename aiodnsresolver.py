@@ -38,26 +38,26 @@ class DoesNotExist(ResolverError):
     pass
 
 class IPv4AddressTTL(ipaddress.IPv4Address):
-    def __init__(self, address, expires_at):
-        super().__init__(address)
+    def __init__(self, rdata, expires_at):
+        super().__init__(rdata)
         self._expires_at = expires_at
 
     def ttl(self, now):
         return max(0, self._expires_at - now)
 
 class IPv6AddressTTL(ipaddress.IPv6Address):
-    def __init__(self, address, expires_at):
-        super().__init__(address)
+    def __init__(self, rdata, expires_at):
+        super().__init__(rdata)
         self._expires_at = expires_at
 
     def ttl(self, now):
         return max(0, self._expires_at - now)
 
 class BytesTTL(bytes):
-    def __new__(cls, value, expires_at):
-        value = super().__new__(cls, value)
-        value._expires_at = expires_at
-        return value
+    def __new__(cls, rdata, expires_at):
+        _rdata = super().__new__(cls, rdata)
+        _rdata._expires_at = expires_at
+        return _rdata
 
     def ttl(self, now):
         return max(0, self._expires_at - now)
@@ -69,8 +69,18 @@ def rdata_ttl(record, ttl_start):
         IPv6AddressTTL(record.rdata, expires_at) if record.qtype == TYPES.AAAA else \
         BytesTTL(record.rdata, expires_at)
 
-def rdata_ttl_min(rdata_ttls, expires_at):
-    return tuple(type(rdata_ttl)(rdata_ttl, min(expires_at, rdata_ttl._expires_at)) for rdata_ttl in rdata_ttls)
+def rdata_minimised_ttls_that_match_qtype(answers, expires_at, qtype):
+    # Re-constructs the instances, but reducing their TTLs so that they expire
+    # at or before expires_at, and only returns those that match the qtype
+    # passed. Used when iterating through CNAMES to ensure that the the final
+    # addresses have a TTL that do not go beyond any of the CNAMES used along
+    # the way
+    return tuple(type(rdata_ttl)(
+        rdata=rdata_ttl,
+        expires_at=min(expires_at, rdata_ttl._expires_at))
+        for rdata_ttl, rdata_qtype in answers
+        if rdata_qtype == qtype
+    )
 
 
 def pack(message):
@@ -251,8 +261,8 @@ def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_ser
                 iterator=get_nameservers(),
                 coro=memoized_udp_request, coro_args=(fqdn, qtype))
 
-            qtype_rdata = rdata_ttl_min((rdata_ttl for rdata_ttl, rdata_qtype in answers if rdata_qtype == qtype), fqdn._expires_at)
-            cname_rdata = rdata_ttl_min((rdata_ttl for rdata_ttl, rdata_qtype in answers if rdata_qtype == TYPES.CNAME), fqdn._expires_at)
+            qtype_rdata = rdata_minimised_ttls_that_match_qtype(answers, fqdn._expires_at, qtype)
+            cname_rdata = rdata_minimised_ttls_that_match_qtype(answers, fqdn._expires_at, TYPES.CNAME)
             if qtype_rdata:
                 return qtype_rdata
             elif cname_rdata:
