@@ -24,6 +24,66 @@ ip_address = await resolve('www.google.com', TYPES.A)
 The IP address returned is an instance of [IPv4Address](https://docs.python.org/3/library/ipaddress.html#ipaddress.IPv4Address) or [IPv6Address](https://docs.python.org/3/library/ipaddress.html#ipaddress.IPv6Address). Both support conversion to their usual string form by passing them to `str`.
 
 
+## Example: aiohttp
+
+```python
+import asyncio
+import socket
+
+from aiodnsresolver import (
+    TYPES,
+    DnsResolverError,
+    DoesNotExist,
+    Resolver,
+)
+import aiohttp
+
+
+class AioHttpDnsResolver(aiohttp.abc.AbstractResolver):
+    def __init__(self):
+        super().__init__()
+        self.resolver = Resolver()
+
+    async def resolve(self, host, port, family):
+        # Use ipv4 unless requested otherwise
+        # This is consistent with the default aiohttp + aiodns AsyncResolver
+        record_type = \
+            TYPES.AAAA if family == socket.AF_INET6 else \
+            TYPES.A
+
+        try:
+            ip_address = str(await self.resolver(host, record_type))
+        except DoesNotExist as does_not_exist:
+            raise OSError(0, '{} does not exist'.format(host)) from does_not_exist
+        except DnsError as dns_error:
+            raise OSError(0, '{} failed to resolve'.format(host)) from dns_error
+
+        return [{
+            'hostname': host,
+            'host': ip_address,
+            'port': port,
+            'family': family,
+            'proto': socket.IPPROTO_TCP,
+            'flags': socket.AI_NUMERICHOST,
+        }]
+
+    async def close(self):
+        pass
+
+
+async def main():
+    async with aiohttp.ClientSession(
+        connector=aiohttp.TCPConnector(use_dns_cache=False, resolver=AioHttpDnsResolver()),
+    ) as session:
+        async with await session.get('https://www.google.com/') as result:
+            print(result)
+
+loop = asyncio.get_event_loop()
+loop.run_until_complete(main())
+loop.close()
+```
+
+
 ## Security considerations
 
 To migitate spoofing, several techniques are used.
