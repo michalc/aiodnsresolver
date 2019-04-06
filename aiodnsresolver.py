@@ -189,17 +189,19 @@ async def udp_request(udp_response_timeout, attempts_per_server, addr, fqdn, qty
                         res = parse(response_data, ttl_start)
 
                         name_error = res.rcode == 3
+                        non_name_error = res.rcode and not name_error
                         trusted = res.qid == req.qid and res.qd == req.qd
                         answers = [answer for answer in res.an if answer.name == fqdn_0x20]
 
-                        if not trusted:
-                            raise ResolverError()
-                        elif name_error or not answers:
-                            # a name error can be returned by some non-authoritative
-                            # servers on not-existing, contradicting RFC 1035
-                            raise DoesNotExist()
-                        else:
-                            return answers
+                        if trusted:
+                            if non_name_error:
+                                raise ResolverError()
+                            elif name_error or not answers:
+                                # a name error can be returned by some non-authoritative
+                                # servers on not-existing, contradicting RFC 1035
+                                raise DoesNotExist()
+                            else:
+                                return answers
 
         except asyncio.TimeoutError:
             if i == max_attempts - 1:
