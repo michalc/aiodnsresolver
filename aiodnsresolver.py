@@ -262,7 +262,7 @@ def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_ser
                         answers = await memoized_udp_request(
                             udp_response_timeout, udp_attempts_per_server, addr, fqdn, qtype)
                         break
-                    except:
+                    except (asyncio.TimeoutError, TemporaryResolverError):
                         if i == len(nameservers) - 1:
                             raise
 
