@@ -244,8 +244,7 @@ def get_nameservers():
 def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_server=5):
 
     async def resolve(fqdn_str, qtype):
-        fqdn = fqdn_str.encode()
-        expires_at = float('inf')
+        fqdn = BytesTTL(fqdn_str.encode(), float('inf'))
 
         with timeout(overall_timeout):
 
@@ -265,13 +264,12 @@ def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_ser
                 cname_rdata = tuple(answer.rdata for answer in answers if answer.qtype == TYPES.CNAME)
                 if qtype_rdata:
                     return tuple(
-                        IPv4AddressTTL(ip_address, min(expires_at, ip_address._expires_at)) if isinstance(ip_address, IPv4AddressTTL) else \
-                        IPv6AddressTTL(ip_address, min(expires_at, ip_address._expires_at))
+                        IPv4AddressTTL(ip_address, min(fqdn._expires_at, ip_address._expires_at)) if isinstance(ip_address, IPv4AddressTTL) else \
+                        IPv6AddressTTL(ip_address, min(fqdn._expires_at, ip_address._expires_at))
                         for ip_address in qtype_rdata
                     )
                 elif cname_rdata:
-                    fqdn = cname_rdata[0]
-                    expires_at = min(expires_at, fqdn._expires_at)
+                    fqdn = BytesTTL(cname_rdata[0], min(fqdn._expires_at, cname_rdata[0]._expires_at))
                 else:
                     raise DoesNotExist()
 
