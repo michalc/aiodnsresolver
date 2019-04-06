@@ -279,7 +279,7 @@ def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_ser
     def get_expires_at(answers):
         return min(rdata_ttl._expires_at for rdata_ttl, _ in answers)
 
-    memoized_udp_request = memoize_ttl(udp_request, get_expires_at)
+    memoized_udp_request = memoize_expires_at(udp_request, get_expires_at)
 
     return wrap_timeout(overall_timeout, resolve)
 
@@ -302,7 +302,7 @@ def wrap_timeout(seconds, coro):
     return wrapped
 
 
-def memoize_ttl(func, get_expires_at):
+def memoize_expires_at(func, get_expires_at):
 
     loop = asyncio.get_event_loop()
     cache = {}
