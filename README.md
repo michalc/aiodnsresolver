@@ -37,7 +37,7 @@ ip_addresses = await resolve('www.google.com', TYPES.A)
 
 loop = asyncio.get_event_loop()
 for ip_address in ip_address:
-    ('TTL', ip_address.ttl(loop.time()))
+    print('TTL', ip_address.ttl(loop.time()))
 ```
 
 This can be used in HA situations to assist failovers. The timer for TTL starts just _before_ the request to the nameserver is made.
