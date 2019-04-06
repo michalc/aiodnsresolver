@@ -245,22 +245,19 @@ def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_ser
 
     async def resolve(fqdn_str, qtype):
         fqdn = BytesTTL(fqdn_str.encode(), float('inf'))
-
-        with timeout(overall_timeout):
-
-            while True:
-                answers = await iterate_until_successful(
-                    iterator=get_nameservers(),
-                    coro=memoized_udp_request, coro_args=(fqdn, qtype))
-                
-                qtype_rdata = rdata_ttl_min((rdata_ttl for rdata_ttl, rdata_qtype in answers if rdata_qtype == qtype), fqdn._expires_at)
-                cname_rdata = rdata_ttl_min((rdata_ttl for rdata_ttl, rdata_qtype in answers if rdata_qtype == TYPES.CNAME), fqdn._expires_at)
-                if qtype_rdata:
-                    return qtype_rdata
-                elif cname_rdata:
-                    fqdn = cname_rdata[0]
-                else:
-                    raise DoesNotExist()
+        while True:
+            answers = await iterate_until_successful(
+                iterator=get_nameservers(),
+                coro=memoized_udp_request, coro_args=(fqdn, qtype))
+            
+            qtype_rdata = rdata_ttl_min((rdata_ttl for rdata_ttl, rdata_qtype in answers if rdata_qtype == qtype), fqdn._expires_at)
+            cname_rdata = rdata_ttl_min((rdata_ttl for rdata_ttl, rdata_qtype in answers if rdata_qtype == TYPES.CNAME), fqdn._expires_at)
+            if qtype_rdata:
+                return qtype_rdata
+            elif cname_rdata:
+                fqdn = cname_rdata[0]
+            else:
+                raise DoesNotExist()
 
     def get_ttl(answers):
         return min(rdata_ttl.ttl(loop.time()) for rdata_ttl, _ in answers)
@@ -272,7 +269,7 @@ def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_ser
 
     memoized_udp_request = memoize_ttl(udp_request, get_ttl)
 
-    return resolve
+    return wrap_timeout(overall_timeout, resolve)
 
 
 async def iterate_until_successful(iterator, coro, coro_args):
@@ -282,6 +279,15 @@ async def iterate_until_successful(iterator, coro, coro_args):
         except (asyncio.TimeoutError, TemporaryResolverError) as exception:
             pass
     raise exception
+
+
+def wrap_timeout(seconds, coro):
+
+    async def wrapped(*args):
+        with timeout(seconds):
+            return await coro(*args)
+
+    return wrapped
 
 
 def memoize_ttl(func, get_ttl):
