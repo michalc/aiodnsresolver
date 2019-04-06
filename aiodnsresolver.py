@@ -245,7 +245,7 @@ def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_ser
     loop = asyncio.get_event_loop()
 
     async def resolve(fqdn_str, qtype):
-        fqdn = BytesTTL(fqdn_str.encode(), float('inf'))
+        fqdn = BytesTTL(fqdn_str.encode(), expires_at=float('inf'))
         while True:
             answers = await iterate_until_successful(
                 iterator=get_nameservers(),
