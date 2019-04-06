@@ -127,11 +127,10 @@ class TestMemoizeTtl(unittest.TestCase):
         ttls = [2, 1]
 
         async def func(*args, **kwargs):
-            start = loop.time()
             mock(*args, **kwargs)
             # Allow to another task to run
             await asyncio.sleep(0)
-            return 'value', start
+            return 'value'
 
         memoized = memoize_ttl(func, lambda _: 100)
 
@@ -154,10 +153,9 @@ class TestMemoizeTtl(unittest.TestCase):
         until_called_twice = until_called(num_times=2)
 
         async def func(*args, **kwargs):
-            start = loop.time()
             mock(*args, **kwargs)
             await until_called_twice()
-            return kwargs['b'], start
+            return kwargs['b']
 
         memoized = memoize_ttl(func, lambda _: 100)
 
@@ -183,9 +181,8 @@ class TestMemoizeTtl(unittest.TestCase):
 
         with FastForward(loop) as forward:
             async def func(*args, **kwargs):
-                start = loop.time()
                 mock(*args, **kwargs)
-                return results.pop(), start
+                return results.pop()
 
             memoized = memoize_ttl(func, lambda _: 100)
 
@@ -209,9 +206,8 @@ class TestMemoizeTtl(unittest.TestCase):
         results = [4, 3, 2, 1]
 
         async def func(*args, **kwargs):
-            start = loop.time()
             mock(*args, **kwargs)
-            return results.pop(), start
+            return results.pop()
 
         memoized = memoize_ttl(func, lambda result: result)
 
@@ -242,10 +238,9 @@ class TestMemoizeTtl(unittest.TestCase):
         results = [3, 2, 1]
 
         async def func(*args, **kwargs):
-            start = loop.time()
             await asyncio.sleep(0.5)
             mock(*args, **kwargs)
-            return results.pop(), start
+            return results.pop()
 
         memoized = memoize_ttl(func, lambda result: result)
 

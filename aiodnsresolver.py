@@ -236,7 +236,7 @@ async def udp_request_attempt(_, addr, fqdn, qtype):
                 # servers on not-existing, contradicting RFC 1035
                 raise DoesNotExist()
             else:
-                return answers, ttl_start
+                return answers
 
 
 def get_nameservers():
@@ -276,10 +276,10 @@ def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_ser
             range(udp_attempts_per_server),
             coro=wrap_timeout(udp_response_timeout, udp_request_attempt), coro_args=(addr, fqdn, qtype))
 
-    def get_ttl(answers):
-        return min(rdata_ttl.ttl(loop.time()) for rdata_ttl, _ in answers)
+    def get_expires_at(answers):
+        return min(rdata_ttl._expires_at for rdata_ttl, _ in answers)
 
-    memoized_udp_request = memoize_ttl(udp_request, get_ttl)
+    memoized_udp_request = memoize_ttl(udp_request, get_expires_at)
 
     return wrap_timeout(overall_timeout, resolve)
 
@@ -302,7 +302,7 @@ def wrap_timeout(seconds, coro):
     return wrapped
 
 
-def memoize_ttl(func, get_ttl):
+def memoize_ttl(func, get_expires_at):
 
     loop = asyncio.get_event_loop()
     cache = {}
@@ -317,17 +317,13 @@ def memoize_ttl(func, get_ttl):
             cache[key] = future
 
             try:
-                result, start = await func(*args, **kwargs)
+                result = await func(*args, **kwargs)
             except BaseException as exception:
                 del cache[key]
                 future.set_exception(exception)
             else:
                 future.set_result(result)
-                # Err on the side of invalidation, and count TTL
-                # from before we call the underlying function
-                end = loop.time()
-                delay = max(0, get_ttl(result) - (end - start))
-                loop.call_later(delay, invalidate, key)
+                loop.call_at(get_expires_at(result), invalidate, key)
 
         return await future
 
