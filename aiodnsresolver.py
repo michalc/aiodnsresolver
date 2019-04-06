@@ -248,7 +248,7 @@ def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_ser
             answers = await iterate_until_successful(
                 iterator=get_nameservers(),
                 coro=memoized_udp_request, coro_args=(fqdn, qtype))
-            
+
             qtype_rdata = rdata_ttl_min((rdata_ttl for rdata_ttl, rdata_qtype in answers if rdata_qtype == qtype), fqdn._expires_at)
             cname_rdata = rdata_ttl_min((rdata_ttl for rdata_ttl, rdata_qtype in answers if rdata_qtype == TYPES.CNAME), fqdn._expires_at)
             if qtype_rdata:
