@@ -35,12 +35,20 @@ class DoesNotExist(DnsResolverError):
     pass
 
 class IPv4AddressTTL(ipaddress.IPv4Address):
-    def __init__(self, address):
-        return super().__init__(address)
+    def __init__(self, address, expires_at):
+        super().__init__(address)
+        self._expires_at = expires_at
+
+    def ttl(self, now):
+        return max(0, self._expires_at - now)
 
 class IPv6AddressTTL(ipaddress.IPv6Address):
-    def __init__(self, address):
-        return super().__init__(address)
+    def __init__(self, address, expires_at):
+        super().__init__(address)
+        self._expires_at = expires_at
+
+    def ttl(self, now):
+        return max(0, self._expires_at - now)
 
 
 def pack(message):
@@ -73,7 +81,7 @@ def pack(message):
     return header + records
 
 
-def parse(data):
+def parse(data, ttl_start):
 
     def byte(offset):
         return data[offset:offset + 1][0]
@@ -130,10 +138,10 @@ def parse(data):
         name, qtype, qclass = parse_question_record()
         ttl, dl = unpack('!LH')
         if qtype == TYPES.A:
-            rdata = IPv4AddressTTL(data[l: l + dl])
+            rdata = IPv4AddressTTL(data[l: l + dl], ttl_start + ttl)
             l += dl    
         elif qtype == TYPES.AAAA:
-            rdata = IPv6AddressTTL(data[l: l + dl])
+            rdata = IPv6AddressTTL(data[l: l + dl], ttl_start + ttl)
             l += dl
         elif qtype == TYPES.CNAME:
             rdata = b'.'.join(load_labels())
@@ -155,7 +163,7 @@ def parse(data):
     return Message(qid, qr, opcode, aa, tc, rd, ra, z, rcode, qd, an, ns, ar)
 
 
-async def udp_request(addr, fqdn, qtype):
+async def udp_request(addr, fqdn, qtype, ttl_start):
     loop = asyncio.get_event_loop()
 
     max_attempts = 5
@@ -179,7 +187,7 @@ async def udp_request(addr, fqdn, qtype):
 
                     while True:  # We might be getting spoofed messages
                         response_data = await loop.sock_recv(sock, 512)
-                        res = parse(response_data)
+                        res = parse(response_data, ttl_start)
 
                         name_error = res.rcode == 3
                         trusted = res.qid == req.qid and res.qd == req.qd
@@ -262,7 +270,7 @@ def memoize_ttl(func, get_ttl):
 
             try:
                 start = loop.time()
-                result = await func(*args, **kwargs)
+                result = await func(*args, **kwargs, ttl_start=start)
             except BaseException as exception:
                 del cache[key]
                 future.set_exception(exception)

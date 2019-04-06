@@ -21,7 +21,26 @@ resolve = Resolver()
 ip_addresses = await resolve('www.google.com', TYPES.A)
 ```
 
-Returned are tuples of [IPv4Address](https://docs.python.org/3/library/ipaddress.html#ipaddress.IPv4Address) or [IPv6Address](https://docs.python.org/3/library/ipaddress.html#ipaddress.IPv6Address). Both support conversion to their usual string form by passing them to `str`.
+Returned are tuples of subclasses of [IPv4Address](https://docs.python.org/3/library/ipaddress.html#ipaddress.IPv4Address) or [IPv6Address](https://docs.python.org/3/library/ipaddress.html#ipaddress.IPv6Address). Both support conversion to their usual string form by passing them to `str`.
+
+
+## TTL
+
+The address objects each have an extra method, `ttl`, that returns the seconds left until the address expires.
+
+```python
+import asyncio
+from aiodnsresolver import Resolver, TYPES
+
+resolve = Resolver()
+ip_addresses = await resolve('www.google.com', TYPES.A)
+
+loop = asyncio.get_event_loop()
+for ip_address in ip_address:
+	print('TTL', ip_address.ttl(loop.time()))
+```
+
+This can be used in HA situations to assist failovers. The timer for TTL starts just _before_ the request to the nameserver is made.
 
 
 ## Example: aiohttp
