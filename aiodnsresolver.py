@@ -203,8 +203,8 @@ async def udp_request(udp_response_timeout, attempts_per_server, addr, fqdn, qty
                             else:
                                 return answers
 
-        except asyncio.TimeoutError:
-            if i == max_attempts - 1:
+        except (asyncio.TimeoutError, ResolverError):
+            if i == attempts_per_server - 1:
                 raise
 
 
