@@ -179,7 +179,7 @@ def parse(data):
     return Message(qid, qr, opcode, aa, tc, rd, ra, z, rcode, qd, an, ns, ar)
 
 
-async def udp_request(udp_response_timeout, udp_attempts_per_server, addr, fqdn, qtype, ttl_start):
+async def udp_request(udp_response_timeout, udp_attempts_per_server, addr, fqdn, qtype):
     loop = asyncio.get_event_loop()
 
     for i in range(udp_attempts_per_server):
@@ -226,7 +226,7 @@ async def udp_request(udp_response_timeout, udp_attempts_per_server, addr, fqdn,
                                 # servers on not-existing, contradicting RFC 1035
                                 raise DoesNotExist()
                             else:
-                                return answers
+                                return answers, ttl_start
 
         except (asyncio.TimeoutError, TemporaryResolverError):
             if i == udp_attempts_per_server - 1:
@@ -298,8 +298,7 @@ def memoize_ttl(func, get_ttl):
             cache[key] = future
 
             try:
-                start = loop.time()
-                result = await func(*args, **kwargs, ttl_start=start)
+                result, start = await func(*args, **kwargs)
             except BaseException as exception:
                 del cache[key]
                 future.set_exception(exception)

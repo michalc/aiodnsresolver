@@ -127,10 +127,11 @@ class TestMemoizeTtl(unittest.TestCase):
         ttls = [2, 1]
 
         async def func(*args, **kwargs):
+            start = loop.time()
             mock(*args, **kwargs)
             # Allow to another task to run
             await asyncio.sleep(0)
-            return 'value'
+            return 'value', start
 
         memoized = memoize_ttl(func, lambda _: 100)
 
@@ -143,33 +144,7 @@ class TestMemoizeTtl(unittest.TestCase):
 
         self.assertEqual(task_a_result, 'value')
         self.assertEqual(task_b_result, 'value')
-        self.assertEqual(mock.mock_calls, [call(10, 20, a='val_a', b='val_b', ttl_start=0)])
-
-    @async_test
-    async def test_identical_concurrent_memoized_future(self):
-        loop = asyncio.get_event_loop()
-        mock = Mock()
-        future = asyncio.Future()
-
-        def func(*args, **kwargs):
-            mock(*args, **kwargs)
-            return future
-
-        memoized = memoize_ttl(func, lambda _: 100)
-
-        with FastForward(loop) as forward:
-            task_a = asyncio.ensure_future(memoized(10, 20, a='val_a', b='val_b'))
-            task_b = asyncio.ensure_future(memoized(10, 20, a='val_a', b='val_b'))
-
-            await asyncio.sleep(0)
-            future.set_result('value')
-
-            task_a_result = await task_a
-            task_b_result = await task_b
-
-        self.assertEqual(task_a_result, 'value')
-        self.assertEqual(task_b_result, 'value')
-        self.assertEqual(mock.mock_calls, [call(10, 20, a='val_a', b='val_b', ttl_start=0)])
+        self.assertEqual(mock.mock_calls, [call(10, 20, a='val_a', b='val_b')])
 
     @async_test
     async def test_different_concurrent_not_memoized(self):
@@ -179,9 +154,10 @@ class TestMemoizeTtl(unittest.TestCase):
         until_called_twice = until_called(num_times=2)
 
         async def func(*args, **kwargs):
+            start = loop.time()
             mock(*args, **kwargs)
             await until_called_twice()
-            return kwargs['b']
+            return kwargs['b'], start
 
         memoized = memoize_ttl(func, lambda _: 100)
 
@@ -195,8 +171,8 @@ class TestMemoizeTtl(unittest.TestCase):
         self.assertEqual(task_a_result, 'val_b_a')
         self.assertEqual(task_b_result, 'val_b_b')
         self.assertEqual(mock.mock_calls, [
-            call(10, 20, a='val_a', b='val_b_a', ttl_start=0),
-            call(10, 20, a='val_a', b='val_b_b', ttl_start=0),
+            call(10, 20, a='val_a', b='val_b_a'),
+            call(10, 20, a='val_a', b='val_b_b'),
         ])
 
     @async_test
@@ -207,8 +183,9 @@ class TestMemoizeTtl(unittest.TestCase):
 
         with FastForward(loop) as forward:
             async def func(*args, **kwargs):
+                start = loop.time()
                 mock(*args, **kwargs)
-                return results.pop()
+                return results.pop(), start
 
             memoized = memoize_ttl(func, lambda _: 100)
 
@@ -222,7 +199,7 @@ class TestMemoizeTtl(unittest.TestCase):
         self.assertEqual(task_a_result, 'a')
         self.assertEqual(task_b_result, 'a')
         self.assertEqual(mock.mock_calls, [
-            call(10, 20, a='val_a', b='val_b', ttl_start=0),
+            call(10, 20, a='val_a', b='val_b'),
         ])
 
     @async_test
@@ -232,8 +209,9 @@ class TestMemoizeTtl(unittest.TestCase):
         results = [4, 3, 2, 1]
 
         async def func(*args, **kwargs):
+            start = loop.time()
             mock(*args, **kwargs)
-            return results.pop()
+            return results.pop(), start
 
         memoized = memoize_ttl(func, lambda result: result)
 
@@ -252,9 +230,9 @@ class TestMemoizeTtl(unittest.TestCase):
             self.assertEqual(task_c_result, 3)
             self.assertEqual(task_d_result, 2)
             self.assertEqual(mock.mock_calls, [
-                call(10, 20, a='val_a', b='val_b_a', ttl_start=0.0),
-                call(10, 20, a='val_a', b='val_b_b', ttl_start=0.0),
-                call(10, 20, a='val_a', b='val_b_a', ttl_start=1.0),
+                call(10, 20, a='val_a', b='val_b_a'),
+                call(10, 20, a='val_a', b='val_b_b'),
+                call(10, 20, a='val_a', b='val_b_a'),
             ])
 
     @async_test
@@ -264,9 +242,10 @@ class TestMemoizeTtl(unittest.TestCase):
         results = [3, 2, 1]
 
         async def func(*args, **kwargs):
+            start = loop.time()
             await asyncio.sleep(0.5)
             mock(*args, **kwargs)
-            return results.pop()
+            return results.pop(), start
 
         memoized = memoize_ttl(func, lambda result: result)
 
@@ -282,8 +261,8 @@ class TestMemoizeTtl(unittest.TestCase):
             self.assertEqual(result_b, 1)
             self.assertEqual(result_c, 2)
             self.assertEqual(mock.mock_calls, [
-                call(10, 20, a='val_a', b='val_b', ttl_start=0),
-                call(10, 20, a='val_a', b='val_b', ttl_start=1.0),
+                call(10, 20, a='val_a', b='val_b'),
+                call(10, 20, a='val_a', b='val_b'),
             ])
 
     @async_test
@@ -310,7 +289,7 @@ class TestMemoizeTtl(unittest.TestCase):
             with self.assertRaisesRegex(Exception, 'a'):
                 await task_b
 
-        self.assertEqual(mock.mock_calls, [call(10, 20, a='val_a', b='val_b', ttl_start=0)])
+        self.assertEqual(mock.mock_calls, [call(10, 20, a='val_a', b='val_b')])
 
     @async_test
     async def test_identical_sequential_not_memoized_exception(self):
@@ -338,8 +317,8 @@ class TestMemoizeTtl(unittest.TestCase):
                 await task_b
 
         self.assertEqual(mock.mock_calls, [
-            call(10, 20, a='val_a', b='val_b', ttl_start=0),
-            call(10, 20, a='val_a', b='val_b', ttl_start=0),
+            call(10, 20, a='val_a', b='val_b'),
+            call(10, 20, a='val_a', b='val_b'),
         ])
 
     @async_test
