@@ -62,9 +62,15 @@ class BytesTTL(bytes):
     def ttl(self, now):
         return max(0, self._expires_at - now)
 
+def rdata_ttl(record, ttl_start):
+    expires_at = ttl_start + record.ttl
+    return \
+        IPv4AddressTTL(record.rdata, expires_at) if record.qtype == TYPES.A else \
+        IPv6AddressTTL(record.rdata, expires_at) if record.qtype == TYPES.AAAA else \
+        BytesTTL(record.rdata, expires_at)
 
-def _min_expires_at(instances, expires_at):
-    return tuple(type(instance)(instance, min(expires_at, instance._expires_at)) for instance in instances)
+def rdata_ttl_min(rdata_ttls, expires_at):
+    return tuple(type(rdata_ttl)(rdata_ttl, min(expires_at, rdata_ttl._expires_at)) for rdata_ttl in rdata_ttls)
 
 
 def pack(message):
@@ -97,7 +103,7 @@ def pack(message):
     return header + records
 
 
-def parse(data, ttl_start):
+def parse(data):
 
     def byte(offset):
         return data[offset:offset + 1][0]
@@ -153,17 +159,10 @@ def parse(data, ttl_start):
         # The start is same as the question record
         name, qtype, qclass = parse_question_record()
         ttl, dl = unpack('!LH')
-        expires_at = ttl_start + ttl
-        if qtype == TYPES.A:
-            rdata = IPv4AddressTTL(data[l: l + dl], expires_at)
-            l += dl    
-        elif qtype == TYPES.AAAA:
-            rdata = IPv6AddressTTL(data[l: l + dl], expires_at)
-            l += dl
-        elif qtype == TYPES.CNAME:
-            rdata = BytesTTL(b'.'.join(load_labels()), expires_at)
+        if qtype == TYPES.CNAME:
+            rdata = b'.'.join(load_labels())
         else:
-            rdata = BytesTTL(data[l: l + dl], expires_at)
+            rdata = data[l: l + dl]
             l += dl
 
         return ResourceRecord(name, qtype, qclass, ttl, rdata)
@@ -211,12 +210,12 @@ async def udp_request(udp_response_timeout, udp_attempts_per_server, addr, fqdn,
                         if not qid_matches:
                             continue
 
-                        res = parse(response_data, ttl_start)
+                        res = parse(response_data)
 
                         name_error = res.rcode == 3
                         non_name_error = res.rcode and not name_error
                         trusted = res.qid == req.qid and res.qd == req.qd
-                        answers = [answer for answer in res.an if answer.name == fqdn_0x20]
+                        answers = [(rdata_ttl(answer, ttl_start), answer.qtype) for answer in res.an if answer.name == fqdn_0x20]
 
                         if trusted:
                             if non_name_error:
@@ -247,6 +246,8 @@ def get_nameservers():
 
 def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_server=5):
 
+    loop = asyncio.get_event_loop()
+
     async def resolve(fqdn_str, qtype):
         fqdn = BytesTTL(fqdn_str.encode(), float('inf'))
 
@@ -264,8 +265,8 @@ def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_ser
                         if i == len(nameservers) - 1:
                             raise
 
-                qtype_rdata = _min_expires_at((answer.rdata for answer in answers if answer.qtype == qtype), fqdn._expires_at)
-                cname_rdata = _min_expires_at((answer.rdata for answer in answers if answer.qtype == TYPES.CNAME), fqdn._expires_at)
+                qtype_rdata = rdata_ttl_min((rdata_ttl for rdata_ttl, rdata_qtype in answers if rdata_qtype == qtype), fqdn._expires_at)
+                cname_rdata = rdata_ttl_min((rdata_ttl for rdata_ttl, rdata_qtype in answers if rdata_qtype == TYPES.CNAME), fqdn._expires_at)
                 if qtype_rdata:
                     return qtype_rdata
                 elif cname_rdata:
@@ -274,7 +275,7 @@ def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_ser
                     raise DoesNotExist()
 
     def get_ttl(answers):
-        return min(answer.ttl for answer in answers) if answers else 0
+        return min(rdata_ttl.ttl(loop.time()) for rdata_ttl, _ in answers) if answers else 0
 
     memoized_udp_request = memoize_ttl(udp_request, get_ttl)
 
