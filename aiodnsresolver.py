@@ -53,6 +53,15 @@ class IPv6AddressTTL(ipaddress.IPv6Address):
     def ttl(self, now):
         return max(0, self._expires_at - now)
 
+class CNAME(bytes):
+    def __new__(cls, value, expires_at):
+        value = super().__new__(cls, value)
+        value._expires_at = expires_at
+        return value
+
+    def ttl(self, now):
+        return max(0, self._expires_at - now)
+
 
 def pack(message):
 
@@ -147,7 +156,7 @@ def parse(data, ttl_start):
             rdata = IPv6AddressTTL(data[l: l + dl], ttl_start + ttl)
             l += dl
         elif qtype == TYPES.CNAME:
-            rdata = b'.'.join(load_labels())
+            rdata = CNAME(b'.'.join(load_labels()), ttl_start + ttl)
         else:
             rdata = data[l: l + dl]
             l += dl
