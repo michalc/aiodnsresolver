@@ -94,6 +94,8 @@ To migitate spoofing, several techniques are used.
 
 - A new socket, and so a new random local port, is used for each query.
 
+- Requests made for a domain while there is an in-flight query for that domain, wait for the the in-flight query to finish, and use its result.
+
 
 ## Scope
 
