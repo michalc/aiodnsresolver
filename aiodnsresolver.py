@@ -163,13 +163,12 @@ def parse(data, ttl_start):
     return Message(qid, qr, opcode, aa, tc, rd, ra, z, rcode, qd, an, ns, ar)
 
 
-async def udp_request(addr, fqdn, qtype, ttl_start):
+async def udp_request(udp_response_timeout, attempts_per_server, addr, fqdn, qtype, ttl_start):
     loop = asyncio.get_event_loop()
 
-    max_attempts = 5
-    for i in range(max_attempts):
+    for i in range(attempts_per_server):
         try:
-            with timeout(0.5):
+            with timeout(udp_response_timeout):
                 qid = secrets.randbelow(65536)
                 fqdn_0x20 = bytes(
                     (char | secrets.choice((32, 0))) if 65 <= char < 91 else char
@@ -219,19 +218,20 @@ def get_nameservers():
         )
 
 
-def Resolver():
+def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, attempts_per_server=5):
 
     async def resolve(fqdn_str, qtype):
         fqdn = fqdn_str.encode()
 
-        with timeout(5.0):
+        with timeout(overall_timeout):
 
             while True:
                 nameservers = get_nameservers()
                 for i in range(len(nameservers)):
                     addr = nameservers[i]
                     try:
-                        answers = await memoized_udp_request(addr, fqdn, qtype)
+                        answers = await memoized_udp_request(
+                            udp_response_timeout, attempts_per_server, addr, fqdn, qtype)
                         break
                     except:
                         if i == len(nameservers) - 1:
