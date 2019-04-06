@@ -31,6 +31,9 @@ ResourceRecord = collections.namedtuple('Record', [
 class ResolverError(Exception):
     pass
 
+class TemporaryResolverError(Exception):
+    pass
+
 class DoesNotExist(ResolverError):
     pass
 
@@ -195,7 +198,7 @@ async def udp_request(udp_response_timeout, attempts_per_server, addr, fqdn, qty
 
                         if trusted:
                             if non_name_error:
-                                raise ResolverError()
+                                raise TemporaryResolverError()
                             elif name_error or not answers:
                                 # a name error can be returned by some non-authoritative
                                 # servers on not-existing, contradicting RFC 1035
@@ -203,7 +206,7 @@ async def udp_request(udp_response_timeout, attempts_per_server, addr, fqdn, qty
                             else:
                                 return answers
 
-        except (asyncio.TimeoutError, ResolverError):
+        except (asyncio.TimeoutError, TemporaryResolverError):
             if i == attempts_per_server - 1:
                 raise
 
