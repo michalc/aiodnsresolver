@@ -257,19 +257,10 @@ def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_ser
         with timeout(overall_timeout):
 
             while True:
-                nameservers = get_nameservers()
-                exception = None
-                for addr in nameservers:
-                    try:
-                        answers = await memoized_udp_request(
-                            addr, fqdn, qtype, udp_response_timeout, udp_attempts_per_server)
-                        break
-                    except (asyncio.TimeoutError, TemporaryResolverError) as recent_exception:
-                        exception = recent_exception
-
-                if exception is not None:
-                    raise exception from None
-
+                answers = await iterate_until_successful(
+                    iterator=get_nameservers(),
+                    coro=memoized_udp_request, coro_args=(fqdn, qtype, udp_response_timeout, udp_attempts_per_server))
+                
                 qtype_rdata = rdata_ttl_min((rdata_ttl for rdata_ttl, rdata_qtype in answers if rdata_qtype == qtype), fqdn._expires_at)
                 cname_rdata = rdata_ttl_min((rdata_ttl for rdata_ttl, rdata_qtype in answers if rdata_qtype == TYPES.CNAME), fqdn._expires_at)
                 if qtype_rdata:
@@ -285,6 +276,15 @@ def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_ser
     memoized_udp_request = memoize_ttl(udp_request, get_ttl)
 
     return resolve
+
+
+async def iterate_until_successful(iterator, coro, coro_args):
+    for item in iterator:
+        try:
+            return await coro(item, *coro_args)
+        except (asyncio.TimeoutError, TemporaryResolverError) as exception:
+            pass
+    raise exception
 
 
 def memoize_ttl(func, get_ttl):
