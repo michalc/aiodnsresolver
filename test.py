@@ -12,6 +12,7 @@ from aiofastforward import (
 
 from aiodnsresolver import (
     TYPES,
+    DoesNotExist,
     Resolver,
     memoize_ttl,
     timeout,
@@ -90,14 +91,14 @@ class TestResolver(unittest.TestCase):
     @async_test
     async def test_a_query_not_exists(self):
         resolve = Resolver()
-        with self.assertRaises(Exception):
+        with self.assertRaises(DoesNotExist):
             res = await resolve('doenotexist.charemza.name', TYPES.A)
 
     @async_test
     async def test_aaaa_query_not_exists(self):
         resolve = Resolver()
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(DoesNotExist):
             res = await resolve('doenotexist.charemza.name', TYPES.AAAA)
 
     @async_test

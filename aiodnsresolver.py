@@ -28,6 +28,12 @@ ResourceRecord = collections.namedtuple('Record', [
     'name', 'qtype', 'qclass', 'ttl', 'rdata',
 ])
 
+class DnsResolverError(Exception):
+    pass
+
+class DoesNotExist(DnsResolverError):
+    pass
+
 
 def pack(message):
 
@@ -164,12 +170,18 @@ async def udp_request(addr, fqdn, qtype):
                         response_data = await loop.sock_recv(sock, 512)
                         res = parse(response_data)
 
-                        if res.qid == req.qid and res.qd == req.qd:
-                            if res.rcode != 0:
-                                raise Exception()
-                            else:
-                                answers = [answer for answer in res.an if answer.name == fqdn_0x20]
-                                return answers[0] if answers else None
+                        name_error = res.rcode == 3
+                        trusted = res.qid == req.qid and res.qd == req.qd
+                        answers = [answer for answer in res.an if answer.name == fqdn_0x20]
+
+                        if not trusted:
+                            raise DnsResolverError()
+                        elif name_error or not answers:
+                            # a name error can be returned by some non-authoritative
+                            # servers on not-existing, contradicting RFC 1035
+                            raise DoesNotExist()
+                        else:
+                            return answers[0]
 
         except asyncio.TimeoutError:
             if i == max_attempts - 1:
@@ -206,15 +218,15 @@ def Resolver():
                         if i == len(nameservers) - 1:
                             raise
 
-                if answer is not None and answer.qtype == qtype:
+                if answer.qtype == qtype:
                     return answer.rdata
-                elif answer is not None and answer.qtype == TYPES.CNAME:
+                elif answer.qtype == TYPES.CNAME:
                     fqdn = answer.rdata
                 else:
-                    raise Exception()
+                    raise DoesNotExist()
 
     def get_ttl(answer):
-        return answer.ttl if answer is not None else 0
+        return answer.ttl
 
     memoized_udp_request = memoize_ttl(udp_request, get_ttl)
 
