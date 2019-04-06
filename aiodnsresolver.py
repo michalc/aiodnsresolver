@@ -276,7 +276,7 @@ def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_ser
                     raise DoesNotExist()
 
     def get_ttl(answers):
-        return min(rdata_ttl.ttl(loop.time()) for rdata_ttl, _ in answers) if answers else 0
+        return min(rdata_ttl.ttl(loop.time()) for rdata_ttl, _ in answers)
 
     memoized_udp_request = memoize_ttl(udp_request, get_ttl)
 
