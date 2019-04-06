@@ -179,12 +179,6 @@ def parse(data):
     return Message(qid, qr, opcode, aa, tc, rd, ra, z, rcode, qd, an, ns, ar)
 
 
-async def udp_request(addr, fqdn, qtype, udp_response_timeout, udp_attempts_per_server):
-    return await iterate_until_successful(
-        range(udp_attempts_per_server),
-        coro=udp_request_attempt, coro_args=(addr, fqdn, qtype, udp_response_timeout))
-
-
 async def udp_request_attempt(_, addr, fqdn, qtype, udp_response_timeout):
     loop = asyncio.get_event_loop()
 
@@ -257,7 +251,7 @@ def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_ser
             while True:
                 answers = await iterate_until_successful(
                     iterator=get_nameservers(),
-                    coro=memoized_udp_request, coro_args=(fqdn, qtype, udp_response_timeout, udp_attempts_per_server))
+                    coro=memoized_udp_request, coro_args=(fqdn, qtype))
                 
                 qtype_rdata = rdata_ttl_min((rdata_ttl for rdata_ttl, rdata_qtype in answers if rdata_qtype == qtype), fqdn._expires_at)
                 cname_rdata = rdata_ttl_min((rdata_ttl for rdata_ttl, rdata_qtype in answers if rdata_qtype == TYPES.CNAME), fqdn._expires_at)
@@ -270,6 +264,11 @@ def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_ser
 
     def get_ttl(answers):
         return min(rdata_ttl.ttl(loop.time()) for rdata_ttl, _ in answers)
+
+    async def udp_request(addr, fqdn, qtype):
+        return await iterate_until_successful(
+            range(udp_attempts_per_server),
+            coro=udp_request_attempt, coro_args=(addr, fqdn, qtype, udp_response_timeout))
 
     memoized_udp_request = memoize_ttl(udp_request, get_ttl)
 
