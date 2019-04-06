@@ -169,7 +169,7 @@ async def udp_request(addr, fqdn, qtype, ttl_start):
     max_attempts = 5
     for i in range(max_attempts):
         try:
-            with timeout(2.0):
+            with timeout(0.5):
                 qid = secrets.randbelow(65536)
                 fqdn_0x20 = bytes(
                     (char | secrets.choice((32, 0))) if 65 <= char < 91 else char
@@ -224,7 +224,7 @@ def Resolver():
     async def resolve(fqdn_str, qtype):
         fqdn = fqdn_str.encode()
 
-        with timeout(10.0):
+        with timeout(5.0):
 
             while True:
                 nameservers = get_nameservers()
