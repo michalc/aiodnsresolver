@@ -179,7 +179,7 @@ def parse(data):
     return Message(qid, qr, opcode, aa, tc, rd, ra, z, rcode, qd, an, ns, ar)
 
 
-async def udp_request(udp_response_timeout, udp_attempts_per_server, addr, fqdn, qtype):
+async def udp_request(addr, fqdn, qtype, udp_response_timeout, udp_attempts_per_server):
     loop = asyncio.get_event_loop()
     exception = None
 
@@ -262,7 +262,7 @@ def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_ser
                 for addr in nameservers:
                     try:
                         answers = await memoized_udp_request(
-                            udp_response_timeout, udp_attempts_per_server, addr, fqdn, qtype)
+                            addr, fqdn, qtype, udp_response_timeout, udp_attempts_per_server)
                         break
                     except (asyncio.TimeoutError, TemporaryResolverError) as recent_exception:
                         exception = recent_exception
