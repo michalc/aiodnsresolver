@@ -24,6 +24,25 @@ ip_addresses = await resolve('www.google.com', TYPES.A)
 Returned are tuples of subclasses of [IPv4Address](https://docs.python.org/3/library/ipaddress.html#ipaddress.IPv4Address) or [IPv6Address](https://docs.python.org/3/library/ipaddress.html#ipaddress.IPv6Address). Both support conversion to their usual string form by passing them to `str`.
 
 
+## Cache
+
+A cache is part of each `Resolver()`, expiring records automatically according to their TTL.
+
+```python
+import asyncio
+from aiodnsresolver import Resolver, TYPES
+
+resolve = Resolver()
+
+# Will make a request to the nameserver(s)
+ip_addresses = await resolve('www.google.com', TYPES.A)
+
+# Will only make another request to the nameserver(s) if the ip_addresses
+# have expired
+ip_addresses = await resolve('www.google.com', TYPES.A)
+```
+
+
 ## TTL
 
 The address objects each have an extra method, `ttl`, that returns the seconds left until the address expires.
