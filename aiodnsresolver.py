@@ -181,7 +181,7 @@ async def udp_request(addr, fqdn, qtype):
                             # servers on not-existing, contradicting RFC 1035
                             raise DoesNotExist()
                         else:
-                            return answers[0]
+                            return answers
 
         except asyncio.TimeoutError:
             if i == max_attempts - 1:
@@ -212,21 +212,23 @@ def Resolver():
                 for i in range(len(nameservers)):
                     addr = nameservers[i]
                     try:
-                        answer = await memoized_udp_request(addr, fqdn, qtype)
+                        answers = await memoized_udp_request(addr, fqdn, qtype)
                         break
                     except:
                         if i == len(nameservers) - 1:
                             raise
 
-                if answer.qtype == qtype:
-                    return answer.rdata
-                elif answer.qtype == TYPES.CNAME:
-                    fqdn = answer.rdata
+                qtype_rdata = tuple(answer.rdata for answer in answers if answer.qtype == qtype)
+                cname_rdata = tuple(answer.rdata for answer in answers if answer.qtype == TYPES.CNAME)
+                if qtype_rdata:
+                    return qtype_rdata
+                elif cname_rdata:
+                    fqdn = cname_rdata[0]
                 else:
                     raise DoesNotExist()
 
-    def get_ttl(answer):
-        return answer.ttl
+    def get_ttl(answers):
+        return min(answer.ttl for answer in answers) if answers else 0
 
     memoized_udp_request = memoize_ttl(udp_request, get_ttl)
 

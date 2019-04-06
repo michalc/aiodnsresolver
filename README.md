@@ -18,10 +18,10 @@ pip install aiodnsresolver
 from aiodnsresolver import Resolver, TYPES
 
 resolve = Resolver()
-ip_address = await resolve('www.google.com', TYPES.A)
+ip_addresses = await resolve('www.google.com', TYPES.A)
 ```
 
-The IP address returned is an instance of [IPv4Address](https://docs.python.org/3/library/ipaddress.html#ipaddress.IPv4Address) or [IPv6Address](https://docs.python.org/3/library/ipaddress.html#ipaddress.IPv6Address). Both support conversion to their usual string form by passing them to `str`.
+Returned are tuples of [IPv4Address](https://docs.python.org/3/library/ipaddress.html#ipaddress.IPv4Address) or [IPv6Address](https://docs.python.org/3/library/ipaddress.html#ipaddress.IPv6Address). Both support conversion to their usual string form by passing them to `str`.
 
 
 ## Example: aiohttp
@@ -52,7 +52,7 @@ class AioHttpDnsResolver(aiohttp.abc.AbstractResolver):
             TYPES.A
 
         try:
-            ip_address = str(await self.resolver(host, record_type))
+            ip_addresses = await self.resolver(host, record_type)
         except DoesNotExist as does_not_exist:
             raise OSError(0, '{} does not exist'.format(host)) from does_not_exist
         except DnsError as dns_error:
@@ -60,12 +60,12 @@ class AioHttpDnsResolver(aiohttp.abc.AbstractResolver):
 
         return [{
             'hostname': host,
-            'host': ip_address,
+            'host': str(ip_address),
             'port': port,
             'family': family,
             'proto': socket.IPPROTO_TCP,
             'flags': socket.AI_NUMERICHOST,
-        }]
+        } for ip_address in ip_addresses]
 
     async def close(self):
         pass
@@ -97,9 +97,11 @@ To migitate spoofing, several techniques are used.
 
 ## Scope
 
-The scope of this project is deliberately restricted to operations that are used to resolve A or AAAA records: to resolve a domain name to one of its IP addresses, and have similar responsibilities to `gethostbyname`. Some limited extra behaviour is present/may be added, but great care is taken to prevent scope creep, especially to not add complexity that isn't required to resolve A or AAAA records.
+The scope of this project is deliberately restricted to operations that are used to resolve A or AAAA records: to resolve a domain name to its IP addresses, and have similar responsibilities to `gethostbyname`. Some limited extra behaviour is present/may be added, but great care is taken to prevent scope creep, especially to not add complexity that isn't required to resolve A or AAAA records.
 
 - UDP queries are made, but not TCP. DNS servers must support UDP, and it's impossible for a single A and AAAA record to not fit into the maximum size of a UDP DNS response, 512 bytes. There may be other data that the DNS server would return in TCP connections, but this isn't required to resolve a domain name to a single IP address.
+
+  It is technically possible that in the case of extremely high numbers of A or AAAA records for a domain, they would not fit in a single UDP message. However, this is extremely unlikely, and in this unlikely case, extremely unlikely to affect applications in any meaningful way.
 
 - CNAME records are followed transparently.
 
