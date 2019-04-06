@@ -63,6 +63,10 @@ class BytesTTL(bytes):
         return max(0, self._expires_at - now)
 
 
+def _min_expires_at(instances, expires_at):
+    return tuple(type(instance)(instance, min(expires_at, instance._expires_at)) for instance in instances)
+
+
 def pack(message):
 
     def pack_string(string, btype):
@@ -260,16 +264,12 @@ def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_ser
                         if i == len(nameservers) - 1:
                             raise
 
-                qtype_rdata = tuple(answer.rdata for answer in answers if answer.qtype == qtype)
-                cname_rdata = tuple(answer.rdata for answer in answers if answer.qtype == TYPES.CNAME)
+                qtype_rdata = _min_expires_at((answer.rdata for answer in answers if answer.qtype == qtype), fqdn._expires_at)
+                cname_rdata = _min_expires_at((answer.rdata for answer in answers if answer.qtype == TYPES.CNAME), fqdn._expires_at)
                 if qtype_rdata:
-                    return tuple(
-                        IPv4AddressTTL(ip_address, min(fqdn._expires_at, ip_address._expires_at)) if isinstance(ip_address, IPv4AddressTTL) else \
-                        IPv6AddressTTL(ip_address, min(fqdn._expires_at, ip_address._expires_at))
-                        for ip_address in qtype_rdata
-                    )
+                    return qtype_rdata
                 elif cname_rdata:
-                    fqdn = BytesTTL(cname_rdata[0], min(fqdn._expires_at, cname_rdata[0]._expires_at))
+                    fqdn = cname_rdata[0]
                 else:
                     raise DoesNotExist()
 
