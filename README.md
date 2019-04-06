@@ -51,7 +51,7 @@ import socket
 
 from aiodnsresolver import (
     TYPES,
-    DnsResolverError,
+    ResolverError,
     DoesNotExist,
     Resolver,
 )
@@ -74,8 +74,8 @@ class AioHttpDnsResolver(aiohttp.abc.AbstractResolver):
             ip_addresses = await self.resolver(host, record_type)
         except DoesNotExist as does_not_exist:
             raise OSError(0, '{} does not exist'.format(host)) from does_not_exist
-        except DnsError as dns_error:
-            raise OSError(0, '{} failed to resolve'.format(host)) from dns_error
+        except ResolverError as resolver_error:
+            raise OSError(0, '{} failed to resolve'.format(host)) from resolver_error
 
         return [{
             'hostname': host,

@@ -28,10 +28,10 @@ ResourceRecord = collections.namedtuple('Record', [
     'name', 'qtype', 'qclass', 'ttl', 'rdata',
 ])
 
-class DnsResolverError(Exception):
+class ResolverError(Exception):
     pass
 
-class DoesNotExist(DnsResolverError):
+class DoesNotExist(ResolverError):
     pass
 
 class IPv4AddressTTL(ipaddress.IPv4Address):
@@ -193,7 +193,7 @@ async def udp_request(udp_response_timeout, attempts_per_server, addr, fqdn, qty
                         answers = [answer for answer in res.an if answer.name == fqdn_0x20]
 
                         if not trusted:
-                            raise DnsResolverError()
+                            raise ResolverError()
                         elif name_error or not answers:
                             # a name error can be returned by some non-authoritative
                             # servers on not-existing, contradicting RFC 1035
