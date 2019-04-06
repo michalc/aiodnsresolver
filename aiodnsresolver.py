@@ -258,13 +258,13 @@ def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_ser
             else:
                 raise DoesNotExist()
 
-    def get_ttl(answers):
-        return min(rdata_ttl.ttl(loop.time()) for rdata_ttl, _ in answers)
-
     async def udp_request(addr, fqdn, qtype):
         return await iterate_until_successful(
             range(udp_attempts_per_server),
             coro=wrap_timeout(udp_response_timeout, udp_request_attempt), coro_args=(addr, fqdn, qtype))
+
+    def get_ttl(answers):
+        return min(rdata_ttl.ttl(loop.time()) for rdata_ttl, _ in answers)
 
     memoized_udp_request = memoize_ttl(udp_request, get_ttl)
 
