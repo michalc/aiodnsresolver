@@ -122,10 +122,10 @@ def parse(data):
         name, qtype, qclass = parse_question_record()
         ttl, dl = unpack('!LH')
         if qtype == TYPES.A:
-            rdata = ipaddress.ip_address(data[l: l + dl])
+            rdata = ipaddress.IPv4Address(data[l: l + dl])
             l += dl    
         elif qtype == TYPES.AAAA:
-            rdata = ipaddress.ip_address(data[l: l + dl])
+            rdata = ipaddress.IPv6Address(data[l: l + dl])
             l += dl
         elif qtype == TYPES.CNAME:
             rdata = b'.'.join(load_labels())
