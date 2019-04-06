@@ -117,6 +117,26 @@ class TestResolver(unittest.TestCase):
         res = await resolve('support.dnsimple.com', TYPES.A)
         self.assertIsInstance(res[0], ipaddress.IPv4Address)
 
+    @async_test
+    async def test_localhost_a(self):
+        loop = asyncio.get_event_loop()
+        resolve = Resolver()
+        res = await resolve('localhost', TYPES.A)
+        self.assertIsInstance(res, tuple)
+        self.assertIsInstance(res[0], ipaddress.IPv4Address)
+        self.assertEqual(str(res[0]), '127.0.0.1')
+        self.assertEqual(res[0].ttl(loop.time()), 0)
+
+    @async_test
+    async def test_localhost_a(self):
+        loop = asyncio.get_event_loop()
+        resolve = Resolver()
+        res = await resolve('localhost', TYPES.AAAA)
+        self.assertIsInstance(res, tuple)
+        self.assertIsInstance(res[0], ipaddress.IPv6Address)
+        self.assertEqual(str(res[0]), '::1')
+        self.assertEqual(res[0].ttl(loop.time()), 0)
+
 
 class TestMemoizeTtl(unittest.TestCase):
 
