@@ -189,6 +189,14 @@ async def udp_request(udp_response_timeout, udp_attempts_per_server, addr, fqdn,
 
                     while True:  # We might be getting spoofed messages
                         response_data = await loop.sock_recv(sock, 512)
+
+                        # Some initial peeking before parsing
+                        if len(response_data) < 12:
+                            continue
+                        qid_matches = req.qid == struct.unpack('!H', response_data[:2])[0]
+                        if not qid_matches:
+                            continue
+
                         res = parse(response_data, ttl_start)
 
                         name_error = res.rcode == 3
@@ -207,7 +215,7 @@ async def udp_request(udp_response_timeout, udp_attempts_per_server, addr, fqdn,
                                 return answers
 
         except (asyncio.TimeoutError, TemporaryResolverError):
-            if i == attempts_per_server - 1:
+            if i == udp_attempts_per_server - 1:
                 raise
 
 
