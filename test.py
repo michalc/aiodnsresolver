@@ -117,6 +117,44 @@ class TestResolverIntegration(unittest.TestCase):
 
             self.assertNotEqual(queried_names[0], queried_names[1])
 
+    @async_test
+    async def test_concurrent_identical_a_query_not_made(self):
+        loop = asyncio.get_event_loop()
+        queried_names = []
+
+        async def get_response(query_data):
+            # Yield to the other task
+            await asyncio.sleep(0)
+            query = parse(query_data)
+            queried_names.append(query.qd[0].name)
+
+            reponse_record = ResourceRecord(
+                name=query.qd[0].name,
+                qtype=TYPES.A,
+                qclass=1,
+                ttl=21-len(queried_names),
+                rdata=ipaddress.IPv4Address('123.100.123.' + str(len(queried_names))).packed,
+            )
+            response = Message(
+                qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
+                qd=query.qd, an=(reponse_record,), ns=(), ar=(),
+            )
+            return pack(response)
+
+        stop_nameserver = await start_nameserver(get_response)
+        self.add_async_cleanup(loop, stop_nameserver)
+
+        resolve = Resolver()
+        res_1_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
+        res_2_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
+
+        res_1 = await res_1_task
+        res_2 = await res_2_task
+
+        self.assertEqual(str(res_1[0]), '123.100.123.1')
+        self.assertEqual(str(res_2[0]), '123.100.123.1')
+        self.assertEqual(len(queried_names), 1)
+
 
 class TestResolverEndToEnd(unittest.TestCase):
     """ Tests that query current real nameserver(s) for real domains
