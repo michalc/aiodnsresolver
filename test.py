@@ -484,6 +484,39 @@ class TestResolverIntegration(unittest.TestCase):
         res_3 = await res_3_task
         self.assertEqual(str(res_3[0]), '123.100.123.2')
 
+    @async_test
+    async def test_many_concurrent_queries(self):
+        loop = asyncio.get_event_loop()
+        response_blockers = [asyncio.Future(), asyncio.Future(), asyncio.Future()]
+        queried_names = []
+
+        async def get_response(query_data):
+            query = parse(query_data)
+
+            reponse_record = ResourceRecord(
+                name=query.qd[0].name,
+                qtype=TYPES.A,
+                qclass=1,
+                ttl=5,
+                rdata=ipaddress.IPv4Address('123.100.123.1').packed,
+            )
+            response = Message(
+                qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
+                qd=query.qd, an=(reponse_record,), ns=(), ar=(),
+            )
+            return pack(response)
+
+        stop_nameserver = await start_nameserver(get_response)
+        self.add_async_cleanup(loop, stop_nameserver)
+
+        resolve = Resolver()
+        tasks = [
+            asyncio.ensure_future(resolve('my.domain' + str(i), TYPES.A))
+            for i in range(1000)
+        ]
+        results = await asyncio.gather(*tasks)
+        self.assertEqual([str(result[0]) for result in results], ['123.100.123.1'] * 1000)
+
 
 class TestResolverEndToEnd(unittest.TestCase):
     """ Tests that query current real nameserver(s) for real domains
