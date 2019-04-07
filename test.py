@@ -64,7 +64,7 @@ class TestResolverIntegration(unittest.TestCase):
 
         async def get_response(query_data):
             query = parse(query_data)
-            queried_names.append(query.qd[0].name.lower())
+            queried_names.append(query.qd[0].name)
 
             reponse_record = ResourceRecord(
                 name=query.qd[0].name,
@@ -87,7 +87,7 @@ class TestResolverIntegration(unittest.TestCase):
             res_1 = await resolve('my.domain', TYPES.A)
 
             self.assertEqual(len(queried_names), 1)
-            self.assertEqual(queried_names[0], b'my.domain')
+            self.assertEqual(queried_names[0].lower(), b'my.domain')
             self.assertEqual(str(res_1[0]), '123.100.123.1')
             self.assertEqual(res_1[0].ttl(loop.time()), 20.0)
 
@@ -102,8 +102,11 @@ class TestResolverIntegration(unittest.TestCase):
             await forward(0.5)
             res_3 = await resolve('my.domain', TYPES.A)
             self.assertEqual(len(queried_names), 2)
+            self.assertEqual(queried_names[1].lower(), b'my.domain')
             self.assertEqual(str(res_3[0]), '123.100.123.2')
             self.assertEqual(res_3[0].ttl(loop.time()), 19.0)
+
+            self.assertNotEqual(queried_names[0], queried_names[1])
 
 
 class TestResolverEndToEnd(unittest.TestCase):
