@@ -60,12 +60,11 @@ class TestResolverIntegration(unittest.TestCase):
     @async_test
     async def test_a_query(self):
         loop = asyncio.get_event_loop()
-        queried_name = None
+        queried_names = []
 
         async def get_response(query_data):
-            nonlocal queried_name
             query = parse(query_data)
-            queried_name = query.qd[0].name.lower()
+            queried_names.append(query.qd[0].name.lower())
 
             reponse_record = ResourceRecord(
                 name=query.qd[0].name,
@@ -83,11 +82,28 @@ class TestResolverIntegration(unittest.TestCase):
         stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve = Resolver()
-        res = await resolve('my.domain', TYPES.A)
+        with FastForward(loop) as forward:
+            resolve = Resolver()
+            res_1 = await resolve('my.domain', TYPES.A)
 
-        self.assertEqual(queried_name, b'my.domain')
-        self.assertEqual(str(res[0]), '123.100.123.101')
+            self.assertEqual(len(queried_names), 1)
+            self.assertEqual(queried_names[0], b'my.domain')
+            self.assertEqual(str(res_1[0]), '123.100.123.101')
+            self.assertEqual(res_1[0].ttl(loop.time()), 20.0)
+
+            await forward(19.5)
+            self.assertEqual(res_1[0].ttl(loop.time()), 0.5)
+
+            res_2 = await resolve('my.domain', TYPES.A)
+            self.assertEqual(len(queried_names), 1)
+            self.assertEqual(str(res_2[0]), '123.100.123.101')
+            self.assertEqual(res_2[0].ttl(loop.time()), 0.5)
+
+            await forward(0.5)
+            res_3 = await resolve('my.domain', TYPES.A)
+            self.assertEqual(len(queried_names), 2)
+            self.assertEqual(str(res_3[0]), '123.100.123.101')
+            self.assertEqual(res_3[0].ttl(loop.time()), 20.0)
 
 
 class TestResolverEndToEnd(unittest.TestCase):
