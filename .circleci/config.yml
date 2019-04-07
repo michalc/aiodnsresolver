@@ -3,7 +3,7 @@ workflows:
   version: 2
   test:
     jobs:
-      - test-3.7.2
+      - test-3.7.3
       - test-3.7.2
       - test-3.7.1
       - test-3.7.0
@@ -16,9 +16,9 @@ workflows:
       - test-3.6.1
       - test-3.6.0
 jobs:
-  test-3.7.2:
+  test-3.7.3:
     docker:
-      - image: python:3.7.2
+      - image: python:3.7.3
     steps:
       - checkout
       - run:
@@ -34,15 +34,19 @@ jobs:
             coverage run -m setup test -v
             coverage xml
             ./cc-test-reporter after-build --exit-code $?
-  test-3.7.1: &template
+  test-3.7.2: &template
     docker:
-      - image: python:3.7.1
+      - image: python:3.7.2
     steps:
       - checkout
       - run:
           name: Run tests
           command: |
             python -m setup test -v
+  test-3.7.1:
+    <<: *template
+    docker:
+      - image: python:3.7.1
   test-3.7.0:
     <<: *template
     docker:
