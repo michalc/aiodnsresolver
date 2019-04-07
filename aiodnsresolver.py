@@ -95,6 +95,14 @@ def pack(message):
             for part in name.split(b'.')
         ]) + b'\0'
 
+    def pack_resource(record):
+        rdata = \
+            b'.'.join(pack_name(record.rdata)) if record.qtype == TYPES.CNAME else \
+            record.rdata
+        ttl = struct.pack('!L', record.ttl)
+        dl = struct.pack('!H', len(rdata))
+        return ttl + dl + rdata
+
     header = struct.pack(
         '!HHHHHH',
         message.qid,
@@ -107,7 +115,10 @@ def pack(message):
     )
     records = b''.join([
         pack_name(rec.name) + struct.pack('!HH', rec.qtype, rec.qclass)
-        for group in (message.qd, message.an, message.ns, message.ar)
+        for rec in message.qd
+    ] + [
+        pack_name(rec.name) + struct.pack('!HH', rec.qtype, rec.qclass) + pack_resource(rec)
+        for group in (message.an, message.ns, message.ar)
         for rec in group
     ])
     return header + records
