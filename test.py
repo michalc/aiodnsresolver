@@ -857,7 +857,8 @@ async def sendto(loop, sock, data, addr):
             if not result.cancelled():
                 result.set_exception(exception)
         else:
-            result.set_result(bytes_sent)
+            if not result.cancelled():
+                result.set_result(bytes_sent)
 
     def write_with_writer():
         try:
