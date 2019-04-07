@@ -140,7 +140,12 @@ class TestResolverEndToEnd(unittest.TestCase):
         self.assertEqual(res[0].ttl(loop.time()), 0)
 
 
-class TestMemoizeTtl(unittest.TestCase):
+class TestMemoizeExpiresAt(unittest.TestCase):
+    """ Test the memoize_expires_at function
+
+    This is testing private implementation details. ideally, the tests would
+    assert on public behaviour of the resolver
+    """
 
     @async_test
     async def test_identical_concurrent_memoized_coroutine(self):
@@ -360,8 +365,12 @@ class TestMemoizeTtl(unittest.TestCase):
             await task_b
 
 
-
 class TestTimeout(unittest.TestCase):
+    """ Test the timeout context manager
+
+    This is testing private implementation details. ideally, the tests would
+    assert on public behaviour of the resolver
+    """
 
     @async_test
     async def test_shorter_than_timeout_not_raises(self):
