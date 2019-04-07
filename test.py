@@ -272,12 +272,14 @@ class TestMemoizeExpiresAt(unittest.TestCase):
         memoized = memoize_expires_at(func, lambda result: result)
 
         with FastForward(loop) as forward:
-            forward(0.5)
+            forward_0_5 = forward(0.5)
             result_a = await memoized(10, 20, a='val_a', b='val_b')
             result_b = await memoized(10, 20, a='val_a', b='val_b')
+            await forward_0_5
 
-            forward(1)
+            forward_1 = forward(1)
             result_c = await memoized(10, 20, a='val_a', b='val_b')
+            await forward_1
 
             self.assertEqual(result_a, 1)
             self.assertEqual(result_b, 1)
