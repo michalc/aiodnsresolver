@@ -70,8 +70,8 @@ class TestResolverIntegration(unittest.TestCase):
                 name=query.qd[0].name,
                 qtype=TYPES.A,
                 qclass=1,
-                ttl=20,
-                rdata=ipaddress.IPv4Address('123.100.123.101').packed,
+                ttl=21-len(queried_names),
+                rdata=ipaddress.IPv4Address('123.100.123.' + str(len(queried_names))).packed,
             )
             response = Message(
                 qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
@@ -88,7 +88,7 @@ class TestResolverIntegration(unittest.TestCase):
 
             self.assertEqual(len(queried_names), 1)
             self.assertEqual(queried_names[0], b'my.domain')
-            self.assertEqual(str(res_1[0]), '123.100.123.101')
+            self.assertEqual(str(res_1[0]), '123.100.123.1')
             self.assertEqual(res_1[0].ttl(loop.time()), 20.0)
 
             await forward(19.5)
@@ -96,14 +96,14 @@ class TestResolverIntegration(unittest.TestCase):
 
             res_2 = await resolve('my.domain', TYPES.A)
             self.assertEqual(len(queried_names), 1)
-            self.assertEqual(str(res_2[0]), '123.100.123.101')
+            self.assertEqual(str(res_2[0]), '123.100.123.1')
             self.assertEqual(res_2[0].ttl(loop.time()), 0.5)
 
             await forward(0.5)
             res_3 = await resolve('my.domain', TYPES.A)
             self.assertEqual(len(queried_names), 2)
-            self.assertEqual(str(res_3[0]), '123.100.123.101')
-            self.assertEqual(res_3[0].ttl(loop.time()), 20.0)
+            self.assertEqual(str(res_3[0]), '123.100.123.2')
+            self.assertEqual(res_3[0].ttl(loop.time()), 19.0)
 
 
 class TestResolverEndToEnd(unittest.TestCase):
