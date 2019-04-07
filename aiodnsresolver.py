@@ -43,7 +43,7 @@ class IPv4AddressTTL(ipaddress.IPv4Address):
         self._expires_at = expires_at
 
     def ttl(self, now):
-        return max(0, self._expires_at - now)
+        return max(0.0, self._expires_at - now)
 
 class IPv6AddressTTL(ipaddress.IPv6Address):
     def __init__(self, rdata, expires_at):
@@ -51,7 +51,7 @@ class IPv6AddressTTL(ipaddress.IPv6Address):
         self._expires_at = expires_at
 
     def ttl(self, now):
-        return max(0, self._expires_at - now)
+        return max(0.0, self._expires_at - now)
 
 class BytesTTL(bytes):
     def __new__(cls, rdata, expires_at):
@@ -60,7 +60,7 @@ class BytesTTL(bytes):
         return _rdata
 
     def ttl(self, now):
-        return max(0, self._expires_at - now)
+        return max(0.0, self._expires_at - now)
 
 def rdata_ttl(record, ttl_start):
     expires_at = ttl_start + record.ttl
