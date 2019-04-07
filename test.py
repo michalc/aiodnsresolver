@@ -488,17 +488,17 @@ class TestResolverIntegration(unittest.TestCase):
     async def test_many_concurrent_queries(self):
         loop = asyncio.get_event_loop()
         response_blockers = [asyncio.Future(), asyncio.Future(), asyncio.Future()]
-        queried_names = []
 
         async def get_response(query_data):
             query = parse(query_data)
+            num = int(query.qd[0].name.split(b'-')[1])
 
             reponse_record = ResourceRecord(
                 name=query.qd[0].name,
                 qtype=TYPES.A,
                 qclass=1,
                 ttl=5,
-                rdata=ipaddress.IPv4Address('123.100.123.1').packed,
+                rdata=ipaddress.IPv4Address('123.100.123.' + str(num)).packed,
             )
             response = Message(
                 qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
@@ -511,11 +511,18 @@ class TestResolverIntegration(unittest.TestCase):
 
         resolve = Resolver()
         tasks = [
-            asyncio.ensure_future(resolve('my.domain' + str(i), TYPES.A))
+            asyncio.ensure_future(resolve('my.domain-' + str((i + 1) % 255), TYPES.A))
             for i in range(1000)
         ]
-        results = await asyncio.gather(*tasks)
-        self.assertEqual([str(result[0]) for result in results], ['123.100.123.1'] * 1000)
+        results = [
+            str(result[0])
+            for result in await asyncio.gather(*tasks)
+        ]
+        expected_results = [
+            '123.100.123.' + str((i + 1) % 255)
+            for i in range(1000)
+        ]
+        self.assertEqual(results, expected_results)
 
 
 class TestResolverEndToEnd(unittest.TestCase):
