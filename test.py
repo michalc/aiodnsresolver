@@ -863,11 +863,11 @@ async def sendto(loop, sock, data, addr):
         except BlockingIOError:
             pass
         except BaseException as exception:
-            loop.remove_reader(fileno)
+            loop.remove_writer(fileno)
             if not result.cancelled():
                 result.set_exception(exception)
         else:
-            loop.remove_reader(fileno)
+            loop.remove_writer(fileno)
             result.set_result(bytes_sent)
 
     write_without_writer()
@@ -875,7 +875,7 @@ async def sendto(loop, sock, data, addr):
     try:
         return await result
     except asyncio.CancelledError:
-        loop.remove_reader(fileno)
+        loop.remove_writer(fileno)
         raise
 
 
