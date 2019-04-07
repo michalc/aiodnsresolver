@@ -353,11 +353,9 @@ class TestResolverIntegration(unittest.TestCase):
         self.assertEqual(str(res_2[0]), '123.100.123.2')
 
     @async_test
-    async def test_concurrent_tasks_first_cancel_cancels_second(self):
-        # This isn't necessarily the best behaviour, but should at least be
-        # aware and if it changes
+    async def test_concurrent_tasks_first_cancel_not_cancel_second(self):
         loop = asyncio.get_event_loop()
-        response_blockers = [asyncio.Future(), asyncio.Future()]
+        response_blockers = [asyncio.Future(), asyncio.Future(), asyncio.Future()]
         queried_names = []
 
         async def get_response(query_data):
@@ -389,9 +387,102 @@ class TestResolverIntegration(unittest.TestCase):
 
         res_1_task.cancel()
         await asyncio.sleep(0)
+        with self.assertRaises(asyncio.CancelledError):
+            await res_1_task
 
+        response_blockers[1].set_result(None)
+        res_2 = await res_2_task
+        self.assertEqual(str(res_2[0]), '123.100.123.2')
+
+    @async_test
+    async def test_concurrent_tasks_second_cancel_not_cancel_others(self):
+        loop = asyncio.get_event_loop()
+        response_blockers = [asyncio.Future(), asyncio.Future(), asyncio.Future()]
+        queried_names = []
+
+        async def get_response(query_data):
+            query = parse(query_data)
+            queried_names.append(query.qd[0].name)
+            await response_blockers[len(queried_names) - 1]
+
+            reponse_record = ResourceRecord(
+                name=query.qd[0].name,
+                qtype=TYPES.A,
+                qclass=1,
+                ttl=21-len(queried_names),
+                rdata=ipaddress.IPv4Address('123.100.123.' + str(len(queried_names))).packed,
+            )
+            response = Message(
+                qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
+                qd=query.qd, an=(reponse_record,), ns=(), ar=(),
+            )
+            return pack(response)
+
+        stop_nameserver = await start_nameserver(get_response)
+        self.add_async_cleanup(loop, stop_nameserver)
+
+        resolve = Resolver()
+        res_1_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
+        res_2_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
+        res_3_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
+        await asyncio.sleep(0)
+        response_blockers[0].set_result(None)
+
+        res_2_task.cancel()
+        await asyncio.sleep(0)
         with self.assertRaises(asyncio.CancelledError):
             await res_2_task
+
+        res_1 = await res_1_task
+        res_3 = await res_3_task
+        self.assertEqual(str(res_1[0]), '123.100.123.1')
+        self.assertEqual(str(res_3[0]), '123.100.123.1')
+
+    @async_test
+    async def test_concurrent_tasks_first_two_cancel_not_cancel_final(self):
+        loop = asyncio.get_event_loop()
+        response_blockers = [asyncio.Future(), asyncio.Future(), asyncio.Future()]
+        queried_names = []
+
+        async def get_response(query_data):
+            query = parse(query_data)
+            queried_names.append(query.qd[0].name)
+            await response_blockers[len(queried_names) - 1]
+
+            reponse_record = ResourceRecord(
+                name=query.qd[0].name,
+                qtype=TYPES.A,
+                qclass=1,
+                ttl=21-len(queried_names),
+                rdata=ipaddress.IPv4Address('123.100.123.' + str(len(queried_names))).packed,
+            )
+            response = Message(
+                qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
+                qd=query.qd, an=(reponse_record,), ns=(), ar=(),
+            )
+            return pack(response)
+
+        stop_nameserver = await start_nameserver(get_response)
+        self.add_async_cleanup(loop, stop_nameserver)
+
+        resolve = Resolver()
+        res_1_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
+        res_2_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
+        res_3_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
+        await asyncio.sleep(0)
+        response_blockers[0].set_result(None)
+        response_blockers[1].set_result(None)
+
+        res_1_task.cancel()
+        res_2_task.cancel()
+        await asyncio.sleep(0)
+        with self.assertRaises(asyncio.CancelledError):
+            await res_1_task
+        with self.assertRaises(asyncio.CancelledError):
+            await res_2_task
+
+        res_3 = await res_3_task
+        self.assertEqual(str(res_3[0]), '123.100.123.2')
 
 
 class TestResolverEndToEnd(unittest.TestCase):
