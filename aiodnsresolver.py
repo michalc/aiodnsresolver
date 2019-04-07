@@ -310,11 +310,12 @@ def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_ser
 
 
 async def iterate_until_successful(iterator, coro, coro_args):
+    exception = None
     for item in iterator:
         try:
             return await coro(item, *coro_args)
-        except (asyncio.TimeoutError, TemporaryResolverError) as exception:
-            pass
+        except (asyncio.TimeoutError, TemporaryResolverError) as recent_exception:
+            exception = recent_exception
     raise exception
 
 
