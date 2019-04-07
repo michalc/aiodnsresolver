@@ -128,7 +128,7 @@ class TestResolver(unittest.TestCase):
         self.assertEqual(res[0].ttl(loop.time()), 0)
 
     @async_test
-    async def test_localhost_a(self):
+    async def test_localhost_aaaa(self):
         loop = asyncio.get_event_loop()
         resolve = Resolver()
         res = await resolve('localhost', TYPES.AAAA)
