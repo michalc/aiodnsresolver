@@ -85,13 +85,13 @@ def rdata_minimised_ttls_that_match_qtype(answers, expires_at, qtype):
 
 def pack(message):
 
-    def pack_string(string, btype):
+    def pack_string(string):
         length = len(string)
         return struct.pack('B%ds' % (length), length, string)
 
     def pack_name(name):
         return b''.join([
-            pack_string(part, 'B')
+            pack_string(part)
             for part in name.split(b'.')
         ]) + b'\0'
 
