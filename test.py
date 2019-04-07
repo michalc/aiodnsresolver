@@ -41,7 +41,9 @@ def until_called(num_times):
     return func
 
 
-class TestResolver(unittest.TestCase):
+class TestResolverEndToEnd(unittest.TestCase):
+    """ Tests that query current real nameserver(s) for real domains
+    """
 
     @async_test
     async def test_a_query(self):
