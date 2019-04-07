@@ -846,7 +846,7 @@ async def sendto(loop, sock, data, addr):
     fileno = sock.fileno()
     result = asyncio.Future()
 
-    def write_without_reader():
+    def write_without_writer():
         try:
             bytes_sent = sock.sendto(data, addr)
         except BlockingIOError:
@@ -870,7 +870,7 @@ async def sendto(loop, sock, data, addr):
             loop.remove_reader(fileno)
             result.set_result(bytes_sent)
 
-    write_without_reader()
+    write_without_writer()
 
     try:
         return await result
