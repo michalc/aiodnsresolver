@@ -24,6 +24,7 @@ from aiodnsresolver import (
     parse,
     memoize_expires_at,
     timeout,
+    recvfrom,
 )
 
 
@@ -310,6 +311,45 @@ class TestResolverIntegration(unittest.TestCase):
 
         res_2 = await resolve('my.domain', TYPES.A)
         self.assertEqual(len(queried_names), 2)
+        self.assertEqual(str(res_2[0]), '123.100.123.2')
+
+    @async_test
+    async def test_cancel_can_run_next(self):
+        loop = asyncio.get_event_loop()
+        response_blockers = [asyncio.Future(), asyncio.Future()]
+        queried_names = []
+
+        async def get_response(query_data):
+            query = parse(query_data)
+            queried_names.append(query.qd[0].name)
+            await response_blockers[len(queried_names) - 1]
+
+            reponse_record = ResourceRecord(
+                name=query.qd[0].name,
+                qtype=TYPES.A,
+                qclass=1,
+                ttl=21-len(queried_names),
+                rdata=ipaddress.IPv4Address('123.100.123.' + str(len(queried_names))).packed,
+            )
+            response = Message(
+                qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
+                qd=query.qd, an=(reponse_record,), ns=(), ar=(),
+            )
+            return pack(response)
+
+        stop_nameserver = await start_nameserver(get_response)
+        self.add_async_cleanup(loop, stop_nameserver)
+
+        resolve = Resolver()
+        res_1_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
+        response_blockers[0].cancel()
+        await asyncio.sleep(0)
+
+        res_1_task.cancel()
+        await asyncio.sleep(0)
+
+        response_blockers[1].set_result(None)
+        res_2 = await resolve('my.domain', TYPES.A)
         self.assertEqual(str(res_2[0]), '123.100.123.2')
 
 
@@ -804,45 +844,6 @@ async def start_nameserver(get_response):
 # recvfrom/ sendto for nonblocking sockets for use in asyncio doesn't seem to
 # be part of the standard library, and not wanting the inflexibility of using
 # the streams/protocol/datagram endpoint framework
-
-async def recvfrom(loop, sock, max_bytes):
-    fileno = sock.fileno()
-    result = asyncio.Future()
-
-    def read_without_reader():
-        try:
-            (data, addr) = sock.recvfrom(max_bytes)
-        except BlockingIOError:
-            loop.add_reader(fileno, read_with_reader)
-        except BaseException as exception:
-            if not result.cancelled():
-                result.set_exception(exception)
-        else:
-            if not result.cancelled():
-                result.set_result((data, addr))
-
-    def read_with_reader():
-        try:
-            (data, addr) = sock.recvfrom(max_bytes)
-        except BlockingIOError:
-            pass
-        except BaseException as exception:
-            loop.remove_reader(fileno)
-            if not result.cancelled():
-                result.set_exception(exception)
-        else:
-            loop.remove_reader(fileno)
-            if not result.cancelled():
-                result.set_result((data, addr))
-
-    read_without_reader()
-
-    try:
-        return await result
-    except asyncio.CancelledError:
-        loop.remove_reader(fileno)
-        raise
-
 
 async def sendto(loop, sock, data, addr):
     fileno = sock.fileno()

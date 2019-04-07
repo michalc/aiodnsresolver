@@ -221,7 +221,7 @@ async def udp_request_attempt(_, addr, fqdn, qtype):
         await loop.sock_sendall(sock, packed)
 
         while True:  # We might be getting spoofed messages
-            response_data = await loop.sock_recv(sock, 512)
+            response_data, _ = await recvfrom(loop, sock, 512)
 
             # Some initial peeking before parsing
             if len(response_data) < 12:
@@ -248,6 +248,47 @@ async def udp_request_attempt(_, addr, fqdn, qtype):
                 raise DoesNotExist()
             else:
                 return answers
+
+
+async def recvfrom(loop, sock, max_bytes):
+    # This handles cancellation better than loop.sock_recv, which seems to
+    # causes later sockets on the same fileno to never receive data
+    fileno = sock.fileno()
+    result = asyncio.Future()
+
+    def read_without_reader():
+        try:
+            (data, addr) = sock.recvfrom(max_bytes)
+        except BlockingIOError:
+            loop.add_reader(fileno, read_with_reader)
+        except BaseException as exception:
+            if not result.cancelled():
+                result.set_exception(exception)
+        else:
+            if not result.cancelled():
+                result.set_result((data, addr))
+
+    def read_with_reader():
+        try:
+            (data, addr) = sock.recvfrom(max_bytes)
+        except BlockingIOError:
+            pass
+        except BaseException as exception:
+            loop.remove_reader(fileno)
+            if not result.cancelled():
+                result.set_exception(exception)
+        else:
+            loop.remove_reader(fileno)
+            if not result.cancelled():
+                result.set_result((data, addr))
+
+    read_without_reader()
+
+    try:
+        return await result
+    except asyncio.CancelledError:
+        loop.remove_reader(fileno)
+        raise
 
 
 def get_nameservers():
