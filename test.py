@@ -1,8 +1,11 @@
 import asyncio
 import ipaddress
+import socket
 import unittest
 from unittest.mock import (
+    MagicMock,
     Mock,
+    patch,
     call,
 )
 
@@ -12,8 +15,13 @@ from aiofastforward import (
 
 from aiodnsresolver import (
     TYPES,
+    RESPONSE,
     DoesNotExist,
+    Message,
     Resolver,
+    ResourceRecord,
+    pack,
+    parse,
     memoize_expires_at,
     timeout,
 )
@@ -39,6 +47,47 @@ def until_called(num_times):
         return future
 
     return func
+
+
+class TestResolverIntegration(unittest.TestCase):
+    """ Tests that run a controllable nameserver locally, mocking access to
+    `/ect/resolve.conf` so this one is used by the resolver
+    """
+
+    def add_async_cleanup(self, loop, coroutine):
+        self.addCleanup(loop.run_until_complete, coroutine())
+
+    @async_test
+    async def test_a_query(self):
+        loop = asyncio.get_event_loop()
+        queried_name = None
+
+        async def get_response(query_data):
+            nonlocal queried_name
+            query = parse(query_data)
+            queried_name = query.qd[0].name.lower()
+
+            reponse_record = ResourceRecord(
+                name=query.qd[0].name,
+                qtype=TYPES.A,
+                qclass=1,
+                ttl=20,
+                rdata=ipaddress.IPv4Address('123.100.123.101').packed,
+            )
+            response = Message(
+                qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
+                qd=query.qd, an=(reponse_record,), ns=(), ar=(),
+            )
+            return pack(response)
+
+        stop_nameserver = await start_nameserver(get_response)
+        self.add_async_cleanup(loop, stop_nameserver)
+
+        resolve = Resolver()
+        res = await resolve('my.domain', TYPES.A)
+
+        self.assertEqual(queried_name, b'my.domain')
+        self.assertEqual(str(res[0]), '123.100.123.101')
 
 
 class TestResolverEndToEnd(unittest.TestCase):
@@ -476,3 +525,132 @@ class TestTimeout(unittest.TestCase):
                 await forward(1)
                 await task
                 self.assertTrue(ignored.is_set())
+
+
+async def start_nameserver(get_response):
+    loop = asyncio.get_event_loop()
+
+    def mock_open(file_name, _):
+        lines = \
+            ['127.0.0.1 localhost'] if file_name == '/etc/hosts' else \
+            ['nameserver 127.0.0.1']
+
+        context_manager = MagicMock()
+        context_manager.__enter__.return_value = lines
+        context_manager.__exit__.return_value = False
+        return context_manager
+
+    patched_open = patch('aiodnsresolver.open', side_effect=mock_open)
+    patched_open.start()
+
+    sock = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+    sock.setblocking(False)
+    sock.bind(('', 53))
+
+    async def server():
+        try:
+            while True:
+                data, addr = await recvfrom(loop, sock, 512)
+                asyncio.ensure_future(client_task(data, addr))
+        except asyncio.CancelledError:
+            pass
+        except BaseException as exception:
+            print(exception)
+
+    async def client_task(data, addr):
+        response = await get_response(data)
+        await sendto_all(loop, sock, response, addr)
+
+    server_task = asyncio.ensure_future(server())
+
+    async def stop():
+        patched_open.stop()
+        server_task.cancel()
+        await asyncio.sleep(0)
+        sock.close()
+
+    return stop
+
+
+# recvfrom/ sendto for nonblocking sockets for use in asyncio doesn't seem to
+# be part of the standard library, and not wanting the inflexibility of using
+# the streams/protocol/datagram endpoint framework
+
+async def recvfrom(loop, sock, max_bytes):
+    fileno = sock.fileno()
+    result = asyncio.Future()
+
+    def read_without_reader():
+        try:
+            (data, addr) = sock.recvfrom(max_bytes)
+        except BlockingIOError:
+            loop.add_reader(fileno, read_with_reader)
+        except BaseException as exception:
+            if not result.cancelled():
+                result.set_exception(exception)
+        else:
+            result.set_result((data, addr))
+
+    def read_with_reader():
+        try:
+            (data, addr) = sock.recvfrom(max_bytes)
+        except BlockingIOError:
+            pass
+        except BaseException as exception:
+            loop.remove_reader(fileno)
+            if not result.cancelled():
+                result.set_exception(exception)
+        else:
+            loop.remove_reader(fileno)
+            result.set_result((data, addr))
+
+    read_without_reader()
+
+    try:
+        return await result
+    except asyncio.CancelledError:
+        loop.remove_reader(fileno)
+        raise
+
+
+async def sendto(loop, sock, data, addr):
+    fileno = sock.fileno()
+    result = asyncio.Future()
+
+    def write_without_reader():
+        try:
+            bytes_sent = sock.sendto(data, addr)
+        except BlockingIOError:
+            loop.add_witer(fileno, write_with_writer)
+        except BaseException as exception:
+            if not result.cancelled():
+                result.set_exception(exception)
+        else:
+            result.set_result(bytes_sent)
+
+    def write_with_writer():
+        try:
+            bytes_sent = sock.sendto(data, addr)
+        except BlockingIOError:
+            pass
+        except BaseException as exception:
+            loop.remove_reader(fileno)
+            if not result.cancelled():
+                result.set_exception(exception)
+        else:
+            loop.remove_reader(fileno)
+            result.set_result(bytes_sent)
+
+    write_without_reader()
+
+    try:
+        return await result
+    except asyncio.CancelledError:
+        loop.remove_reader(fileno)
+        raise
+
+
+async def sendto_all(loop, sock, data, addr):
+    bytes_sent = 0
+    while bytes_sent != len(data):
+        bytes_sent += await sendto(loop, sock, data[bytes_sent:], addr)
