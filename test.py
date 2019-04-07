@@ -818,7 +818,8 @@ async def recvfrom(loop, sock, max_bytes):
             if not result.cancelled():
                 result.set_exception(exception)
         else:
-            result.set_result((data, addr))
+            if not result.cancelled():
+                result.set_result((data, addr))
 
     def read_with_reader():
         try:
@@ -831,7 +832,8 @@ async def recvfrom(loop, sock, max_bytes):
                 result.set_exception(exception)
         else:
             loop.remove_reader(fileno)
-            result.set_result((data, addr))
+            if not result.cancelled():
+                result.set_result((data, addr))
 
     read_without_reader()
 
@@ -868,7 +870,8 @@ async def sendto(loop, sock, data, addr):
                 result.set_exception(exception)
         else:
             loop.remove_writer(fileno)
-            result.set_result(bytes_sent)
+            if not result.cancelled():
+                result.set_result(bytes_sent)
 
     write_without_writer()
 
