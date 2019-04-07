@@ -381,29 +381,79 @@ def wrap_timeout(seconds, coro):
 
 
 def memoize_expires_at(func, get_expires_at):
+    """ Memoizing function that allows a dyamic expiry for each result
 
+    Multiple caller for the same key wait for first call to `func` to finish,
+    and will use its result.
+
+    A queue of concurrent callers is maintained for each key. If the task
+    calling the func is cancelled, the next in the queue calls `func`.
+    A non-cancellation exception from `func` is propagated to all callers
+    """
     loop = asyncio.get_event_loop()
     cache = {}
+    waiter_queues = {}
 
     async def cached(*args, **kwargs):
         key = (args, tuple(kwargs.items()))
 
         if key in cache:
-            future = cache[key]
+            return cache[key]
+
+        first_call_for_key = key not in waiter_queues
+        if first_call_for_key:
+            waiter_queue = collections.deque()
+            waiter_queues[key] = waiter_queue
         else:
-            future = asyncio.Future()
-            cache[key] = future
+            waiter_queue = waiter_queues[key]
 
-            try:
-                result = await func(*args, **kwargs)
-            except BaseException as exception:
-                del cache[key]
-                future.set_exception(exception)
-            else:
-                future.set_result(result)
-                loop.call_at(get_expires_at(result), invalidate, key)
+        if not first_call_for_key:
+            waiter = asyncio.Future()
+            waiter_queue.append(waiter)
+            await waiter
 
-        return await future
+            if key in cache:
+                return cache[key]
+
+        try:
+            result = await func(*args, **kwargs)
+
+        except asyncio.CancelledError:
+            # Find the next non cancelled...
+            while waiter_queue and waiter_queue[0].cancelled():
+                waiter_queue.popleft()
+
+            # ... wake it up to call the func...
+            if waiter_queue:
+                waiter = waiter_queue.popleft()
+                waiter.set_result(None)
+            elif not waiter_queue:
+                # Delelte the queue only if we haven't woken anything up
+                del waiter_queues[key]
+
+            # ... and propagate the cancelation
+            raise
+
+        except BaseException as exception:
+            # Propagate the non-cancellation exception to all waiters
+            while waiter_queue:
+                waiter = waiter_queue.popleft()
+                if not waiter.cancelled():
+                    waiter.set_exception(exception)
+            del waiter_queues[key]
+            raise exception
+
+        else:
+            # Have a result, so cache it and wake up all waiters
+            cache[key] = result
+            while waiter_queue:
+                waiter = waiter_queue.popleft()
+                if not waiter.cancelled():
+                    waiter.set_result(None)
+            del waiter_queues[key]
+
+            loop.call_at(get_expires_at(result), invalidate, key)
+            return result
 
     def invalidate(key):
         del cache[key]
