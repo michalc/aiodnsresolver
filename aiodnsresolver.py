@@ -11,8 +11,8 @@ QUESTION = 0
 RESPONSE = 1
 
 TYPES = collections.namedtuple('Types', [
-    'A', 'CNAME', 'AAAA'
-])(A=1, CNAME=5, AAAA=28)
+    'A', 'CNAME', 'TXT', 'AAAA'
+])(A=1, CNAME=5, TXT=16, AAAA=28)
 
 # Field names chosen to be consistent with RFC 1035
 Message = collections.namedtuple('Message', [
@@ -291,7 +291,7 @@ def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_ser
         fqdn = BytesTTL(fqdn_str.encode(), expires_at=float('inf'))
 
         while True:
-            if fqdn in hosts[qtype]:
+            if qtype in hosts and fqdn in hosts[qtype]:
                 return (hosts[qtype][fqdn],)
 
             answers = await iterate_until_successful(

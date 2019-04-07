@@ -141,6 +141,12 @@ class TestResolverEndToEnd(unittest.TestCase):
         self.assertNotEqual(res[0], res[1])
 
     @async_test
+    async def test_txt_query(self):
+        resolve = Resolver()
+        res = await resolve('charemza.name', TYPES.TXT)
+        self.assertIn(b'google', res[0])
+
+    @async_test
     async def test_a_query_twice_sequential(self):
         resolve = Resolver()
         res_a = await resolve('www.google.com', TYPES.A)
