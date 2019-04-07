@@ -4,6 +4,15 @@ workflows:
   test:
     jobs:
       - test-3.7.1
+      - test-3.7.0
+      - test-3.6.7
+      - test-3.6.6
+      - test-3.6.5
+      - test-3.6.4
+      - test-3.6.3
+      - test-3.6.2
+      - test-3.6.1
+      - test-3.6.0
 jobs:
   test-3.7.1:
     docker:
@@ -23,3 +32,72 @@ jobs:
             coverage run -m setup test -v
             coverage xml
             ./cc-test-reporter after-build --exit-code $?
+  test-3.7.0: &template
+    docker:
+      - image: python:3.7.0
+    steps:
+      - checkout
+      - run:
+          name: Run tests
+          command: |
+            python -m setup test -v
+  test-3.6.7:
+    <<: *template
+    docker:
+      - image: python:3.6.7
+  test-3.6.6:
+    <<: *template
+    docker:
+      - image: python:3.6.6
+  test-3.6.5:
+    <<: *template
+    docker:
+      - image: python:3.6.5
+  test-3.6.4:
+    <<: *template
+    docker:
+      - image: python:3.6.4
+  test-3.6.3:
+    <<: *template
+    docker:
+      - image: python:3.6.3
+  test-3.6.2:
+    <<: *template
+    docker:
+      - image: python:3.6.2
+  test-3.6.1:
+    <<: *template
+    docker:
+      - image: python:3.6.1
+  test-3.6.0:
+    <<: *template
+    docker:
+      - image: python:3.6.0
+  test-3.5.6:
+    <<: *template
+    docker:
+      - image: python:3.5.6
+  test-3.5.5:
+    <<: *template
+    docker:
+      - image: python:3.5.5
+  test-3.5.4:
+    <<: *template
+    docker:
+      - image: python:3.5.4
+  test-3.5.3:
+    <<: *template
+    docker:
+      - image: python:3.5.3
+  test-3.5.2:
+    <<: *template
+    docker:
+      - image: python:3.5.2
+  test-3.5.1:
+    <<: *template
+    docker:
+      - image: python:3.5.1
+  test-3.5.0:
+    <<: *template
+    docker:
+      - image: python:3.5.0
