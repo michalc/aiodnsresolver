@@ -66,16 +66,23 @@ class TestResolverIntegration(unittest.TestCase):
             query = parse(query_data)
             queried_names.append(query.qd[0].name)
 
-            reponse_record = ResourceRecord(
+            reponse_record_1 = ResourceRecord(
                 name=query.qd[0].name,
                 qtype=TYPES.A,
                 qclass=1,
                 ttl=21-len(queried_names),
                 rdata=ipaddress.IPv4Address('123.100.123.' + str(len(queried_names))).packed,
             )
+            reponse_record_2 = ResourceRecord(
+                name=query.qd[0].name,
+                qtype=TYPES.A,
+                qclass=1,
+                ttl=41-len(queried_names),
+                rdata=ipaddress.IPv4Address('123.100.124.' + str(len(queried_names))).packed,
+            )
             response = Message(
                 qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
-                qd=query.qd, an=(reponse_record,), ns=(), ar=(),
+                qd=query.qd, an=(reponse_record_1, reponse_record_2), ns=(), ar=(),
             )
             return pack(response)
 
@@ -90,6 +97,8 @@ class TestResolverIntegration(unittest.TestCase):
             self.assertEqual(queried_names[0].lower(), b'my.domain')
             self.assertEqual(str(res_1[0]), '123.100.123.1')
             self.assertEqual(res_1[0].ttl(loop.time()), 20.0)
+            self.assertEqual(str(res_1[1]), '123.100.124.1')
+            self.assertEqual(res_1[1].ttl(loop.time()), 40.0)
 
             await forward(19.5)
             self.assertEqual(res_1[0].ttl(loop.time()), 0.5)
