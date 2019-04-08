@@ -394,6 +394,19 @@ def memoize_expires_at(func, get_expires_at):
     cache = {}
     waiter_queues = {}
 
+    def on_cancel(waiter_queue, key):
+        # Find the next non cancelled...
+        while waiter_queue and waiter_queue[0].cancelled():
+            waiter_queue.popleft()
+
+        # ... wake it up to call the func...
+        if waiter_queue:
+            waiter = waiter_queue.popleft()
+            waiter.set_result((False, None))
+        elif not waiter_queue:
+            # Delelte the queue only if we haven't woken anything up
+            del waiter_queues[key]
+
     async def cached(*args, **kwargs):
         key = (args, tuple(kwargs.items()))
 
@@ -419,19 +432,7 @@ def memoize_expires_at(func, get_expires_at):
             result = await func(*args, **kwargs)
 
         except asyncio.CancelledError:
-            # Find the next non cancelled...
-            while waiter_queue and waiter_queue[0].cancelled():
-                waiter_queue.popleft()
-
-            # ... wake it up to call the func...
-            if waiter_queue:
-                waiter = waiter_queue.popleft()
-                waiter.set_result((False, None))
-            elif not waiter_queue:
-                # Delelte the queue only if we haven't woken anything up
-                del waiter_queues[key]
-
-            # ... and propagate the cancelation
+            on_cancel(waiter_queue, key)
             raise
 
         except BaseException as exception:
