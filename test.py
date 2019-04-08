@@ -485,7 +485,7 @@ class TestResolverIntegration(unittest.TestCase):
         self.assertEqual(str(res_3[0]), '123.100.123.2')
 
     @async_test
-    async def test_many_concurrent_queries(self):
+    async def test_many_concurrent_queries_range(self):
         loop = asyncio.get_event_loop()
         response_blockers = [asyncio.Future(), asyncio.Future(), asyncio.Future()]
 
@@ -523,6 +523,49 @@ class TestResolverIntegration(unittest.TestCase):
             for i in range(1000)
         ]
         self.assertEqual(results, expected_results)
+
+    @async_test
+    async def test_many_concurrent_queries_identical_0_ttl(self):
+        loop = asyncio.get_event_loop()
+        response_blockers = [asyncio.Future(), asyncio.Future(), asyncio.Future()]
+        num_queries = 0
+
+        async def get_response(query_data):
+            nonlocal num_queries
+            num_queries += 1
+            query = parse(query_data)
+
+            reponse_record = ResourceRecord(
+                name=query.qd[0].name,
+                qtype=TYPES.A,
+                qclass=1,
+                ttl=0,
+                rdata=ipaddress.IPv4Address('123.100.123.1').packed,
+            )
+            response = Message(
+                qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
+                qd=query.qd, an=(reponse_record,), ns=(), ar=(),
+            )
+            return pack(response)
+
+        stop_nameserver = await start_nameserver(get_response)
+        self.add_async_cleanup(loop, stop_nameserver)
+
+        resolve = Resolver()
+        tasks = [
+            asyncio.ensure_future(resolve('my.domain', TYPES.A))
+            for i in range(100)
+        ]
+        results = [
+            str(result[0])
+            for result in await asyncio.gather(*tasks)
+        ]
+        expected_results = [
+            '123.100.123.1'
+            for i in range(100)
+        ]
+        self.assertEqual(results, expected_results)
+        self.assertEqual(num_queries, 1)
 
 
 class TestResolverEndToEnd(unittest.TestCase):

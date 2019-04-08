@@ -410,10 +410,10 @@ def memoize_expires_at(func, get_expires_at):
         if not first_call_for_key:
             waiter = asyncio.Future()
             waiter_queue.append(waiter)
-            await waiter
+            has_other_task_result, other_task_result = await waiter
 
-            if key in cache:
-                return cache[key]
+            if has_other_task_result:
+                return other_task_result
 
         try:
             result = await func(*args, **kwargs)
@@ -426,7 +426,7 @@ def memoize_expires_at(func, get_expires_at):
             # ... wake it up to call the func...
             if waiter_queue:
                 waiter = waiter_queue.popleft()
-                waiter.set_result(None)
+                waiter.set_result((False, None))
             elif not waiter_queue:
                 # Delelte the queue only if we haven't woken anything up
                 del waiter_queues[key]
@@ -449,7 +449,7 @@ def memoize_expires_at(func, get_expires_at):
             while waiter_queue:
                 waiter = waiter_queue.popleft()
                 if not waiter.cancelled():
-                    waiter.set_result(None)
+                    waiter.set_result((True, result))
             del waiter_queues[key]
 
             loop.call_at(get_expires_at(result), invalidate, key)
