@@ -396,7 +396,7 @@ def memoize_expires_at(func, get_expires_at):
 
     async def cached(*args, **kwargs):
 
-        def on_cancel():
+        def wake_next():
             # Find the next non cancelled...
             while waiter_queue and waiter_queue[0].cancelled():
                 waiter_queue.popleft()
@@ -434,7 +434,7 @@ def memoize_expires_at(func, get_expires_at):
             result = await func(*args, **kwargs)
 
         except asyncio.CancelledError:
-            on_cancel()
+            wake_next()
             raise
 
         except BaseException as exception:
