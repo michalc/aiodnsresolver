@@ -279,11 +279,9 @@ async def send(loop, sock, data):
         except BlockingIOError:
             pass
         except BaseException as exception:
-            loop.remove_writer(fileno)
             if not result.cancelled():
                 result.set_exception(exception)
         else:
-            loop.remove_writer(fileno)
             if not result.cancelled():
                 result.set_result(bytes_sent)
 
@@ -291,9 +289,8 @@ async def send(loop, sock, data):
 
     try:
         return await result
-    except asyncio.CancelledError:
+    finally:
         loop.remove_writer(fileno)
-        raise
 
 
 async def recvfrom(loop, sock, max_bytes):
@@ -314,11 +311,9 @@ async def recvfrom(loop, sock, max_bytes):
         except BlockingIOError:
             pass
         except BaseException as exception:
-            loop.remove_reader(fileno)
             if not result.cancelled():
                 result.set_exception(exception)
         else:
-            loop.remove_reader(fileno)
             if not result.cancelled():
                 result.set_result((data, addr))
 
@@ -326,9 +321,8 @@ async def recvfrom(loop, sock, max_bytes):
 
     try:
         return await result
-    except asyncio.CancelledError:
+    finally:
         loop.remove_reader(fileno)
-        raise
 
 
 def get_nameservers():
