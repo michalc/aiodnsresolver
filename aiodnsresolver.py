@@ -216,7 +216,7 @@ async def udp_request_attempt(_, addr, fqdn, qtype):
 
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
         sock.setblocking(False)
-        await loop.sock_connect(sock, (str(addr), 53))
+        sock.connect((str(addr), 53))
         ttl_start = loop.time()
         await loop.sock_sendall(sock, packed)
 
