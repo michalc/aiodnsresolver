@@ -265,20 +265,13 @@ async def send_all(loop, sock, data):
 
 
 async def send(loop, sock, data):
+    try:
+        return sock.send(data)
+    except BlockingIOError:
+        pass
+
     fileno = sock.fileno()
     result = asyncio.Future()
-
-    def write_without_writer():
-        try:
-            bytes_sent = sock.send(data)
-        except BlockingIOError:
-            loop.add_witer(fileno, write_with_writer)
-        except BaseException as exception:
-            if not result.cancelled():
-                result.set_exception(exception)
-        else:
-            if not result.cancelled():
-                result.set_result(bytes_sent)
 
     def write_with_writer():
         try:
@@ -294,7 +287,7 @@ async def send(loop, sock, data):
             if not result.cancelled():
                 result.set_result(bytes_sent)
 
-    write_without_writer()
+    loop.add_witer(fileno, write_with_writer)
 
     try:
         return await result
