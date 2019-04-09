@@ -92,10 +92,10 @@ class TestResolverIntegration(unittest.TestCase):
 
         with FastForward(loop) as forward:
             resolve = Resolver()
-            res_1 = await resolve('my.domain', TYPES.A)
+            res_1 = await resolve('my.domain.quite-long.abcdefghijklm', TYPES.A)
 
             self.assertEqual(len(queried_names), 1)
-            self.assertEqual(queried_names[0].lower(), b'my.domain')
+            self.assertEqual(queried_names[0].lower(), b'my.domain.quite-long.abcdefghijklm')
             self.assertEqual(str(res_1[0]), '123.100.123.1')
             self.assertEqual(res_1[0].ttl(loop.time()), 20.0)
             self.assertEqual(str(res_1[1]), '123.100.124.1')
@@ -104,15 +104,15 @@ class TestResolverIntegration(unittest.TestCase):
             await forward(19.5)
             self.assertEqual(res_1[0].ttl(loop.time()), 0.5)
 
-            res_2 = await resolve('my.domain', TYPES.A)
+            res_2 = await resolve('my.domain.quite-long.abcdefghijklm', TYPES.A)
             self.assertEqual(len(queried_names), 1)
             self.assertEqual(str(res_2[0]), '123.100.123.1')
             self.assertEqual(res_2[0].ttl(loop.time()), 0.5)
 
             await forward(0.5)
-            res_3 = await resolve('my.domain', TYPES.A)
+            res_3 = await resolve('my.domain.quite-long.abcdefghijklm', TYPES.A)
             self.assertEqual(len(queried_names), 2)
-            self.assertEqual(queried_names[1].lower(), b'my.domain')
+            self.assertEqual(queried_names[1].lower(), b'my.domain.quite-long.abcdefghijklm')
             self.assertEqual(str(res_3[0]), '123.100.123.2')
             self.assertEqual(res_3[0].ttl(loop.time()), 19.0)
 
