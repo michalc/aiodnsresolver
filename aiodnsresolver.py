@@ -218,7 +218,7 @@ async def udp_request_attempt(_, addr, fqdn, qtype):
         sock.setblocking(False)
         sock.connect((str(addr), 53))
         ttl_start = loop.time()
-        await loop.sock_sendall(sock, packed)
+        await send_all(loop, sock, packed)
 
         while True:  # We might be getting spoofed messages
             response_data, _ = await recvfrom(loop, sock, 512)
@@ -248,6 +248,59 @@ async def udp_request_attempt(_, addr, fqdn, qtype):
                 raise DoesNotExist()
             else:
                 return answers
+
+
+# We implement our own recv/send functions since:
+# - loop.sock_recv doesn't seem to handle cancellation well
+# - There is no asyncio recvfrom/sendto in the standard library, which are
+#   used in tests
+# - We want consistent with the code used in tests
+# - Want to avoid the inflexibility of the streams/protocol/datagram endpoint
+#   framework
+
+async def send_all(loop, sock, data):
+    bytes_sent = 0
+    while bytes_sent != len(data):
+        bytes_sent += await send(loop, sock, data[bytes_sent:])
+
+
+async def send(loop, sock, data):
+    fileno = sock.fileno()
+    result = asyncio.Future()
+
+    def write_without_writer():
+        try:
+            bytes_sent = sock.send(data)
+        except BlockingIOError:
+            loop.add_witer(fileno, write_with_writer)
+        except BaseException as exception:
+            if not result.cancelled():
+                result.set_exception(exception)
+        else:
+            if not result.cancelled():
+                result.set_result(bytes_sent)
+
+    def write_with_writer():
+        try:
+            bytes_sent = sock.send(data)
+        except BlockingIOError:
+            pass
+        except BaseException as exception:
+            loop.remove_writer(fileno)
+            if not result.cancelled():
+                result.set_exception(exception)
+        else:
+            loop.remove_writer(fileno)
+            if not result.cancelled():
+                result.set_result(bytes_sent)
+
+    write_without_writer()
+
+    try:
+        return await result
+    except asyncio.CancelledError:
+        loop.remove_writer(fileno)
+        raise
 
 
 async def recvfrom(loop, sock, max_bytes):
