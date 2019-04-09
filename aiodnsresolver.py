@@ -299,20 +299,14 @@ async def send(loop, sock, data):
 async def recvfrom(loop, sock, max_bytes):
     # This handles cancellation better than loop.sock_recv, which seems to
     # causes later sockets on the same fileno to never receive data
+
+    try:
+        return sock.recvfrom(max_bytes)
+    except BlockingIOError:
+        pass
+
     fileno = sock.fileno()
     result = asyncio.Future()
-
-    def read_without_reader():
-        try:
-            (data, addr) = sock.recvfrom(max_bytes)
-        except BlockingIOError:
-            loop.add_reader(fileno, read_with_reader)
-        except BaseException as exception:
-            if not result.cancelled():
-                result.set_exception(exception)
-        else:
-            if not result.cancelled():
-                result.set_result((data, addr))
 
     def read_with_reader():
         try:
@@ -328,7 +322,7 @@ async def recvfrom(loop, sock, max_bytes):
             if not result.cancelled():
                 result.set_result((data, addr))
 
-    read_without_reader()
+    loop.add_reader(fileno, read_with_reader)
 
     try:
         return await result
