@@ -873,6 +873,6 @@ async def sendto(loop, sock, data, addr):
 
 
 async def sendto_all(loop, sock, data, addr):
-    bytes_sent = 0
+    bytes_sent = await sendto(loop, sock, data, addr)
     while bytes_sent != len(data):
         bytes_sent += await sendto(loop, sock, data[bytes_sent:], addr)

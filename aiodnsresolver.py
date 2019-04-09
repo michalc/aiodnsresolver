@@ -259,7 +259,7 @@ async def udp_request_attempt(_, addr, fqdn, qtype):
 #   framework
 
 async def send_all(loop, sock, data):
-    bytes_sent = 0
+    bytes_sent = await send(loop, sock, data)
     while bytes_sent != len(data):
         bytes_sent += await send(loop, sock, data[bytes_sent:])
 
