@@ -408,7 +408,7 @@ def memoize_expires_at(func, get_expires_at):
                 waiter.set_result((False, None))
                 woken_waiter[key] = waiter
             elif not waiter_queue:
-                # Delelte the queue only if we haven't woken anything up
+                # Delete the queue only if we haven't woken anything up
                 del waiter_queues[key]
 
 
