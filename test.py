@@ -383,7 +383,6 @@ class TestResolverIntegration(unittest.TestCase):
         res_1_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
         res_2_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
         await asyncio.sleep(0)
-        response_blockers[0].set_result(None)
 
         res_1_task.cancel()
         await asyncio.sleep(0)
@@ -397,7 +396,7 @@ class TestResolverIntegration(unittest.TestCase):
     @async_test
     async def test_concurrent_tasks_second_cancel_not_cancel_others(self):
         loop = asyncio.get_event_loop()
-        response_blockers = [asyncio.Future(), asyncio.Future(), asyncio.Future()]
+        response_blockers = [asyncio.Future(), asyncio.Future()]
         queried_names = []
 
         async def get_response(query_data):
@@ -425,23 +424,23 @@ class TestResolverIntegration(unittest.TestCase):
         res_1_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
         res_2_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
         res_3_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
-        await asyncio.sleep(0)
-        response_blockers[0].set_result(None)
 
         res_2_task.cancel()
         await asyncio.sleep(0)
         with self.assertRaises(asyncio.CancelledError):
             await res_2_task
 
+        response_blockers[0].set_result(None)
         res_1 = await res_1_task
         res_3 = await res_3_task
+        self.assertEqual(len(queried_names), 1)
         self.assertEqual(str(res_1[0]), '123.100.123.1')
         self.assertEqual(str(res_3[0]), '123.100.123.1')
 
     @async_test
     async def test_concurrent_tasks_first_two_cancel_not_cancel_final(self):
         loop = asyncio.get_event_loop()
-        response_blockers = [asyncio.Future(), asyncio.Future(), asyncio.Future()]
+        response_blockers = [asyncio.Future(), asyncio.Future()]
         queried_names = []
 
         async def get_response(query_data):
@@ -471,7 +470,6 @@ class TestResolverIntegration(unittest.TestCase):
         res_3_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
         await asyncio.sleep(0)
         response_blockers[0].set_result(None)
-        response_blockers[1].set_result(None)
 
         res_1_task.cancel()
         res_2_task.cancel()
@@ -481,7 +479,9 @@ class TestResolverIntegration(unittest.TestCase):
         with self.assertRaises(asyncio.CancelledError):
             await res_2_task
 
+        response_blockers[1].set_result(None)
         res_3 = await res_3_task
+        self.assertEqual(len(queried_names), 2)
         self.assertEqual(str(res_3[0]), '123.100.123.2')
 
     @async_test

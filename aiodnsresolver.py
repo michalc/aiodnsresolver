@@ -393,8 +393,25 @@ def memoize_expires_at(func, get_expires_at):
     loop = asyncio.get_event_loop()
     cache = {}
     waiter_queues = {}
+    woken_waiter = {}
 
     async def cached(*args, **kwargs):
+
+        def wake_next():
+            # Find the next non cancelled...
+            while waiter_queue and waiter_queue[0].cancelled():
+                waiter_queue.popleft()
+
+            # ... wake it up to call the func...
+            if waiter_queue:
+                waiter = waiter_queue.popleft()
+                waiter.set_result((False, None))
+                woken_waiter[key] = waiter
+            elif not waiter_queue:
+                # Delete the queue only if we haven't woken anything up
+                del waiter_queues[key]
+
+
         key = (args, tuple(kwargs.items()))
 
         if key in cache:
@@ -410,28 +427,25 @@ def memoize_expires_at(func, get_expires_at):
         if not first_call_for_key:
             waiter = asyncio.Future()
             waiter_queue.append(waiter)
-            has_other_task_result, other_task_result = await waiter
 
-            if has_other_task_result:
-                return other_task_result
+            try:
+                has_other_task_result, other_task_result = await waiter
+            except asyncio.CancelledError:
+                if key in woken_waiter and waiter == woken_waiter[key]:
+                    wake_next()
+                raise
+            else:
+                if has_other_task_result:
+                   return other_task_result
+            finally:
+                if key in woken_waiter and waiter == woken_waiter[key]:
+                    del woken_waiter[key]
 
         try:
             result = await func(*args, **kwargs)
 
         except asyncio.CancelledError:
-            # Find the next non cancelled...
-            while waiter_queue and waiter_queue[0].cancelled():
-                waiter_queue.popleft()
-
-            # ... wake it up to call the func...
-            if waiter_queue:
-                waiter = waiter_queue.popleft()
-                waiter.set_result((False, None))
-            elif not waiter_queue:
-                # Delelte the queue only if we haven't woken anything up
-                del waiter_queues[key]
-
-            # ... and propagate the cancelation
+            wake_next()
             raise
 
         except BaseException as exception:
