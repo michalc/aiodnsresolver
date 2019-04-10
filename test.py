@@ -86,6 +86,7 @@ class TestResolverIntegration(unittest.TestCase):
             )
             return pack(response)
 
+        self.addCleanup(patch_open())
         stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
@@ -141,6 +142,7 @@ class TestResolverIntegration(unittest.TestCase):
             )
             return pack(response)
 
+        self.addCleanup(patch_open())
         stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
@@ -179,6 +181,7 @@ class TestResolverIntegration(unittest.TestCase):
             )
             return pack(response)
 
+        self.addCleanup(patch_open())
         stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
@@ -219,6 +222,7 @@ class TestResolverIntegration(unittest.TestCase):
             )
             return pack(response)
 
+        self.addCleanup(patch_open())
         stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
@@ -258,6 +262,7 @@ class TestResolverIntegration(unittest.TestCase):
             )
             return pack(response)
 
+        self.addCleanup(patch_open())
         stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
@@ -300,6 +305,7 @@ class TestResolverIntegration(unittest.TestCase):
             )
             return pack(response)
 
+        self.addCleanup(patch_open())
         stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
@@ -336,6 +342,7 @@ class TestResolverIntegration(unittest.TestCase):
             )
             return pack(response)
 
+        self.addCleanup(patch_open())
         stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
@@ -375,6 +382,7 @@ class TestResolverIntegration(unittest.TestCase):
             )
             return pack(response)
 
+        self.addCleanup(patch_open())
         stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
@@ -416,6 +424,7 @@ class TestResolverIntegration(unittest.TestCase):
             )
             return pack(response)
 
+        self.addCleanup(patch_open())
         stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
@@ -460,6 +469,7 @@ class TestResolverIntegration(unittest.TestCase):
             )
             return pack(response)
 
+        self.addCleanup(patch_open())
         stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
@@ -509,6 +519,7 @@ class TestResolverIntegration(unittest.TestCase):
             )
             return pack(response)
 
+        self.addCleanup(patch_open())
         stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
@@ -542,6 +553,7 @@ class TestResolverIntegration(unittest.TestCase):
             request.set()
             await blocker.wait()
 
+        self.addCleanup(patch_open())
         stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
@@ -576,6 +588,7 @@ class TestResolverIntegration(unittest.TestCase):
             )
             return pack(response)
 
+        self.addCleanup(patch_open())
         stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
@@ -618,6 +631,7 @@ class TestResolverIntegration(unittest.TestCase):
             )
             return pack(response)
 
+        self.addCleanup(patch_open())
         stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
@@ -743,9 +757,7 @@ class TestResolverEndToEnd(unittest.TestCase):
         self.assertEqual(res[0].ttl(loop.time()), 0)
 
 
-async def start_nameserver(get_response):
-    loop = asyncio.get_event_loop()
-
+def patch_open():
     def mock_open(file_name, _):
         lines = \
             ['127.0.0.1 localhost'] if file_name == '/etc/hosts' else \
@@ -758,6 +770,12 @@ async def start_nameserver(get_response):
 
     patched_open = patch('aiodnsresolver.open', side_effect=mock_open)
     patched_open.start()
+
+    return patched_open.stop
+
+
+async def start_nameserver(get_response):
+    loop = asyncio.get_event_loop()
 
     sock = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
     sock.setblocking(False)
@@ -784,7 +802,6 @@ async def start_nameserver(get_response):
     server_task = asyncio.ensure_future(server())
 
     async def stop():
-        patched_open.stop()
         server_task.cancel()
         await asyncio.sleep(0)
         sock.close()
