@@ -435,7 +435,6 @@ def memoize_expires_at(func, get_expires_at):
                 # Delete the queue only if we haven't woken anything up
                 del waiter_queues[key]
 
-
         key = (args, tuple(kwargs.items()))
 
         if key in cache:
