@@ -1,6 +1,5 @@
 import asyncio
 import collections
-import contextlib
 import ipaddress
 import os
 import secrets
@@ -405,15 +404,6 @@ async def iterate_until_successful(iterator, coro, coro_args):
     raise exception
 
 
-def wrap_timeout(seconds, coro):
-
-    async def wrapped(*args):
-        with timeout(seconds):
-            return await coro(*args)
-
-    return wrapped
-
-
 def memoize_expires_at(func, get_expires_at):
     """ Memoizing function that allows a dyamic expiry for each result
 
@@ -509,31 +499,33 @@ def memoize_expires_at(func, get_expires_at):
     return cached
 
 
-@contextlib.contextmanager
-def timeout(max_time):
+def wrap_timeout(seconds, coro):
 
-    cancelling_due_to_timeout = False
-    current_task = \
-        asyncio.current_task() if hasattr(asyncio, 'current_task') else \
-        asyncio.Task.current_task()
-    loop = \
-        asyncio.get_running_loop() if hasattr(asyncio, 'get_running_loop') else \
-        asyncio.get_event_loop()
+    async def wrapped(*args):
+        cancelling_due_to_timeout = False
+        current_task = \
+            asyncio.current_task() if hasattr(asyncio, 'current_task') else \
+            asyncio.Task.current_task()
+        loop = \
+            asyncio.get_running_loop() if hasattr(asyncio, 'get_running_loop') else \
+            asyncio.get_event_loop()
 
-    def cancel():
-        nonlocal cancelling_due_to_timeout
-        cancelling_due_to_timeout = True
-        current_task.cancel()
+        def cancel():
+            nonlocal cancelling_due_to_timeout
+            cancelling_due_to_timeout = True
+            current_task.cancel()
 
-    handle = loop.call_later(max_time, cancel)
+        handle = loop.call_later(seconds, cancel)
 
-    try:
-        yield
-    except asyncio.CancelledError:
-        if cancelling_due_to_timeout:
-            raise asyncio.TimeoutError()
-        else:
-            raise
-            
-    finally:
-        handle.cancel()
+        try:
+            return await coro(*args)
+        except asyncio.CancelledError:
+            if cancelling_due_to_timeout:
+                raise asyncio.TimeoutError()
+            else:
+                raise
+                
+        finally:
+            handle.cancel()
+
+    return wrapped
