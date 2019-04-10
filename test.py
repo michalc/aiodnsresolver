@@ -23,7 +23,6 @@ from aiodnsresolver import (
     pack,
     parse,
     memoize_expires_at,
-    timeout,
     recvfrom,
 )
 
