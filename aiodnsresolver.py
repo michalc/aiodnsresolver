@@ -384,14 +384,14 @@ def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_ser
     async def udp_request(addr, fqdn, qtype):
         return await iterate_until_successful(
             range(udp_attempts_per_server),
-            coro=wrap_timeout(udp_response_timeout, udp_request_attempt), coro_args=(addr, fqdn, qtype))
+            coro=timeout(udp_response_timeout, udp_request_attempt), coro_args=(addr, fqdn, qtype))
 
     def get_expires_at(answers):
         return min(rdata_ttl._expires_at for rdata_ttl, _ in answers)
 
     memoized_udp_request = memoize_expires_at(udp_request, get_expires_at)
 
-    return wrap_timeout(overall_timeout, resolve)
+    return timeout(overall_timeout, resolve)
 
 
 async def iterate_until_successful(iterator, coro, coro_args):
@@ -499,7 +499,7 @@ def memoize_expires_at(func, get_expires_at):
     return cached
 
 
-def wrap_timeout(seconds, coro):
+def timeout(seconds, coro):
 
     async def wrapped(*args):
         cancelling_due_to_timeout = False
