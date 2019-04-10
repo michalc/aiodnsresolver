@@ -485,6 +485,77 @@ class TestResolverIntegration(unittest.TestCase):
         self.assertEqual(str(res_3[0]), '123.100.123.2')
 
     @async_test
+    async def test_udp_timeout_try_again(self):
+        loop = asyncio.get_event_loop()
+        requests = [asyncio.Event(), asyncio.Event(), asyncio.Event(), asyncio.Event()]
+        response_blockers = [asyncio.Event(), asyncio.Event(), asyncio.Event(), asyncio.Event(), asyncio.Event()]
+        queried_names = []
+
+        async def get_response(query_data):
+            query = parse(query_data)
+            requests[len(queried_names)].set()
+            queried_names.append(query.qd[0].name)
+            await response_blockers[len(queried_names)].wait()
+
+            reponse_record = ResourceRecord(
+                name=query.qd[0].name,
+                qtype=TYPES.A,
+                qclass=1,
+                ttl=21-len(queried_names),
+                rdata=ipaddress.IPv4Address('123.100.123.' + str(len(queried_names))).packed,
+            )
+            response = Message(
+                qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
+                qd=query.qd, an=(reponse_record,), ns=(), ar=(),
+            )
+            return pack(response)
+
+        stop_nameserver = await start_nameserver(get_response)
+        self.add_async_cleanup(loop, stop_nameserver)
+
+        with FastForward(loop) as forward:
+            resolve = Resolver()
+            res_1_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
+            await requests[0].wait()
+            self.assertEqual(len(queried_names), 1)
+            await forward(0.5)
+            await requests[1].wait()
+            self.assertEqual(len(queried_names), 2)
+            await forward(0.5)
+            await requests[2].wait()
+            self.assertEqual(len(queried_names), 3)
+            await forward(0.5)
+            await requests[3].wait()
+            self.assertEqual(len(queried_names), 4)
+            response_blockers[4].set()
+
+            res_2 = await resolve('my.domain', TYPES.A)
+            self.assertEqual(str(res_2[0]), '123.100.123.4')
+
+    @async_test
+    async def test_udp_timeout_eventually_fail(self):
+        loop = asyncio.get_event_loop()
+        blocker = asyncio.Event()
+        request = asyncio.Event()
+
+        async def get_response(query_data):
+            query = parse(query_data)
+            request.set()
+            await blocker.wait()
+
+        stop_nameserver = await start_nameserver(get_response)
+        self.add_async_cleanup(loop, stop_nameserver)
+
+        with FastForward(loop) as forward:
+            resolve = Resolver()
+            res_1_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
+            await request.wait()
+            await forward(2.5)
+
+            with self.assertRaises(asyncio.TimeoutError):
+                await res_1_task
+
+    @async_test
     async def test_many_concurrent_queries_range(self):
         loop = asyncio.get_event_loop()
         response_blockers = [asyncio.Future(), asyncio.Future(), asyncio.Future()]
@@ -673,117 +744,6 @@ class TestResolverEndToEnd(unittest.TestCase):
         self.assertEqual(res[0].ttl(loop.time()), 0)
 
 
-class TestTimeout(unittest.TestCase):
-    """ Test the timeout context manager
-
-    This is testing private implementation details. ideally, the tests would
-    assert on public behaviour of the resolver
-    """
-
-    @async_test
-    async def test_shorter_than_timeout_not_raises(self):
-            loop = asyncio.get_event_loop()
-
-            async def worker():
-                with timeout(1):
-                    await asyncio.sleep(0.5)
-
-            with FastForward(loop) as forward:
-                task = asyncio.ensure_future(worker())
-
-                await forward(0.5)
-                await task
-
-    @async_test
-    async def test_longer_than_timeout_raises_timeout_error(self):
-            loop = asyncio.get_event_loop()
-
-            async def worker():
-                with timeout(1):
-                    await asyncio.sleep(1.5)
-
-            with FastForward(loop) as forward:
-                task = asyncio.ensure_future(worker())
-
-                await forward(1)
-                with self.assertRaises(asyncio.TimeoutError):
-                    await task
-
-    @async_test
-    async def test_cancel_raises_cancelled_error(self):
-            loop = asyncio.get_event_loop()
-
-            async def worker():
-                with timeout(1):
-                    await asyncio.sleep(0.5)
-
-            with FastForward(loop) as forward:
-                task = asyncio.ensure_future(worker())
-
-                await forward(0.25)
-                task.cancel()
-                with self.assertRaises(asyncio.CancelledError):
-                    await task
-
-    @async_test
-    async def test_exception_propagates(self):
-            loop = asyncio.get_event_loop()
-
-            async def worker():
-                with timeout(2):
-                    raise Exception('inner')
-
-            with FastForward(loop) as forward:
-                task = asyncio.ensure_future(worker())
-
-                await forward(1)
-                with self.assertRaisesRegex(Exception, 'inner'):
-                    await task
-
-    @async_test
-    async def test_cleanup(self):
-            loop = asyncio.get_event_loop()
-            cleanup = asyncio.Event()
-
-            async def worker():
-                with timeout(1):
-                    try:
-                        await asyncio.sleep(2)
-                    except asyncio.CancelledError:
-                        cleanup.set()
-                        raise
-
-            with FastForward(loop) as forward:
-                task = asyncio.ensure_future(worker())
-
-                await forward(1)
-                with self.assertRaises(asyncio.TimeoutError):
-                    await task
-
-                self.assertTrue(cleanup.is_set())
-
-    @async_test
-    async def test_ignore_timeout(self):
-            loop = asyncio.get_event_loop()
-            ignored = asyncio.Event()
-
-            async def worker():
-                with timeout(1):
-                    try:
-                        await asyncio.sleep(2)
-                    except asyncio.CancelledError:
-                        # Swallow the exception
-                        pass
-                ignored.set()
-
-            with FastForward(loop) as forward:
-                task = asyncio.ensure_future(worker())
-
-                await forward(1)
-                await task
-                self.assertTrue(ignored.is_set())
-
-
 async def start_nameserver(get_response):
     loop = asyncio.get_event_loop()
 
@@ -805,14 +765,18 @@ async def start_nameserver(get_response):
     sock.bind(('', 53))
 
     async def server():
+        client_tasks = []
         try:
             while True:
                 data, addr = await recvfrom(loop, sock, 512)
-                asyncio.ensure_future(client_task(data, addr))
+                client_tasks.append(asyncio.ensure_future(client_task(data, addr)))
         except asyncio.CancelledError:
             pass
         except BaseException as exception:
             print(exception)
+        finally:
+            for task in client_tasks:
+                task.cancel()
 
     async def client_task(data, addr):
         response = await get_response(data)
