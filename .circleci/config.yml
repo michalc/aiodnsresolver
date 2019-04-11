@@ -34,6 +34,11 @@ jobs:
             coverage run -m setup test -v
             coverage xml
             ./cc-test-reporter after-build --exit-code $?
+      - run:
+          name: Send coverage
+          command: |
+            pip install coveralls==1.7.0
+            coveralls
   test-3.7.2: &template
     docker:
       - image: python:3.7.2
