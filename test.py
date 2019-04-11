@@ -567,14 +567,12 @@ class TestResolverIntegration(unittest.TestCase):
                 await res_1_task
 
     @async_test
-    async def test_socket_error_fail_immediately(self):
+    async def test_a_socket_error_fail_immediately(self):
         # No nameserver started
         loop = asyncio.get_event_loop()
         self.addCleanup(patch_open())
 
-        # Sometimes the failure takes a while, so we bump the timeouts
-        # to ensure the correct exception propagates
-        resolve = Resolver(overall_timeout=20.0, udp_response_timeout=20.0)
+        resolve = Resolver()
         with self.assertRaises(ConnectionRefusedError):
             await resolve('my.domain', TYPES.A)
 
