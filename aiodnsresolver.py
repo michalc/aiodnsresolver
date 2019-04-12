@@ -325,7 +325,7 @@ def Resolver(
             if qtype in hosts and fqdn in hosts[qtype]:
                 return (hosts[qtype][fqdn],)
 
-            answers = await udp_request_namservers_until_response(nameservers, fqdn, qtype, fqdn._expires_at)
+            answers = await udp_request_namservers_until_response(nameservers, fqdn, qtype)
 
             qtype_rdata = tuple(rdata_ttl for rdata_ttl, rdata_qtype in answers if rdata_qtype == qtype)
             cname_rdata = tuple(rdata_ttl for rdata_ttl, rdata_qtype in answers if rdata_qtype == TYPES.CNAME)
@@ -336,16 +336,16 @@ def Resolver(
             else:
                 raise DoesNotExist()
 
-    async def udp_request_namservers_until_response(nameservers, fqdn, qtype, min_expires_at):
+    async def udp_request_namservers_until_response(nameservers, fqdn, qtype):
         exception = None
         for addr in nameservers:
             try:
-                return await memoized_udp_request(addr, fqdn, qtype, min_expires_at)
+                return await memoized_udp_request(addr, fqdn, qtype)
             except (asyncio.TimeoutError, TemporaryResolverError) as recent_exception:
                 exception = recent_exception
         raise exception
 
-    async def memoized_udp_request(addr, fqdn, qtype, min_expires_at):
+    async def memoized_udp_request(addr, fqdn, qtype):
         """Memoized udp_request, that allows a dynamic expiry for each result
 
         Multiple callers for the same args will wait for first call to
@@ -400,7 +400,7 @@ def Resolver(
                     del woken_waiter[key]
 
         try:
-            answers = await udp_request(addr, fqdn, qtype, min_expires_at)
+            answers = await udp_request(addr, fqdn, qtype)
 
         except asyncio.CancelledError:
             wake_next()
@@ -431,16 +431,16 @@ def Resolver(
     def invalidate(key):
         del cache[key]
 
-    async def udp_request(addr, fqdn, qtype, min_expires_at):
+    async def udp_request(addr, fqdn, qtype):
         exception = None
         for _ in range(udp_attempts_per_server):
             try:
-                return await timeout_udp_request_attempt(addr, fqdn, qtype, min_expires_at)
+                return await timeout_udp_request_attempt(addr, fqdn, qtype)
             except (asyncio.TimeoutError, TemporaryResolverError) as recent_exception:
                 exception = recent_exception
         raise exception
 
-    async def timeout_udp_request_attempt(addr, fqdn, qtype, min_expires_at):
+    async def timeout_udp_request_attempt(addr, fqdn, qtype):
         cancelling_due_to_timeout = False
         current_task = \
             asyncio.current_task() if hasattr(asyncio, 'current_task') else \
@@ -454,7 +454,7 @@ def Resolver(
         handle = loop.call_later(udp_response_timeout, cancel)
 
         try:
-            return await udp_request_attempt(addr, fqdn, qtype, min_expires_at)
+            return await udp_request_attempt(addr, fqdn, qtype)
         except asyncio.CancelledError:
             if cancelling_due_to_timeout:
                 raise asyncio.TimeoutError()
@@ -464,7 +464,7 @@ def Resolver(
         finally:
             handle.cancel()
 
-    async def udp_request_attempt(addr, fqdn, qtype, min_expires_at):
+    async def udp_request_attempt(addr, fqdn, qtype):
         qid = secrets.randbelow(65536)
         fqdn_transformed = fqdn_transform(fqdn)
         req = Message(
@@ -498,7 +498,7 @@ def Resolver(
                 name_error = res.rcode == 3
                 non_name_error = res.rcode and not name_error
                 answers = [
-                    (rdata_ttl(answer, ttl_start, min_expires_at), answer.qtype)
+                    (rdata_ttl(answer, ttl_start, fqdn._expires_at), answer.qtype)
                     for answer in res.an
                     if answer.name == fqdn_transformed
                 ]
