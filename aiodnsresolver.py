@@ -387,40 +387,6 @@ def Resolver(udp_response_timeout=0.5, udp_attempts_per_server=5):
             else:
                 raise DoesNotExist()
 
-    async def udp_request(addr, fqdn, qtype):
-        exception = None
-        for _ in range(udp_attempts_per_server):
-            try:
-                return await timeout_udp_request_attempt(addr, fqdn, qtype)
-            except (asyncio.TimeoutError, TemporaryResolverError) as recent_exception:
-                exception = recent_exception
-        raise exception
-
-    async def timeout_udp_request_attempt(addr, fqdn, qtype):
-
-        cancelling_due_to_timeout = False
-        current_task = \
-            asyncio.current_task() if hasattr(asyncio, 'current_task') else \
-            asyncio.Task.current_task()
-
-        def cancel():
-            nonlocal cancelling_due_to_timeout
-            cancelling_due_to_timeout = True
-            current_task.cancel()
-
-        handle = loop.call_later(udp_response_timeout, cancel)
-
-        try:
-            return await udp_request_attempt(addr, fqdn, qtype)
-        except asyncio.CancelledError:
-            if cancelling_due_to_timeout:
-                raise asyncio.TimeoutError()
-            else:
-                raise
-                
-        finally:
-            handle.cancel()
-
     async def udp_request_namservers_until_response(nameservers, fqdn, qtype):
         exception = None
         for addr in nameservers:
@@ -517,5 +483,39 @@ def Resolver(udp_response_timeout=0.5, udp_attempts_per_server=5):
 
     def get_expires_at(answers):
         return min(rdata_ttl._expires_at for rdata_ttl, _ in answers)
+
+    async def udp_request(addr, fqdn, qtype):
+        exception = None
+        for _ in range(udp_attempts_per_server):
+            try:
+                return await timeout_udp_request_attempt(addr, fqdn, qtype)
+            except (asyncio.TimeoutError, TemporaryResolverError) as recent_exception:
+                exception = recent_exception
+        raise exception
+
+    async def timeout_udp_request_attempt(addr, fqdn, qtype):
+
+        cancelling_due_to_timeout = False
+        current_task = \
+            asyncio.current_task() if hasattr(asyncio, 'current_task') else \
+            asyncio.Task.current_task()
+
+        def cancel():
+            nonlocal cancelling_due_to_timeout
+            cancelling_due_to_timeout = True
+            current_task.cancel()
+
+        handle = loop.call_later(udp_response_timeout, cancel)
+
+        try:
+            return await udp_request_attempt(addr, fqdn, qtype)
+        except asyncio.CancelledError:
+            if cancelling_due_to_timeout:
+                raise asyncio.TimeoutError()
+            else:
+                raise
+                
+        finally:
+            handle.cancel()
 
     return resolve
