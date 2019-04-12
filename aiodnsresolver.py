@@ -368,9 +368,7 @@ def Resolver(udp_response_timeout=0.5, udp_attempts_per_server=5):
             if qtype in hosts and fqdn in hosts[qtype]:
                 return (hosts[qtype][fqdn],)
 
-            answers = await iterate_until_successful(
-                iterator=nameservers,
-                coro=memoized_udp_request, coro_args=(fqdn, qtype))
+            answers = await udp_request_namservers_until_response(nameservers, fqdn, qtype)
 
             qtype_rdata = rdata_minimised_ttls_that_match_qtype(answers, fqdn._expires_at, qtype)
             cname_rdata = rdata_minimised_ttls_that_match_qtype(answers, fqdn._expires_at, TYPES.CNAME)
@@ -418,22 +416,21 @@ def Resolver(udp_response_timeout=0.5, udp_attempts_per_server=5):
         finally:
             handle.cancel()
 
+    async def udp_request_namservers_until_response(nameservers, fqdn, qtype):
+        exception = None
+        for addr in nameservers:
+            try:
+                return await memoized_udp_request(addr, fqdn, qtype)
+            except (asyncio.TimeoutError, TemporaryResolverError) as recent_exception:
+                exception = recent_exception
+        raise exception
+
     def get_expires_at(answers):
         return min(rdata_ttl._expires_at for rdata_ttl, _ in answers)
 
     memoized_udp_request = memoize_expires_at(udp_request, get_expires_at)
 
     return resolve
-
-
-async def iterate_until_successful(iterator, coro, coro_args):
-    exception = None
-    for item in iterator:
-        try:
-            return await coro(item, *coro_args)
-        except (asyncio.TimeoutError, TemporaryResolverError) as recent_exception:
-            exception = recent_exception
-    raise exception
 
 
 def memoize_expires_at(func, get_expires_at):
