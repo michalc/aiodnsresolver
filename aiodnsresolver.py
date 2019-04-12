@@ -485,7 +485,7 @@ def Resolver(udp_response_timeout=0.5, udp_attempts_per_server=5):
                     del woken_waiter[key]
 
         try:
-            result = await udp_request(addr, fqdn, qtype)
+            answers = await udp_request(addr, fqdn, qtype)
 
         except asyncio.CancelledError:
             wake_next()
@@ -502,15 +502,15 @@ def Resolver(udp_response_timeout=0.5, udp_attempts_per_server=5):
 
         else:
             # Have a result, so cache it and wake up all waiters
-            cache[key] = result
+            cache[key] = answers
             while waiter_queue:
                 waiter = waiter_queue.popleft()
                 if not waiter.cancelled():
-                    waiter.set_result((True, result))
+                    waiter.set_result((True, answers))
             del waiter_queues[key]
 
-            loop.call_at(get_expires_at(result), invalidate, key)
-            return result
+            loop.call_at(get_expires_at(answers), invalidate, key)
+            return answers
 
     def invalidate(key):
         del cache[key]
