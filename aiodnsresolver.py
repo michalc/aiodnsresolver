@@ -357,7 +357,7 @@ def get_hosts():
     }
 
 
-def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_server=5):
+def Resolver(udp_response_timeout=0.5, udp_attempts_per_server=5):
 
     async def resolve(fqdn_str, qtype):
         nameservers = get_nameservers()
@@ -391,7 +391,7 @@ def Resolver(overall_timeout=5.0, udp_response_timeout=0.5, udp_attempts_per_ser
 
     memoized_udp_request = memoize_expires_at(udp_request, get_expires_at)
 
-    return timeout(overall_timeout, resolve)
+    return resolve
 
 
 async def iterate_until_successful(iterator, coro, coro_args):
