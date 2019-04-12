@@ -384,9 +384,9 @@ def Resolver(udp_response_timeout=0.5, udp_attempts_per_server=5):
     async def udp_request(addr, fqdn, qtype):
         return await iterate_until_successful(
             range(udp_attempts_per_server),
-            coro=timeout_udp_request_attempt, coro_args=(udp_response_timeout, addr, fqdn, qtype))
+            coro=timeout_udp_request_attempt, coro_args=(addr, fqdn, qtype))
 
-    async def timeout_udp_request_attempt(_, seconds, addr, fqdn, qtype):
+    async def timeout_udp_request_attempt(_, addr, fqdn, qtype):
 
         cancelling_due_to_timeout = False
         current_task = \
@@ -401,7 +401,7 @@ def Resolver(udp_response_timeout=0.5, udp_attempts_per_server=5):
             cancelling_due_to_timeout = True
             current_task.cancel()
 
-        handle = loop.call_later(seconds, cancel)
+        handle = loop.call_later(udp_response_timeout, cancel)
 
         try:
             return await udp_request_attempt(addr, fqdn, qtype)
