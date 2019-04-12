@@ -199,56 +199,6 @@ def parse(data):
     return Message(qid, qr, opcode, aa, tc, rd, ra, z, rcode, qd, an, ns, ar)
 
 
-async def udp_request_attempt(fqdn_transform, addr, fqdn, qtype):
-    loop = asyncio.get_event_loop()
-
-    qid = secrets.randbelow(65536)
-    fqdn_transformed = fqdn_transform(fqdn)
-    req = Message(
-        qid=qid, qr=QUESTION, opcode=0, aa=0, tc=0, rd=1, ra=0, z=0, rcode=0,
-        qd=(QuestionRecord(fqdn_transformed, qtype, qclass=1),), an=(), ns=(), ar=(),
-    )
-    packed = pack(req)
-
-    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-        sock.setblocking(False)
-        sock.connect((str(addr), 53))
-        ttl_start = loop.time()
-        await send_all(loop, sock, packed)
-
-        while True:  # We might be getting spoofed messages
-            response_data, _ = await recvfrom(loop, sock, 512)
-
-            # Some initial peeking before parsing
-            if len(response_data) < 12:
-                continue
-            qid_matches = req.qid == struct.unpack('!H', response_data[:2])[0]
-            if not qid_matches:
-                continue
-
-            res = parse(response_data)
-            trusted = res.qid == req.qid and res.qd == req.qd
-
-            if not trusted:
-                continue
-
-            name_error = res.rcode == 3
-            non_name_error = res.rcode and not name_error
-            answers = [
-                (rdata_ttl(answer, ttl_start), answer.qtype)
-                for answer in res.an
-                if answer.name == fqdn_transformed
-            ]
-
-            if non_name_error:
-                raise TemporaryResolverError()
-            elif name_error or not answers:
-                # a name error can be returned by some non-authoritative
-                # servers on not-existing, contradicting RFC 1035
-                raise DoesNotExist()
-            else:
-                return answers
-
 
 # We implement our own recv/send functions since:
 # - loop.sock_recv doesn't seem to handle cancellation well
@@ -517,7 +467,7 @@ def Resolver(
         handle = loop.call_later(udp_response_timeout, cancel)
 
         try:
-            return await udp_request_attempt(fqdn_transform, addr, fqdn, qtype)
+            return await udp_request_attempt(addr, fqdn, qtype)
         except asyncio.CancelledError:
             if cancelling_due_to_timeout:
                 raise asyncio.TimeoutError()
@@ -526,5 +476,53 @@ def Resolver(
                 
         finally:
             handle.cancel()
+
+    async def udp_request_attempt(addr, fqdn, qtype):
+        qid = secrets.randbelow(65536)
+        fqdn_transformed = fqdn_transform(fqdn)
+        req = Message(
+            qid=qid, qr=QUESTION, opcode=0, aa=0, tc=0, rd=1, ra=0, z=0, rcode=0,
+            qd=(QuestionRecord(fqdn_transformed, qtype, qclass=1),), an=(), ns=(), ar=(),
+        )
+        packed = pack(req)
+
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.setblocking(False)
+            sock.connect((str(addr), 53))
+            ttl_start = loop.time()
+            await send_all(loop, sock, packed)
+
+            while True:  # We might be getting spoofed messages
+                response_data, _ = await recvfrom(loop, sock, 512)
+
+                # Some initial peeking before parsing
+                if len(response_data) < 12:
+                    continue
+                qid_matches = req.qid == struct.unpack('!H', response_data[:2])[0]
+                if not qid_matches:
+                    continue
+
+                res = parse(response_data)
+                trusted = res.qid == req.qid and res.qd == req.qd
+
+                if not trusted:
+                    continue
+
+                name_error = res.rcode == 3
+                non_name_error = res.rcode and not name_error
+                answers = [
+                    (rdata_ttl(answer, ttl_start), answer.qtype)
+                    for answer in res.an
+                    if answer.name == fqdn_transformed
+                ]
+
+                if non_name_error:
+                    raise TemporaryResolverError()
+                elif name_error or not answers:
+                    # a name error can be returned by some non-authoritative
+                    # servers on not-existing, contradicting RFC 1035
+                    raise DoesNotExist()
+                else:
+                    return answers
 
     return resolve
