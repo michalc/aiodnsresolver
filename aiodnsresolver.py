@@ -382,11 +382,15 @@ def Resolver(udp_response_timeout=0.5, udp_attempts_per_server=5):
                 raise DoesNotExist()
 
     async def udp_request(addr, fqdn, qtype):
-        return await iterate_until_successful(
-            range(udp_attempts_per_server),
-            coro=timeout_udp_request_attempt, coro_args=(addr, fqdn, qtype))
+        exception = None
+        for _ in range(udp_attempts_per_server):
+            try:
+                return await timeout_udp_request_attempt(addr, fqdn, qtype)
+            except (asyncio.TimeoutError, TemporaryResolverError) as recent_exception:
+                exception = recent_exception
+        raise exception
 
-    async def timeout_udp_request_attempt(_, addr, fqdn, qtype):
+    async def timeout_udp_request_attempt(addr, fqdn, qtype):
 
         cancelling_due_to_timeout = False
         current_task = \
