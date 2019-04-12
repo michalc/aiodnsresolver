@@ -199,7 +199,7 @@ def parse(data):
     return Message(qid, qr, opcode, aa, tc, rd, ra, z, rcode, qd, an, ns, ar)
 
 
-async def udp_request_attempt(_, addr, fqdn, qtype):
+async def udp_request_attempt(addr, fqdn, qtype):
     loop = asyncio.get_event_loop()
 
     qid = secrets.randbelow(65536)
@@ -384,7 +384,7 @@ def Resolver(udp_response_timeout=0.5, udp_attempts_per_server=5):
     async def udp_request(addr, fqdn, qtype):
         return await iterate_until_successful(
             range(udp_attempts_per_server),
-            coro=timeout(udp_response_timeout, udp_request_attempt), coro_args=(addr, fqdn, qtype))
+            coro=timeout_udp_request_attempt, coro_args=(udp_response_timeout, addr, fqdn, qtype))
 
     def get_expires_at(answers):
         return min(rdata_ttl._expires_at for rdata_ttl, _ in answers)
@@ -498,33 +498,30 @@ def memoize_expires_at(func, get_expires_at):
     return cached
 
 
-def timeout(seconds, coro):
+async def timeout_udp_request_attempt(_, seconds, addr, fqdn, qtype):
 
-    async def wrapped(*args):
-        cancelling_due_to_timeout = False
-        current_task = \
-            asyncio.current_task() if hasattr(asyncio, 'current_task') else \
-            asyncio.Task.current_task()
-        loop = \
-            asyncio.get_running_loop() if hasattr(asyncio, 'get_running_loop') else \
-            asyncio.get_event_loop()
+    cancelling_due_to_timeout = False
+    current_task = \
+        asyncio.current_task() if hasattr(asyncio, 'current_task') else \
+        asyncio.Task.current_task()
+    loop = \
+        asyncio.get_running_loop() if hasattr(asyncio, 'get_running_loop') else \
+        asyncio.get_event_loop()
 
-        def cancel():
-            nonlocal cancelling_due_to_timeout
-            cancelling_due_to_timeout = True
-            current_task.cancel()
+    def cancel():
+        nonlocal cancelling_due_to_timeout
+        cancelling_due_to_timeout = True
+        current_task.cancel()
 
-        handle = loop.call_later(seconds, cancel)
+    handle = loop.call_later(seconds, cancel)
 
-        try:
-            return await coro(*args)
-        except asyncio.CancelledError:
-            if cancelling_due_to_timeout:
-                raise asyncio.TimeoutError()
-            else:
-                raise
-                
-        finally:
-            handle.cancel()
-
-    return wrapped
+    try:
+        return await udp_request_attempt(addr, fqdn, qtype)
+    except asyncio.CancelledError:
+        if cancelling_due_to_timeout:
+            raise asyncio.TimeoutError()
+        else:
+            raise
+            
+    finally:
+        handle.cancel()
