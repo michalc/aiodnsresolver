@@ -475,14 +475,12 @@ def Resolver(udp_response_timeout=0.5, udp_attempts_per_server=5):
                     waiter.set_result((True, answers))
             del waiter_queues[key]
 
-            loop.call_at(get_expires_at(answers), invalidate, key)
+            expires_at = min(rdata_ttl._expires_at for rdata_ttl, _ in answers)
+            loop.call_at(expires_at, invalidate, key)
             return answers
 
     def invalidate(key):
         del cache[key]
-
-    def get_expires_at(answers):
-        return min(rdata_ttl._expires_at for rdata_ttl, _ in answers)
 
     async def udp_request(addr, fqdn, qtype):
         exception = None
