@@ -199,17 +199,14 @@ def parse(data):
     return Message(qid, qr, opcode, aa, tc, rd, ra, z, rcode, qd, an, ns, ar)
 
 
-async def udp_request_attempt(addr, fqdn, qtype):
+async def udp_request_attempt(fqdn_transform, addr, fqdn, qtype):
     loop = asyncio.get_event_loop()
 
     qid = secrets.randbelow(65536)
-    fqdn_0x20 = bytes(
-        (char | secrets.choice((32, 0))) if 65 <= char < 91 else char
-        for char in fqdn.upper()
-    )
+    fqdn_transformed = fqdn_transform(fqdn)
     req = Message(
         qid=qid, qr=QUESTION, opcode=0, aa=0, tc=0, rd=1, ra=0, z=0, rcode=0,
-        qd=(QuestionRecord(fqdn_0x20, qtype, qclass=1),), an=(), ns=(), ar=(),
+        qd=(QuestionRecord(fqdn_transformed, qtype, qclass=1),), an=(), ns=(), ar=(),
     )
     packed = pack(req)
 
@@ -237,7 +234,11 @@ async def udp_request_attempt(addr, fqdn, qtype):
 
             name_error = res.rcode == 3
             non_name_error = res.rcode and not name_error
-            answers = [(rdata_ttl(answer, ttl_start), answer.qtype) for answer in res.an if answer.name == fqdn_0x20]
+            answers = [
+                (rdata_ttl(answer, ttl_start), answer.qtype)
+                for answer in res.an
+                if answer.name == fqdn_transformed
+            ]
 
             if non_name_error:
                 raise TemporaryResolverError()
@@ -357,7 +358,18 @@ def get_hosts():
     }
 
 
-def Resolver(udp_response_timeout=0.5, udp_attempts_per_server=5):
+def mix_case(fqdn):
+    return bytes(
+        (char | secrets.choice((32, 0))) if 65 <= char < 91 else char
+        for char in fqdn.upper()
+    )
+
+
+def Resolver(
+        fqdn_transform=mix_case,
+        udp_response_timeout=0.5,
+        udp_attempts_per_server=5,
+    ):
 
     loop = \
         asyncio.get_running_loop() if hasattr(asyncio, 'get_running_loop') else \
@@ -505,7 +517,7 @@ def Resolver(udp_response_timeout=0.5, udp_attempts_per_server=5):
         handle = loop.call_later(udp_response_timeout, cancel)
 
         try:
-            return await udp_request_attempt(addr, fqdn, qtype)
+            return await udp_request_attempt(fqdn_transform, addr, fqdn, qtype)
         except asyncio.CancelledError:
             if cancelling_due_to_timeout:
                 raise asyncio.TimeoutError()
