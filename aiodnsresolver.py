@@ -68,19 +68,6 @@ def rdata_ttl(record, ttl_start, min_expires_at):
         IPv6AddressTTL(record.rdata, expires_at) if record.qtype == TYPES.AAAA else \
         BytesTTL(record.rdata, expires_at)
 
-def rdata_minimised_ttls_that_match_qtype(answers, expires_at, qtype):
-    # Re-constructs the instances, but reducing their TTLs so that they expire
-    # at or before expires_at, and only returns those that match the qtype
-    # passed. Used when iterating through CNAMES to ensure that the the final
-    # addresses have a TTL that do not go beyond any of the CNAMES used along
-    # the way
-    return tuple(type(rdata_ttl)(
-        rdata=rdata_ttl,
-        expires_at=min(expires_at, rdata_ttl._expires_at))
-        for rdata_ttl, rdata_qtype in answers
-        if rdata_qtype == qtype
-    )
-
 
 def pack(message):
 
@@ -340,8 +327,8 @@ def Resolver(
 
             answers = await udp_request_namservers_until_response(nameservers, fqdn, qtype, fqdn._expires_at)
 
-            qtype_rdata = rdata_minimised_ttls_that_match_qtype(answers, fqdn._expires_at, qtype)
-            cname_rdata = rdata_minimised_ttls_that_match_qtype(answers, fqdn._expires_at, TYPES.CNAME)
+            qtype_rdata = tuple(rdata_ttl for rdata_ttl, rdata_qtype in answers if rdata_qtype == qtype)
+            cname_rdata = tuple(rdata_ttl for rdata_ttl, rdata_qtype in answers if rdata_qtype == TYPES.CNAME)
             if qtype_rdata:
                 return qtype_rdata
             elif cname_rdata:
