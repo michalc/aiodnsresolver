@@ -359,6 +359,14 @@ def get_hosts():
 
 def Resolver(udp_response_timeout=0.5, udp_attempts_per_server=5):
 
+    loop = \
+        asyncio.get_running_loop() if hasattr(asyncio, 'get_running_loop') else \
+        asyncio.get_event_loop()
+
+    cache = {}
+    waiter_queues = {}
+    woken_waiter = {}
+
     async def resolve(fqdn_str, qtype):
         nameservers = get_nameservers()
         hosts = get_hosts()
@@ -394,9 +402,6 @@ def Resolver(udp_response_timeout=0.5, udp_attempts_per_server=5):
         current_task = \
             asyncio.current_task() if hasattr(asyncio, 'current_task') else \
             asyncio.Task.current_task()
-        loop = \
-            asyncio.get_running_loop() if hasattr(asyncio, 'get_running_loop') else \
-            asyncio.get_event_loop()
 
         def cancel():
             nonlocal cancelling_due_to_timeout
@@ -425,30 +430,16 @@ def Resolver(udp_response_timeout=0.5, udp_attempts_per_server=5):
                 exception = recent_exception
         raise exception
 
-    def get_expires_at(answers):
-        return min(rdata_ttl._expires_at for rdata_ttl, _ in answers)
+    async def memoized_udp_request(addr, fqdn, qtype):
+        """Memoized udp request, that allows a dynamic expiry for each result
 
-    memoized_udp_request = memoize_expires_at(udp_request, get_expires_at)
+        Multiple caller for the same key wait for first call to `func` to finish,
+        and will use its result.
 
-    return resolve
-
-
-def memoize_expires_at(func, get_expires_at):
-    """ Memoizing function that allows a dyamic expiry for each result
-
-    Multiple caller for the same key wait for first call to `func` to finish,
-    and will use its result.
-
-    A queue of concurrent callers is maintained for each key. If the task
-    calling the func is cancelled, the next in the queue calls `func`.
-    A non-cancellation exception from `func` is propagated to all callers
-    """
-    loop = asyncio.get_event_loop()
-    cache = {}
-    waiter_queues = {}
-    woken_waiter = {}
-
-    async def cached(*args, **kwargs):
+        A queue of concurrent callers is maintained for each key. If the task
+        calling the func is cancelled, the next in the queue calls `func`.
+        A non-cancellation exception from `func` is propagated to all callers
+        """
 
         def wake_next():
             # Find the next non cancelled...
@@ -464,7 +455,7 @@ def memoize_expires_at(func, get_expires_at):
                 # Delete the queue only if we haven't woken anything up
                 del waiter_queues[key]
 
-        key = (args, tuple(kwargs.items()))
+        key = (addr, fqdn, qtype)
 
         if key in cache:
             return cache[key]
@@ -494,7 +485,7 @@ def memoize_expires_at(func, get_expires_at):
                     del woken_waiter[key]
 
         try:
-            result = await func(*args, **kwargs)
+            result = await udp_request(addr, fqdn, qtype)
 
         except asyncio.CancelledError:
             wake_next()
@@ -524,4 +515,7 @@ def memoize_expires_at(func, get_expires_at):
     def invalidate(key):
         del cache[key]
 
-    return cached
+    def get_expires_at(answers):
+        return min(rdata_ttl._expires_at for rdata_ttl, _ in answers)
+
+    return resolve

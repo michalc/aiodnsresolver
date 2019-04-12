@@ -22,7 +22,6 @@ from aiodnsresolver import (
     ResourceRecord,
     pack,
     parse,
-    memoize_expires_at,
     recvfrom,
 )
 
