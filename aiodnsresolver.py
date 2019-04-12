@@ -61,8 +61,8 @@ class BytesTTL(bytes):
     def ttl(self, now):
         return max(0.0, self._expires_at - now)
 
-def rdata_ttl(record, ttl_start):
-    expires_at = ttl_start + record.ttl
+def rdata_ttl(record, ttl_start, min_expires_at):
+    expires_at = min(ttl_start + record.ttl, min_expires_at)
     return \
         IPv4AddressTTL(record.rdata, expires_at) if record.qtype == TYPES.A else \
         IPv6AddressTTL(record.rdata, expires_at) if record.qtype == TYPES.AAAA else \
@@ -338,7 +338,7 @@ def Resolver(
             if qtype in hosts and fqdn in hosts[qtype]:
                 return (hosts[qtype][fqdn],)
 
-            answers = await udp_request_namservers_until_response(nameservers, fqdn, qtype)
+            answers = await udp_request_namservers_until_response(nameservers, fqdn, qtype, fqdn._expires_at)
 
             qtype_rdata = rdata_minimised_ttls_that_match_qtype(answers, fqdn._expires_at, qtype)
             cname_rdata = rdata_minimised_ttls_that_match_qtype(answers, fqdn._expires_at, TYPES.CNAME)
@@ -349,16 +349,16 @@ def Resolver(
             else:
                 raise DoesNotExist()
 
-    async def udp_request_namservers_until_response(nameservers, fqdn, qtype):
+    async def udp_request_namservers_until_response(nameservers, fqdn, qtype, min_expires_at):
         exception = None
         for addr in nameservers:
             try:
-                return await memoized_udp_request(addr, fqdn, qtype)
+                return await memoized_udp_request(addr, fqdn, qtype, min_expires_at)
             except (asyncio.TimeoutError, TemporaryResolverError) as recent_exception:
                 exception = recent_exception
         raise exception
 
-    async def memoized_udp_request(addr, fqdn, qtype):
+    async def memoized_udp_request(addr, fqdn, qtype, min_expires_at):
         """Memoized udp_request, that allows a dynamic expiry for each result
 
         Multiple callers for the same args will wait for first call to
@@ -413,7 +413,7 @@ def Resolver(
                     del woken_waiter[key]
 
         try:
-            answers = await udp_request(addr, fqdn, qtype)
+            answers = await udp_request(addr, fqdn, qtype, min_expires_at)
 
         except asyncio.CancelledError:
             wake_next()
@@ -444,16 +444,16 @@ def Resolver(
     def invalidate(key):
         del cache[key]
 
-    async def udp_request(addr, fqdn, qtype):
+    async def udp_request(addr, fqdn, qtype, min_expires_at):
         exception = None
         for _ in range(udp_attempts_per_server):
             try:
-                return await timeout_udp_request_attempt(addr, fqdn, qtype)
+                return await timeout_udp_request_attempt(addr, fqdn, qtype, min_expires_at)
             except (asyncio.TimeoutError, TemporaryResolverError) as recent_exception:
                 exception = recent_exception
         raise exception
 
-    async def timeout_udp_request_attempt(addr, fqdn, qtype):
+    async def timeout_udp_request_attempt(addr, fqdn, qtype, min_expires_at):
         cancelling_due_to_timeout = False
         current_task = \
             asyncio.current_task() if hasattr(asyncio, 'current_task') else \
@@ -467,7 +467,7 @@ def Resolver(
         handle = loop.call_later(udp_response_timeout, cancel)
 
         try:
-            return await udp_request_attempt(addr, fqdn, qtype)
+            return await udp_request_attempt(addr, fqdn, qtype, min_expires_at)
         except asyncio.CancelledError:
             if cancelling_due_to_timeout:
                 raise asyncio.TimeoutError()
@@ -477,7 +477,7 @@ def Resolver(
         finally:
             handle.cancel()
 
-    async def udp_request_attempt(addr, fqdn, qtype):
+    async def udp_request_attempt(addr, fqdn, qtype, min_expires_at):
         qid = secrets.randbelow(65536)
         fqdn_transformed = fqdn_transform(fqdn)
         req = Message(
@@ -511,7 +511,7 @@ def Resolver(
                 name_error = res.rcode == 3
                 non_name_error = res.rcode and not name_error
                 answers = [
-                    (rdata_ttl(answer, ttl_start), answer.qtype)
+                    (rdata_ttl(answer, ttl_start, min_expires_at), answer.qtype)
                     for answer in res.an
                     if answer.name == fqdn_transformed
                 ]
