@@ -492,7 +492,6 @@ def Resolver(udp_response_timeout=0.5, udp_attempts_per_server=5):
         raise exception
 
     async def timeout_udp_request_attempt(addr, fqdn, qtype):
-
         cancelling_due_to_timeout = False
         current_task = \
             asyncio.current_task() if hasattr(asyncio, 'current_task') else \
