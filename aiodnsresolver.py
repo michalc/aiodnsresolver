@@ -397,14 +397,14 @@ def Resolver(udp_response_timeout=0.5, udp_attempts_per_server=5):
         raise exception
 
     async def memoized_udp_request(addr, fqdn, qtype):
-        """Memoized udp request, that allows a dynamic expiry for each result
+        """Memoized udp_request, that allows a dynamic expiry for each result
 
-        Multiple caller for the same key wait for first call to `func` to finish,
-        and will use its result.
+        Multiple callers for the same args will wait for first call to
+        udp_request to finish, and will use its result.
 
-        A queue of concurrent callers is maintained for each key. If the task
-        calling the func is cancelled, the next in the queue calls `func`.
-        A non-cancellation exception from `func` is propagated to all callers
+        A queue of concurrent callers is maintained for the same args. If the
+        task making the request is cancelled, the next in the queue will make
+        it. A non-cancellation exception is propagated to all callers
         """
 
         def wake_next():
