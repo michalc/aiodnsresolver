@@ -70,10 +70,11 @@ def rdata_ttl(record, ttl_start, min_expires_at):
 
 
 def pack(message):
+    struct_pack = struct.pack
 
     def pack_string(string):
         length = len(string)
-        return struct.pack('B%ds' % (length), length, string)
+        return struct_pack('B%ds' % (length), length, string)
 
     def pack_name(name):
         return b''.join([
@@ -85,11 +86,11 @@ def pack(message):
         rdata = \
             b'.'.join(pack_name(record.rdata)) if record.qtype == TYPES.CNAME else \
             record.rdata
-        ttl = struct.pack('!L', record.ttl)
-        dl = struct.pack('!H', len(rdata))
+        ttl = struct_pack('!L', record.ttl)
+        dl = struct_pack('!H', len(rdata))
         return ttl + dl + rdata
 
-    header = struct.pack(
+    header = struct_pack(
         '!HHHHHH',
         message.qid,
         (message.qr << 15) + (message.opcode << 11) + (message.aa << 10) + (message.tc << 9) +
@@ -100,10 +101,10 @@ def pack(message):
         len(message.ar),
     )
     records = b''.join([
-        pack_name(rec.name) + struct.pack('!HH', rec.qtype, rec.qclass)
+        pack_name(rec.name) + struct_pack('!HH', rec.qtype, rec.qclass)
         for rec in message.qd
     ] + [
-        pack_name(rec.name) + struct.pack('!HH', rec.qtype, rec.qclass) + pack_resource(rec)
+        pack_name(rec.name) + struct_pack('!HH', rec.qtype, rec.qclass) + pack_resource(rec)
         for group in (message.an, message.ns, message.ar)
         for rec in group
     ])
@@ -111,6 +112,8 @@ def pack(message):
 
 
 def parse(data):
+    struct_calcsize = struct.calcsize
+    struct_unpack = struct.unpack
 
     def byte(offset):
         return data[offset:offset + 1][0]
@@ -151,8 +154,8 @@ def parse(data):
 
     def unpack(struct_format):
         nonlocal l
-        dl = struct.calcsize(struct_format)
-        unpacked = struct.unpack(struct_format, data[l: l + dl])
+        dl = struct_calcsize(struct_format)
+        unpacked = struct_unpack(struct_format, data[l: l + dl])
         l += dl
         return unpacked
 
