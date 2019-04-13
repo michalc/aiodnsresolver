@@ -61,12 +61,19 @@ class BytesTTL(bytes):
     def ttl(self, now):
         return max(0.0, self._expires_at - now)
 
-def rdata_ttl(record, ttl_start, min_expires_at):
-    expires_at = min(ttl_start + record.ttl, min_expires_at)
+def rdata_ttl(record, ttl_start):
+    expires_at = ttl_start + record.ttl
     return \
         IPv4AddressTTL(record.rdata, expires_at) if record.qtype == TYPES.A else \
         IPv6AddressTTL(record.rdata, expires_at) if record.qtype == TYPES.AAAA else \
         BytesTTL(record.rdata, expires_at)
+
+def rdata_ttl_min_expires(rdata_ttls, expires_at):
+    return tuple(type(rdata_ttl)(
+        rdata=rdata_ttl,
+        expires_at=min(expires_at, rdata_ttl._expires_at))
+        for rdata_ttl in rdata_ttls
+    )
 
 
 def pack(message):
@@ -293,9 +300,9 @@ def Resolver(
 
             cname_rdata, qtype_rdata = await udp_request_namservers_until_response(fqdn, qtype)
             if qtype_rdata:
-                return qtype_rdata
+                return rdata_ttl_min_expires(qtype_rdata, fqdn._expires_at)
             else:
-                fqdn = cname_rdata[0]
+                fqdn = rdata_ttl_min_expires([cname_rdata[0]], fqdn._expires_at)[0]
 
     async def udp_request_namservers_until_response(fqdn, qtype):
         exception = None
@@ -460,12 +467,12 @@ def Resolver(
                 name_error = res.rcode == 3
                 non_name_error = res.rcode and not name_error
                 cname_answers = tuple(
-                    rdata_ttl(answer, ttl_start, fqdn._expires_at)
+                    rdata_ttl(answer, ttl_start)
                     for answer in res.an
                     if answer.name == fqdn_transformed and answer.qtype == TYPES.CNAME
                 )
                 qtype_answers = tuple(
-                    rdata_ttl(answer, ttl_start, fqdn._expires_at)
+                    rdata_ttl(answer, ttl_start)
                     for answer in res.an
                     if answer.name == fqdn_transformed and answer.qtype == qtype
                 )
