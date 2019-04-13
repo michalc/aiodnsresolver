@@ -823,20 +823,13 @@ async def start_nameserver(get_response):
 # the streams/protocol/datagram endpoint framework
 
 async def sendto(loop, sock, data, addr):
+    try:
+        return sock.sendto(data, addr)
+    except BlockingIOError:
+        pass
+
     fileno = sock.fileno()
     result = asyncio.Future()
-
-    def write_without_writer():
-        try:
-            bytes_sent = sock.sendto(data, addr)
-        except BlockingIOError:
-            loop.add_witer(fileno, write_with_writer)
-        except BaseException as exception:
-            if not result.cancelled():
-                result.set_exception(exception)
-        else:
-            if not result.cancelled():
-                result.set_result(bytes_sent)
 
     def write_with_writer():
         try:
@@ -852,11 +845,11 @@ async def sendto(loop, sock, data, addr):
             if not result.cancelled():
                 result.set_result(bytes_sent)
 
-    write_without_writer()
+    loop.add_witer(fileno, write_with_writer)
 
     try:
         return await result
-    except asyncio.CancelledError:
+    finally:
         loop.remove_writer(fileno)
         raise
 
