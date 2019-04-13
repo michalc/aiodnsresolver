@@ -67,7 +67,7 @@ This can be used in HA situations to assist failovers. The timer for TTL starts 
 
 ## CNAMEs
 
-CNAME records are followed transparently. The `ttl` of IP addresses found via intermediate CNAME(s) is determined by using the minimum TTL of all the records involved in determiniing those IP addresses.
+CNAME records are followed transparently. The `ttl` of IP addresses found via intermediate CNAME(s) is determined by using the minimum TTL of all the records involved in determining those IP addresses.
 
 
 ## Example: aiohttp
