@@ -400,6 +400,41 @@ class TestResolverIntegration(unittest.TestCase):
         self.assertEqual(len(queried_names), 2)
 
     @async_test
+    async def test_short_response_ignored(self):
+        loop = asyncio.get_event_loop()
+        queried_names = []
+
+        async def get_response(query_data):
+            query = parse(query_data)
+            queried_names.append(query.qd[0].name)
+
+            if len(queried_names) == 1:
+                return b'bad-data'
+
+            reponse_record = ResourceRecord(
+                name=query.qd[0].name,
+                qtype=TYPES.A,
+                qclass=1,
+                ttl=0,
+                rdata=ipaddress.IPv4Address('123.100.123.' + str(len(queried_names))).packed,
+            )
+            response = Message(
+                qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
+                qd=query.qd, an=(reponse_record,), ns=(), ar=(),
+            )
+            return pack(response)
+
+        self.addCleanup(patch_open())
+        stop_nameserver = await start_nameserver(get_response)
+        self.add_async_cleanup(loop, stop_nameserver)
+
+        resolve, _ = Resolver()
+        res_1 = await resolve('my.domain', TYPES.A)
+
+        self.assertEqual(str(res_1[0]), '123.100.123.2')
+        self.assertEqual(len(queried_names), 2)
+
+    @async_test
     async def test_cancel_can_run_next(self):
         loop = asyncio.get_event_loop()
         response_blockers = [asyncio.Future(), asyncio.Future()]
