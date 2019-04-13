@@ -236,7 +236,7 @@ async def get_nameservers_from_etc_resolve_conf():
             yield 0.5, nameserver
 
 
-async def get_hosts_from_etc_hosts():
+async def get_host_from_etc_hosts(fqdn, qtype):
     with open('/etc/hosts', 'r') as file:
         hosts = [
             (host, ipaddress.ip_address(words[0]))
@@ -245,7 +245,7 @@ async def get_hosts_from_etc_hosts():
             for words in [line_before_comment.split()]
             for host in words[1:]
         ]
-    return {
+    hosts = {
         TYPES.A: {
             host.encode(): IPv4AddressTTL(ip_address, expires_at=0)
             for host, ip_address in hosts if isinstance(ip_address, ipaddress.IPv4Address)
@@ -255,6 +255,10 @@ async def get_hosts_from_etc_hosts():
             for host, ip_address in hosts if isinstance(ip_address, ipaddress.IPv6Address)
         }
     }
+    try:
+        return hosts[qtype][fqdn]
+    except KeyError:
+        return None
 
 
 def mix_case(fqdn):
@@ -265,7 +269,7 @@ def mix_case(fqdn):
 
 
 def Resolver(
-        get_hosts=get_hosts_from_etc_hosts,
+        get_host=get_host_from_etc_hosts,
         get_nameservers=get_nameservers_from_etc_resolve_conf,
         transform_fqdn=mix_case,
         udp_response_timeout=0.5,
@@ -282,12 +286,12 @@ def Resolver(
     woken_waiter = {}
 
     async def resolve(fqdn_str, qtype):
-        hosts = await get_hosts()
         fqdn = BytesTTL(fqdn_str.encode(), expires_at=float('inf'))
 
         while True:
-            if qtype in hosts and fqdn in hosts[qtype]:
-                return (hosts[qtype][fqdn],)
+            host = await get_host(fqdn, qtype)
+            if host is not None:
+                return (host,)
 
             cname_rdata, qtype_rdata = await udp_request_namservers_until_response(fqdn, qtype)
             if qtype_rdata:
