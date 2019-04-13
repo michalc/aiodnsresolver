@@ -70,6 +70,24 @@ This can be used in HA situations to assist failovers. The timer for TTL starts 
 CNAME records are followed transparently. The `ttl` of IP addresses found via intermediate CNAME(s) is determined by using the minimum TTL of all the records involved in determining those IP addresses.
 
 
+## Custom nameservers and timeouts
+
+It is possible to query nameservers other than those in `etc/resolve.conf`, and for each to specify a timeout in seconds to wait for a reply before querying the next.
+
+```python
+async def get_nameservers():
+    return (
+        (0.5, ipaddress.ip_address('8.8.8.8'),
+        (0.5, ipaddress.ip_address('1.1.1.1'),
+        (1.0, ipaddress.ip_address('8.8.8.8'),
+        (1.0, ipaddress.ip_address('1.1.1.1'),
+    )
+
+resolve, _ = Resolver(get_nameservers=get_nameservers)
+ip_addresses = await resolve('www.google.com', TYPES.A)
+```
+
+
 ## Example: aiohttp
 
 ```python
