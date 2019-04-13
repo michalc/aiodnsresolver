@@ -189,14 +189,6 @@ def parse(data):
     return Message(qid, qr, opcode, aa, tc, rd, ra, z, rcode, qd, an, ns, ar)
 
 
-# We implement our own recv/send functions since:
-# - loop.sock_recv doesn't seem to handle cancellation well
-# - There is no asyncio recvfrom/sendto in the standard library, which are
-#   used in tests
-# - We want consistent with the code used in tests
-# - Want to avoid the inflexibility of the streams/protocol/datagram endpoint
-#   framework
-
 async def recvfrom(loop, sock, max_bytes):
     # This handles cancellation better than loop.sock_recv, which seems to
     # causes later sockets on the same fileno to never receive data
@@ -455,7 +447,7 @@ def Resolver(
             await loop.sock_sendall(sock, packed)
 
             while True:  # We might be getting spoofed messages
-                response_data, _ = await recvfrom(loop, sock, 512)
+                response_data = await recvfrom(loop, sock, 512)
 
                 # Some initial peeking before parsing
                 if len(response_data) < 12:
