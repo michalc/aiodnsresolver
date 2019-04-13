@@ -223,7 +223,7 @@ async def recvfrom(loop, sock, max_bytes):
 
 async def get_nameservers_from_etc_resolve_conf():
     with open('/etc/resolv.conf', 'r') as file:
-        return tuple(
+        nameservers = tuple(
             ipaddress.ip_address(words_on_line[1])
             for words_on_line in [
                 line.split() for line in file
@@ -231,6 +231,8 @@ async def get_nameservers_from_etc_resolve_conf():
             ]
             if len(words_on_line) >= 2 and words_on_line[0] == 'nameserver'
         )
+    for nameserver in nameservers:
+        yield nameserver
 
 
 async def get_hosts_from_etc_hosts():
@@ -294,7 +296,7 @@ def Resolver(
 
     async def udp_request_namservers_until_response(fqdn, qtype):
         exception = None
-        for addr in await get_nameservers():
+        async for addr in get_nameservers():
             try:
                 return await memoized_udp_request(addr, fqdn, qtype)
             except (asyncio.TimeoutError, TemporaryResolverError) as recent_exception:
