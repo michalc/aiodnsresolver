@@ -447,7 +447,7 @@ def Resolver(
             await loop.sock_sendall(sock, packed)
 
             while True:  # We might be getting spoofed messages
-                response_data = await recvfrom(loop, sock, 512)
+                response_data, _ = await recvfrom(loop, sock, 512)
 
                 # Some initial peeking before parsing
                 if len(response_data) < 12:
