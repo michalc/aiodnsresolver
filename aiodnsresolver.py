@@ -265,7 +265,7 @@ async def recvfrom(loop, sock, max_bytes):
         loop.remove_reader(fileno)
 
 
-def get_nameservers():
+def get_nameservers_from_etc_resolve_conf():
     with open('/etc/resolv.conf', 'r') as file:
         return tuple(
             ipaddress.ip_address(words_on_line[1])
@@ -277,7 +277,7 @@ def get_nameservers():
         )
 
 
-def get_hosts():
+def get_hosts_from_etc_hosts():
     with open('/etc/hosts', 'r') as file:
         hosts = [
             (host, ipaddress.ip_address(words[0]))
@@ -306,8 +306,8 @@ def mix_case(fqdn):
 
 
 def Resolver(
-        get_hosts=get_hosts,
-        get_nameservers=get_nameservers,
+        get_hosts=get_hosts_from_etc_hosts,
+        get_nameservers=get_nameservers_from_etc_resolve_conf,
         fqdn_transform=mix_case,
         udp_response_timeout=0.5,
         udp_attempts_per_server=5,
