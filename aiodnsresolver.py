@@ -331,16 +331,11 @@ def Resolver(
             if qtype in hosts and fqdn in hosts[qtype]:
                 return (hosts[qtype][fqdn],)
 
-            answers = await udp_request_namservers_until_response(nameservers, fqdn, qtype)
-
-            qtype_rdata = tuple(rdata_ttl for rdata_ttl, rdata_qtype in answers if rdata_qtype == qtype)
-            cname_rdata = tuple(rdata_ttl for rdata_ttl, rdata_qtype in answers if rdata_qtype == TYPES.CNAME)
+            cname_rdata, qtype_rdata = await udp_request_namservers_until_response(nameservers, fqdn, qtype)
             if qtype_rdata:
                 return qtype_rdata
-            elif cname_rdata:
-                fqdn = cname_rdata[0]
             else:
-                raise DoesNotExist()
+                fqdn = cname_rdata[0]
 
     async def udp_request_namservers_until_response(nameservers, fqdn, qtype):
         exception = None
@@ -428,7 +423,11 @@ def Resolver(
                     waiter.set_result((True, answers))
             del waiter_queues[key]
 
-            expires_at = min(rdata_ttl._expires_at for rdata_ttl, _ in answers)
+            expires_at = min(
+                rdata_ttl._expires_at
+                for rdata_groups in answers
+                for rdata_ttl in rdata_groups
+            )
             invalidate_callback = loop.call_at(expires_at, invalidate, key)
             cache[key] = answers
             invalidate_callbacks[key] = invalidate_callback
@@ -509,19 +508,23 @@ def Resolver(
 
                 name_error = res.rcode == 3
                 non_name_error = res.rcode and not name_error
-                answers = [
-                    (rdata_ttl(answer, ttl_start, fqdn._expires_at), answer.qtype)
+                cname_answers = tuple(
+                    rdata_ttl(answer, ttl_start, fqdn._expires_at)
                     for answer in res.an
-                    if answer.name == fqdn_transformed
-                ]
-
+                    if answer.name == fqdn_transformed and answer.qtype == TYPES.CNAME
+                )
+                qtype_answers = tuple(
+                    rdata_ttl(answer, ttl_start, fqdn._expires_at)
+                    for answer in res.an
+                    if answer.name == fqdn_transformed and answer.qtype == qtype
+                )
                 if non_name_error:
                     raise TemporaryResolverError()
-                elif name_error or not answers:
+                elif name_error or (not cname_answers and not qtype_answers):
                     # a name error can be returned by some non-authoritative
                     # servers on not-existing, contradicting RFC 1035
                     raise DoesNotExist()
                 else:
-                    return answers
+                    return cname_answers, qtype_answers
 
     return resolve, invalidate_all
