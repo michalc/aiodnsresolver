@@ -272,8 +272,6 @@ def Resolver(
         get_host=get_host_from_etc_hosts,
         get_nameservers=get_nameservers_from_etc_resolve_conf,
         transform_fqdn=mix_case,
-        udp_response_timeout=0.5,
-        udp_attempts_per_server=5,
     ):
 
     loop = \
