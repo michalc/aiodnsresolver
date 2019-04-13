@@ -709,7 +709,6 @@ class TestResolverIntegration(unittest.TestCase):
 
             return pack(response)
 
-
         class AioHttpDnsResolver(aiohttp.abc.AbstractResolver):
             def __init__(self):
                 super().__init__()
