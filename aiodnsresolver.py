@@ -306,6 +306,8 @@ def mix_case(fqdn):
 
 
 def Resolver(
+        get_hosts=get_hosts,
+        get_nameservers=get_nameservers,
         fqdn_transform=mix_case,
         udp_response_timeout=0.5,
         udp_attempts_per_server=5,
