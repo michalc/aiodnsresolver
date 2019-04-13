@@ -279,8 +279,8 @@ def Resolver(
     woken_waiter = {}
 
     async def resolve(fqdn_str, qtype):
-        nameservers = get_nameservers_from_etc_resolve_conf()
-        hosts = get_hosts_from_etc_hosts()
+        nameservers = get_nameservers()
+        hosts = get_hosts()
         fqdn = BytesTTL(fqdn_str.encode(), expires_at=float('inf'))
 
         while True:
