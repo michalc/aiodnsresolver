@@ -377,8 +377,10 @@ def Resolver(
 
         key = (addr, fqdn, qtype)
 
-        if key in cache:
+        try:
             return cache[key]
+        except KeyError:
+            pass
 
         first_call_for_key = key not in waiter_queues
         if first_call_for_key:
