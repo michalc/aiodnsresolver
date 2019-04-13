@@ -318,6 +318,7 @@ def Resolver(
         asyncio.get_event_loop()
 
     cache = {}
+    invalidate_callbacks = {}
     waiter_queues = {}
     woken_waiter = {}
 
@@ -421,7 +422,6 @@ def Resolver(
 
         else:
             # Have a result, so cache it and wake up all waiters
-            cache[key] = answers
             while waiter_queue:
                 waiter = waiter_queue.popleft()
                 if not waiter.cancelled():
@@ -429,11 +429,19 @@ def Resolver(
             del waiter_queues[key]
 
             expires_at = min(rdata_ttl._expires_at for rdata_ttl, _ in answers)
-            loop.call_at(expires_at, invalidate, key)
+            invalidate_callback = loop.call_at(expires_at, invalidate, key)
+            cache[key] = answers
+            invalidate_callbacks[key] = invalidate_callback
             return answers
 
     def invalidate(key):
         del cache[key]
+        invalidate_callbacks[key].cancel()
+        del invalidate_callbacks[key]
+
+    def invalidate_all():
+        for key, _ in list(cache.items()):
+            invalidate(key)
 
     async def udp_request(addr, fqdn, qtype):
         exception = None
@@ -516,4 +524,4 @@ def Resolver(
                 else:
                     return answers
 
-    return resolve
+    return resolve, invalidate_all

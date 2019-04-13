@@ -90,7 +90,7 @@ class TestResolverIntegration(unittest.TestCase):
         self.add_async_cleanup(loop, stop_nameserver)
 
         with FastForward(loop) as forward:
-            resolve = Resolver()
+            resolve, invalidate = Resolver()
             res_1 = await resolve('my.domain.quite-long.abcdefghijklm', TYPES.A)
 
             self.assertEqual(len(queried_names), 1)
@@ -116,6 +116,17 @@ class TestResolverIntegration(unittest.TestCase):
             self.assertEqual(res_3[0].ttl(loop.time()), 19.0)
 
             self.assertNotEqual(queried_names[0], queried_names[1])
+
+            res_4 = await resolve('my.domain.quite-long.abcdefghijklm', TYPES.A)
+            self.assertEqual(len(queried_names), 2)
+            self.assertEqual(queried_names[1].lower(), b'my.domain.quite-long.abcdefghijklm')
+            self.assertEqual(str(res_4[0]), '123.100.123.2')
+
+            invalidate()
+            res_5 = await resolve('my.domain.quite-long.abcdefghijklm', TYPES.A)
+            self.assertEqual(len(queried_names), 3)
+            self.assertEqual(queried_names[2].lower(), b'my.domain.quite-long.abcdefghijklm')
+            self.assertEqual(str(res_5[0]), '123.100.123.3')
 
     @async_test
     async def test_concurrent_identical_a_query_not_made(self):
@@ -145,7 +156,7 @@ class TestResolverIntegration(unittest.TestCase):
         stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve = Resolver()
+        resolve, _ = Resolver()
         res_1_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
         res_2_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
 
@@ -184,7 +195,7 @@ class TestResolverIntegration(unittest.TestCase):
         stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve = Resolver()
+        resolve, _ = Resolver()
         res_1_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
         res_2_task = asyncio.ensure_future(resolve('other.domain', TYPES.A))
 
@@ -226,7 +237,7 @@ class TestResolverIntegration(unittest.TestCase):
         self.add_async_cleanup(loop, stop_nameserver)
 
         with FastForward(loop) as forward:
-            resolve = Resolver()
+            resolve, _ = Resolver()
             res_1 = await resolve('my.domain', TYPES.A)
             res_2 = await resolve('other.domain', TYPES.A)
             self.assertEqual(len(queried_names), 2)
@@ -265,7 +276,7 @@ class TestResolverIntegration(unittest.TestCase):
         stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve = Resolver()
+        resolve, _ = Resolver()
         res_1_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
         res_2_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
 
@@ -308,7 +319,7 @@ class TestResolverIntegration(unittest.TestCase):
         stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve = Resolver()
+        resolve, _ = Resolver()
 
         with self.assertRaises(ipaddress.AddressValueError):
             await resolve('my.domain', TYPES.A)
@@ -345,7 +356,7 @@ class TestResolverIntegration(unittest.TestCase):
         stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve = Resolver()
+        resolve, _ = Resolver()
         res_1_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
         response_blockers[0].cancel()
         await asyncio.sleep(0)
@@ -385,7 +396,7 @@ class TestResolverIntegration(unittest.TestCase):
         stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve = Resolver()
+        resolve, _ = Resolver()
         res_1_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
         res_2_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
         await asyncio.sleep(0)
@@ -427,7 +438,7 @@ class TestResolverIntegration(unittest.TestCase):
         stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve = Resolver()
+        resolve, _ = Resolver()
         res_1_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
         res_2_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
         res_3_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
@@ -472,7 +483,7 @@ class TestResolverIntegration(unittest.TestCase):
         stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve = Resolver()
+        resolve, _ = Resolver()
         res_1_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
         res_2_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
         res_3_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
@@ -523,7 +534,7 @@ class TestResolverIntegration(unittest.TestCase):
         self.add_async_cleanup(loop, stop_nameserver)
 
         with FastForward(loop) as forward:
-            resolve = Resolver()
+            resolve, _ = Resolver()
             res_1_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
             await requests[0].wait()
             self.assertEqual(len(queried_names), 1)
@@ -557,7 +568,7 @@ class TestResolverIntegration(unittest.TestCase):
         self.add_async_cleanup(loop, stop_nameserver)
 
         with FastForward(loop) as forward:
-            resolve = Resolver()
+            resolve, _ = Resolver()
             res_1_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
             await request.wait()
             await forward(2.5)
@@ -571,7 +582,7 @@ class TestResolverIntegration(unittest.TestCase):
         loop = asyncio.get_event_loop()
         self.addCleanup(patch_open())
 
-        resolve = Resolver()
+        resolve, _ = Resolver()
         with self.assertRaises(ConnectionRefusedError):
             await resolve('my.domain', TYPES.A)
 
@@ -601,7 +612,7 @@ class TestResolverIntegration(unittest.TestCase):
         stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve = Resolver()
+        resolve, _ = Resolver()
         tasks = [
             asyncio.ensure_future(resolve('my.domain-' + str((i + 1) % 255), TYPES.A))
             for i in range(1000)
@@ -644,7 +655,7 @@ class TestResolverIntegration(unittest.TestCase):
         stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve = Resolver()
+        resolve, _ = Resolver()
         tasks = [
             asyncio.ensure_future(resolve('my.domain', TYPES.A))
             for i in range(100)
@@ -668,7 +679,7 @@ class TestResolverEndToEnd(unittest.TestCase):
     @async_test
     async def test_a_query(self):
         loop = asyncio.get_event_loop()
-        resolve = Resolver()
+        resolve, _ = Resolver()
         res = await resolve('www.google.com', TYPES.A)
         self.assertIsInstance(res[0], ipaddress.IPv4Address)
         self.assertIsInstance(res[0].ttl(loop.time()), float)
@@ -677,7 +688,7 @@ class TestResolverEndToEnd(unittest.TestCase):
 
     @async_test
     async def test_a_query_multiple(self):
-        resolve = Resolver()
+        resolve, _ = Resolver()
         res = await resolve('charemza.name', TYPES.A)
         self.assertIsInstance(res[0], ipaddress.IPv4Address)
         self.assertIsInstance(res[1], ipaddress.IPv4Address)
@@ -685,13 +696,13 @@ class TestResolverEndToEnd(unittest.TestCase):
 
     @async_test
     async def test_txt_query(self):
-        resolve = Resolver()
+        resolve, _ = Resolver()
         res = await resolve('charemza.name', TYPES.TXT)
         self.assertIn(b'google', res[0])
 
     @async_test
     async def test_a_query_twice_sequential(self):
-        resolve = Resolver()
+        resolve, _ = Resolver()
         res_a = await resolve('www.google.com', TYPES.A)
         self.assertIsInstance(res_a[0], ipaddress.IPv4Address)
 
@@ -700,7 +711,7 @@ class TestResolverEndToEnd(unittest.TestCase):
 
     @async_test
     async def test_a_query_twice_concurrent(self):
-        resolve = Resolver()
+        resolve, _ = Resolver()
         res_a = asyncio.ensure_future(resolve('www.google.com', TYPES.A))
         res_b = asyncio.ensure_future(resolve('www.google.com', TYPES.A))
         self.assertIsInstance((await res_a)[0], ipaddress.IPv4Address)
@@ -709,7 +720,7 @@ class TestResolverEndToEnd(unittest.TestCase):
 
     @async_test
     async def test_a_query_different_concurrent(self):
-        resolve = Resolver()
+        resolve, _ = Resolver()
         res_a = asyncio.ensure_future(resolve('www.google.com', TYPES.A))
         res_b = asyncio.ensure_future(resolve('charemza.name', TYPES.A))
         self.assertIsInstance((await res_a)[0], ipaddress.IPv4Address)
@@ -719,7 +730,7 @@ class TestResolverEndToEnd(unittest.TestCase):
     @async_test
     async def test_aaaa_query(self):
         loop = asyncio.get_event_loop()
-        resolve = Resolver()
+        resolve, _ = Resolver()
         res = await resolve('www.google.com', TYPES.AAAA)
         self.assertIsInstance(res[0], ipaddress.IPv6Address)
         self.assertIsInstance(res[0].ttl(loop.time()), float)
@@ -728,27 +739,27 @@ class TestResolverEndToEnd(unittest.TestCase):
 
     @async_test
     async def test_a_query_not_exists(self):
-        resolve = Resolver()
+        resolve, _ = Resolver()
         with self.assertRaises(DoesNotExist):
             res = await resolve('doenotexist.charemza.name', TYPES.A)
 
     @async_test
     async def test_aaaa_query_not_exists(self):
-        resolve = Resolver()
+        resolve, _ = Resolver()
 
         with self.assertRaises(DoesNotExist):
             res = await resolve('doenotexist.charemza.name', TYPES.AAAA)
 
     @async_test
     async def test_a_query_cname(self):
-        resolve = Resolver()
+        resolve, _ = Resolver()
         res = await resolve('support.dnsimple.com', TYPES.A)
         self.assertIsInstance(res[0], ipaddress.IPv4Address)
 
     @async_test
     async def test_localhost_a(self):
         loop = asyncio.get_event_loop()
-        resolve = Resolver()
+        resolve, _ = Resolver()
         res = await resolve('localhost', TYPES.A)
         self.assertIsInstance(res, tuple)
         self.assertIsInstance(res[0], ipaddress.IPv4Address)
@@ -758,7 +769,7 @@ class TestResolverEndToEnd(unittest.TestCase):
     @async_test
     async def test_localhost_aaaa(self):
         loop = asyncio.get_event_loop()
-        resolve = Resolver()
+        resolve, _ = Resolver()
         res = await resolve('localhost', TYPES.AAAA)
         self.assertIsInstance(res, tuple)
         self.assertIsInstance(res[0], ipaddress.IPv6Address)

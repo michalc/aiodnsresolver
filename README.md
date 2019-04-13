@@ -17,7 +17,7 @@ pip install aiodnsresolver
 ```python
 from aiodnsresolver import Resolver, TYPES
 
-resolve = Resolver()
+resolve, _ = Resolver()
 ip_addresses = await resolve('www.google.com', TYPES.A)
 ```
 
@@ -32,12 +32,16 @@ A cache is part of each `Resolver()`, expiring records automatically according t
 import asyncio
 from aiodnsresolver import Resolver, TYPES
 
-resolve = Resolver()
+resolve, clear_cache = Resolver()
 
 # Will make a request to the nameserver(s)
 ip_addresses = await resolve('www.google.com', TYPES.A)
 
 # Will only make another request to the nameserver(s) if the ip_addresses have expired
+ip_addresses = await resolve('www.google.com', TYPES.A)
+
+clear_cache()
+# Will make another request to the nameserver(s)
 ip_addresses = await resolve('www.google.com', TYPES.A)
 ```
 
@@ -50,7 +54,7 @@ The address objects each have an extra method, `ttl`, that returns the seconds l
 import asyncio
 from aiodnsresolver import Resolver, TYPES
 
-resolve = Resolver()
+resolve, _ = Resolver()
 ip_addresses = await resolve('www.google.com', TYPES.A)
 
 loop = asyncio.get_event_loop()
@@ -84,7 +88,7 @@ import aiohttp
 class AioHttpDnsResolver(aiohttp.abc.AbstractResolver):
     def __init__(self):
         super().__init__()
-        self.resolver = Resolver()
+        self.resolver, self.clear_cache = Resolver()
 
     async def resolve(self, host, port, family):
         # Use ipv4 unless requested otherwise
@@ -110,7 +114,7 @@ class AioHttpDnsResolver(aiohttp.abc.AbstractResolver):
         } for ip_address in ip_addresses]
 
     async def close(self):
-        pass
+        self.clear_cache
 
 
 async def main():
