@@ -308,7 +308,7 @@ def mix_case(fqdn):
 def Resolver(
         get_hosts=get_hosts_from_etc_hosts,
         get_nameservers=get_nameservers_from_etc_resolve_conf,
-        fqdn_transform=mix_case,
+        transform_fqdn=mix_case,
         udp_response_timeout=0.5,
         udp_attempts_per_server=5,
     ):
@@ -478,7 +478,7 @@ def Resolver(
 
     async def udp_request_attempt(addr, fqdn, qtype):
         qid = secrets.randbelow(65536)
-        fqdn_transformed = fqdn_transform(fqdn)
+        fqdn_transformed = transform_fqdn(fqdn)
         req = Message(
             qid=qid, qr=QUESTION, opcode=0, aa=0, tc=0, rd=1, ra=0, z=0, rcode=0,
             qd=(QuestionRecord(fqdn_transformed, qtype, qclass=1),), an=(), ns=(), ar=(),
