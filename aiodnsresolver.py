@@ -232,7 +232,11 @@ async def get_nameservers_from_etc_resolve_conf():
             if len(words_on_line) >= 2 and words_on_line[0] == 'nameserver'
         )
     for nameserver in nameservers:
-        yield nameserver
+        yield 0.5, nameserver,
+        yield 0.5, nameserver,
+        yield 0.5, nameserver,
+        yield 0.5, nameserver,
+        yield 0.5, nameserver,
 
 
 async def get_hosts_from_etc_hosts():
@@ -296,14 +300,14 @@ def Resolver(
 
     async def udp_request_namservers_until_response(fqdn, qtype):
         exception = None
-        async for addr in get_nameservers():
+        async for timeout, addr in get_nameservers():
             try:
-                return await memoized_udp_request(addr, fqdn, qtype)
+                return await memoized_udp_request(timeout, addr, fqdn, qtype)
             except (asyncio.TimeoutError, TemporaryResolverError) as recent_exception:
                 exception = recent_exception
         raise exception
 
-    async def memoized_udp_request(addr, fqdn, qtype):
+    async def memoized_udp_request(timeout, addr, fqdn, qtype):
         """Memoized udp_request, that allows a dynamic expiry for each result
 
         Multiple callers for the same args will wait for first call to
@@ -357,7 +361,7 @@ def Resolver(
                     del woken_waiter[key]
 
         try:
-            answers = await udp_request(addr, fqdn, qtype)
+            answers = await timeout_udp_request_attempt(timeout, addr, fqdn, qtype)
 
         except asyncio.CancelledError:
             wake_next()
@@ -399,16 +403,7 @@ def Resolver(
         for key, _ in list(cache.items()):
             invalidate(key)
 
-    async def udp_request(addr, fqdn, qtype):
-        exception = None
-        for _ in range(udp_attempts_per_server):
-            try:
-                return await timeout_udp_request_attempt(addr, fqdn, qtype)
-            except (asyncio.TimeoutError, TemporaryResolverError) as recent_exception:
-                exception = recent_exception
-        raise exception
-
-    async def timeout_udp_request_attempt(addr, fqdn, qtype):
+    async def timeout_udp_request_attempt(timeout, addr, fqdn, qtype):
         cancelling_due_to_timeout = False
         current_task = \
             asyncio.current_task() if hasattr(asyncio, 'current_task') else \
@@ -419,7 +414,7 @@ def Resolver(
             cancelling_due_to_timeout = True
             current_task.cancel()
 
-        handle = loop.call_later(udp_response_timeout, cancel)
+        handle = loop.call_later(timeout, cancel)
 
         try:
             return await udp_request_attempt(addr, fqdn, qtype)
