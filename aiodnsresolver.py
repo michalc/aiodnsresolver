@@ -382,15 +382,12 @@ def Resolver(
         except KeyError:
             pass
 
-        first_call_for_key = key not in waiter_queues
-        if first_call_for_key:
+        if key not in waiter_queues:
             waiter_queue = collections.deque()
             waiter_queues[key] = waiter_queue
         else:
-            waiter_queue = waiter_queues[key]
-
-        if not first_call_for_key:
             waiter = asyncio.Future()
+            waiter_queue = waiter_queues[key]
             waiter_queue.append(waiter)
 
             try:
