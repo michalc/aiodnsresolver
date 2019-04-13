@@ -114,7 +114,7 @@ class AioHttpDnsResolver(aiohttp.abc.AbstractResolver):
         } for ip_address in ip_addresses]
 
     async def close(self):
-        self.clear_cache
+        self.clear_cache()
 
 
 async def main():
