@@ -232,11 +232,8 @@ async def get_nameservers_from_etc_resolve_conf():
             if len(words_on_line) >= 2 and words_on_line[0] == 'nameserver'
         )
     for nameserver in nameservers:
-        yield 0.5, nameserver,
-        yield 0.5, nameserver,
-        yield 0.5, nameserver,
-        yield 0.5, nameserver,
-        yield 0.5, nameserver,
+        for _ in range(5):
+            yield 0.5, nameserver
 
 
 async def get_hosts_from_etc_hosts():
