@@ -27,6 +27,7 @@ setuptools.setup(
     test_suite='test',
     tests_require=[
         'aiofastforward==0.0.24',
+        'aiohttp==3.5.4',
     ],
     py_modules=[
         'aiodnsresolver',

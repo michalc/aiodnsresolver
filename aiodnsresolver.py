@@ -30,7 +30,7 @@ ResourceRecord = collections.namedtuple('Record', [
 class ResolverError(Exception):
     pass
 
-class TemporaryResolverError(Exception):
+class TemporaryResolverError(ResolverError):
     pass
 
 class DoesNotExist(ResolverError):

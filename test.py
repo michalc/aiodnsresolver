@@ -9,6 +9,8 @@ from unittest.mock import (
     call,
 )
 
+import aiohttp
+from aiohttp import web
 from aiofastforward import (
     FastForward,
 )
@@ -19,6 +21,7 @@ from aiodnsresolver import (
     DoesNotExist,
     Message,
     Resolver,
+    ResolverError,
     ResourceRecord,
     pack,
     parse,
@@ -670,6 +673,102 @@ class TestResolverIntegration(unittest.TestCase):
         ]
         self.assertEqual(results, expected_results)
         self.assertEqual(num_queries, 1)
+
+    @async_test
+    async def test_aiohttp_integration(self):
+        queried_names = []
+
+        async def get_response(query_data):
+            query = parse(query_data)
+            queried_names.append(query.qd[0].name)
+
+            if len(queried_names) == 1:
+                reponse_records = (ResourceRecord(
+                    name=query.qd[0].name,
+                    qtype=TYPES.A,
+                    qclass=1,
+                    ttl=0,
+                    rdata=ipaddress.IPv4Address('127.0.0.1').packed,
+                ), )
+                response = Message(
+                    qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
+                    qd=query.qd, an=reponse_records, ns=(), ar=(),
+                )
+            elif len(queried_names) == 2:
+                reponse_records = ()
+                response = Message(
+                    qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
+                    qd=query.qd, an=reponse_records, ns=(), ar=(),
+                )
+            else:
+                reponse_records = ()
+                response = Message(
+                    qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=1,
+                    qd=query.qd, an=reponse_records, ns=(), ar=(),
+                )
+
+            return pack(response)
+
+
+        class AioHttpDnsResolver(aiohttp.abc.AbstractResolver):
+            def __init__(self):
+                super().__init__()
+                self.resolver, self.clear_cache = Resolver()
+
+            async def resolve(self, host, port=0, family=socket.AF_INET):
+                # Use ipv4 unless requested otherwise
+                # This is consistent with the default aiohttp + aiodns AsyncResolver
+                record_type = \
+                    TYPES.AAAA if family == socket.AF_INET6 else \
+                    TYPES.A
+
+                try:
+                    ip_addresses = await self.resolver(host, record_type)
+                except DoesNotExist as does_not_exist:
+                    raise OSError(0, '{} does not exist'.format(host)) from does_not_exist
+                except ResolverError as resolver_error:
+                    raise OSError(0, '{} failed to resolve'.format(host)) from resolver_error
+
+                return [{
+                    'hostname': host,
+                    'host': str(ip_address),
+                    'port': port,
+                    'family': family,
+                    'proto': socket.IPPROTO_TCP,
+                    'flags': socket.AI_NUMERICHOST,
+                } for ip_address in ip_addresses]
+
+            async def close(self):
+                self.clear_cache()
+
+        loop = asyncio.get_event_loop()
+        self.addCleanup(patch_open())
+        stop_nameserver = await start_nameserver(get_response)
+        self.add_async_cleanup(loop, stop_nameserver)
+
+        async def handle_get(_):
+            return web.Response(status=204)
+
+        app = web.Application()
+        app.add_routes([
+            web.get('/page', handle_get)
+        ])
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, '0.0.0.0', 8876)
+        await site.start()
+
+        async with aiohttp.ClientSession(
+            connector=aiohttp.TCPConnector(use_dns_cache=False, resolver=AioHttpDnsResolver()),
+        ) as session:
+            async with await session.get('http://some-domain.com:8876/page') as result:
+                self.assertEqual(result.status, 204)
+
+            with self.assertRaisesRegex(aiohttp.client_exceptions.ClientConnectorError, 'does not exist'):
+                await session.get('http://other-domain.com:8876/page')
+
+            with self.assertRaisesRegex(aiohttp.client_exceptions.ClientConnectorError, 'failed to resolve'):
+                await session.get('http://more-domain.com:8876/page')
 
 
 class TestResolverEndToEnd(unittest.TestCase):

@@ -90,7 +90,7 @@ class AioHttpDnsResolver(aiohttp.abc.AbstractResolver):
         super().__init__()
         self.resolver, self.clear_cache = Resolver()
 
-    async def resolve(self, host, port, family):
+    async def resolve(self, host, port=0, family=socket.AF_INET):
         # Use ipv4 unless requested otherwise
         # This is consistent with the default aiohttp + aiodns AsyncResolver
         record_type = \

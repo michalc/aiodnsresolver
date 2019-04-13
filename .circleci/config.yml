@@ -32,7 +32,7 @@ jobs:
           command: |
             ./cc-test-reporter before-build
             coverage run -m setup test -v
-            coverage xml
+            coverage xml -i
             ./cc-test-reporter after-build --exit-code $?
       - run:
           name: Send coverage
