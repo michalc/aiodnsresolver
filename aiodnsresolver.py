@@ -279,7 +279,6 @@ def Resolver(
     woken_waiter = {}
 
     async def resolve(fqdn_str, qtype):
-        nameservers = get_nameservers()
         hosts = get_hosts()
         fqdn = BytesTTL(fqdn_str.encode(), expires_at=float('inf'))
 
@@ -287,15 +286,15 @@ def Resolver(
             if qtype in hosts and fqdn in hosts[qtype]:
                 return (hosts[qtype][fqdn],)
 
-            cname_rdata, qtype_rdata = await udp_request_namservers_until_response(nameservers, fqdn, qtype)
+            cname_rdata, qtype_rdata = await udp_request_namservers_until_response(fqdn, qtype)
             if qtype_rdata:
                 return qtype_rdata
             else:
                 fqdn = cname_rdata[0]
 
-    async def udp_request_namservers_until_response(nameservers, fqdn, qtype):
+    async def udp_request_namservers_until_response(fqdn, qtype):
         exception = None
-        for addr in nameservers:
+        for addr in get_nameservers():
             try:
                 return await memoized_udp_request(addr, fqdn, qtype)
             except (asyncio.TimeoutError, TemporaryResolverError) as recent_exception:
