@@ -296,7 +296,7 @@ def Resolver(
     woken_waiter = {}
 
     async def resolve(fqdn_str, qtype):
-        fqdn = BytesTTL(fqdn_str.encode(), expires_at=float('inf'))
+        fqdn = BytesTTL(fqdn_str.encode('idna'), expires_at=float('inf'))
 
         while True:
             host = await get_host(fqdn, qtype)
