@@ -2,7 +2,7 @@
 
 Asyncio Python DNS resolver. Pure Python, with no dependencies other than the standard library, threads are not used, and all code is in a single module. The nameservers to query are taken from `/etc/resolve.conf`, and treats hosts in `/etc/hosts` as A or AAAA records with a TTL of 0.
 
-Designed for highly concurrent environments with edge cases such as cancellation of tasks mid-query considered. Based on https://github.com/gera2ld/async_dns.
+Based on https://github.com/gera2ld/async_dns.
 
 
 ## Installation
@@ -44,6 +44,8 @@ clear_cache()
 # Will make another request to the nameserver(s)
 ip_addresses = await resolve('www.google.com', TYPES.A)
 ```
+
+The cache for each record starts on the _start_ of each request, so duplicate concurrent requests for the same record are not made.
 
 
 ## TTL
