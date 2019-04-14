@@ -85,7 +85,7 @@ resolve, _ = Resolver(get_nameservers=get_nameservers)
 ip_addresses = await resolve('www.google.com', TYPES.A)
 ```
 
-Parallel request to multiple nameservers are also possible, where the first response from each set of requests is used.
+Parallel requests to multiple nameservers are also possible, where the first response from each set of requests is used.
 
 ```python
 async def get_nameservers():
