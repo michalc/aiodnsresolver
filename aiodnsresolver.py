@@ -241,11 +241,9 @@ async def get_nameservers_from_etc_resolve_conf():
             ]
             if len(words_on_line) >= 2 and words_on_line[0] == 'nameserver'
         )
-    return tuple(
-        (0.5, (nameserver, 53))
-        for _ in range(5)
-        for nameserver in nameservers
-    )
+    for _ in range(5):
+        for nameserver in nameservers:
+            yield (0.5, (nameserver, 53))
 
 
 async def get_host_from_etc_hosts(fqdn, qtype):
@@ -311,7 +309,7 @@ def Resolver(
 
     async def udp_request_namservers_until_response(fqdn, qtype):
         exception = None
-        for timeout, addr in await get_nameservers():
+        async for timeout, addr in get_nameservers():
             try:
                 return await memoized_udp_request(timeout, addr, fqdn, qtype)
             except (asyncio.TimeoutError, TemporaryResolverError) as recent_exception:
