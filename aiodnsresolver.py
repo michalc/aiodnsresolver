@@ -242,7 +242,7 @@ async def get_nameservers_from_etc_resolve_conf():
             if len(words_on_line) >= 2 and words_on_line[0] == 'nameserver'
         )
     return tuple(
-        (0.5, nameserver)
+        (0.5, (nameserver, 53))
         for _ in range(5)
         for nameserver in nameservers
     )
@@ -449,7 +449,7 @@ def Resolver(
 
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
             sock.setblocking(False)
-            sock.connect((str(addr), 53))
+            sock.connect((str(addr[0]), addr[1]))
             ttl_start = loop.time()
             await loop.sock_sendall(sock, packed)
 

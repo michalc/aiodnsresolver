@@ -77,10 +77,10 @@ It is possible to query nameservers other than those in `etc/resolve.conf`, and 
 ```python
 async def get_nameservers():
     return (
-        (0.5, ipaddress.ip_address('8.8.8.8')),
-        (0.5, ipaddress.ip_address('1.1.1.1')),
-        (1.0, ipaddress.ip_address('8.8.8.8')),
-        (1.0, ipaddress.ip_address('1.1.1.1')),
+        (0.5, (ipaddress.ip_address('8.8.8.8'), 53)),
+        (0.5, (ipaddress.ip_address('1.1.1.1'), 53)),
+        (1.0, (ipaddress.ip_address('8.8.8.8'), 53)),
+        (1.0, (ipaddress.ip_address('1.1.1.1'), 53)),
     )
 
 resolve, _ = Resolver(get_nameservers=get_nameservers)
