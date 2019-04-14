@@ -1,5 +1,6 @@
 import asyncio
 import collections
+import contextlib
 import ipaddress
 import os
 import secrets
@@ -199,36 +200,42 @@ def parse(data):
     return Message(qid, qr, opcode, aa, tc, rd, ra, z, rcode, qd, an, ns, ar)
 
 
-async def recvfrom(loop, sock, max_bytes):
-    # This handles cancellation better than loop.sock_recv, which seems to
-    # causes later sockets on the same fileno to never receive data
-
-    try:
-        return sock.recvfrom(max_bytes)
-    except BlockingIOError:
-        pass
-
-    fileno = sock.fileno()
-    result = asyncio.Future()
-
-    def read_with_reader():
+async def recvfrom(loop, socks, max_bytes):
+    for sock in socks:
         try:
-            (data, addr) = sock.recvfrom(max_bytes)
+            return sock.recvfrom(max_bytes)
         except BlockingIOError:
             pass
-        except BaseException as exception:
-            if not result.cancelled():
-                result.set_exception(exception)
-        else:
-            if not result.cancelled():
-                result.set_result((data, addr))
 
-    loop.add_reader(fileno, read_with_reader)
+    def reader(sock):
+        def _reader():
+            try:
+                (data, addr) = sock.recvfrom(max_bytes)
+            except BlockingIOError:
+                pass
+            except BaseException as exception:
+                if not result.cancelled():
+                    result.set_exception(exception)
+            else:
+                if not result.cancelled():
+                    result.set_result((data, addr))
+        return _reader
+
+    fileno_socks = tuple(
+        (sock.fileno(), sock)
+        for sock in socks
+    )
+
+    result = asyncio.Future()
+
+    for fileno, sock in fileno_socks:
+        loop.add_reader(fileno, reader(sock))
 
     try:
         return await result
     finally:
-        loop.remove_reader(fileno)
+        for fileno, _ in fileno_socks:
+            loop.remove_reader(fileno)
 
 
 async def get_nameservers_from_etc_resolve_conf():
@@ -438,28 +445,49 @@ def Resolver(
             handle.cancel()
 
     async def udp_request_attempt(addrs, fqdn, qtype):
-        addr = addrs[0]
-
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-            sock.setblocking(False)
-            sock.connect((str(addr[0]), addr[1]))
-            ttl_start = loop.time()
-
+        def req():
             qid = secrets.randbelow(65536)
             fqdn_transformed = transform_fqdn(fqdn)
-            req = Message(
+            return Message(
                 qid=qid, qr=QUESTION, opcode=0, aa=0, tc=0, rd=1, ra=0, z=0, rcode=0,
                 qd=(QuestionRecord(fqdn_transformed, qtype, qclass=1),), an=(), ns=(), ar=(),
             )
-            packed = pack(req)
-            await loop.sock_sendall(sock, packed)
 
-            while True:  # We might be getting spoofed messages
-                response_data, _ = await recvfrom(loop, sock, 512)
+        with contextlib.ExitStack() as stack:
+            socks = tuple(
+                stack.enter_context(socket.socket(socket.AF_INET, socket.SOCK_DGRAM))
+                for addr in addrs
+            )
+
+            connections = {}
+            connected_socks = []
+            for addr, sock in zip(addrs, socks):
+                addr_str = (str(addr[0]), addr[1])
+                try:
+                    sock.setblocking(False)
+                    sock.connect(addr_str)
+                except BaseException:
+                    pass
+                else:
+                    connections[addr_str] = (sock, req())
+                    connected_socks.append(sock)
+
+            if not connections:
+                raise ResolverError('Unable to connect sockets')
+
+            ttl_start = loop.time()
+            for addr, (sock, req) in connections.items():
+                await loop.sock_sendall(sock, pack(req))
+
+            trusted_responses_from = set()
+
+            while len(trusted_responses_from) < len(connections):
+                response_data, addr_str = await recvfrom(loop, connected_socks, 512)
 
                 # Some initial peeking before parsing
                 if len(response_data) < 12:
                     continue
+                req = connections[addr_str][1]
                 qid_matches = req.qid == struct.unpack('!H', response_data[:2])[0]
                 if not qid_matches:
                     continue
@@ -470,25 +498,31 @@ def Resolver(
                 if not trusted:
                     continue
 
+                if addr_str in trusted_responses_from:
+                    continue
+                trusted_responses_from.add(addr_str)
+
                 name_error = res.rcode == 3
                 non_name_error = res.rcode and not name_error
                 cname_answers = tuple(
                     rdata_ttl(answer, ttl_start)
                     for answer in res.an
-                    if answer.name == fqdn_transformed and answer.qtype == TYPES.CNAME
+                    if answer.name == req.qd[0].name and answer.qtype == TYPES.CNAME
                 )
                 qtype_answers = tuple(
                     rdata_ttl(answer, ttl_start)
                     for answer in res.an
-                    if answer.name == fqdn_transformed and answer.qtype == qtype
+                    if answer.name == req.qd[0].name and answer.qtype == qtype
                 )
                 if non_name_error:
-                    raise TemporaryResolverError()
+                    continue
                 elif name_error or (not cname_answers and not qtype_answers):
                     # a name error can be returned by some non-authoritative
                     # servers on not-existing, contradicting RFC 1035
                     raise DoesNotExist()
                 else:
                     return cname_answers, qtype_answers
+
+            raise TemporaryResolverError()
 
     return resolve, invalidate_all
