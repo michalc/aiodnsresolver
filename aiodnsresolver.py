@@ -439,18 +439,19 @@ def Resolver(
 
     async def udp_request_attempt(addrs, fqdn, qtype):
         addr = addrs[0]
-        qid = secrets.randbelow(65536)
-        fqdn_transformed = transform_fqdn(fqdn)
-        req = Message(
-            qid=qid, qr=QUESTION, opcode=0, aa=0, tc=0, rd=1, ra=0, z=0, rcode=0,
-            qd=(QuestionRecord(fqdn_transformed, qtype, qclass=1),), an=(), ns=(), ar=(),
-        )
-        packed = pack(req)
 
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
             sock.setblocking(False)
             sock.connect((str(addr[0]), addr[1]))
             ttl_start = loop.time()
+
+            qid = secrets.randbelow(65536)
+            fqdn_transformed = transform_fqdn(fqdn)
+            req = Message(
+                qid=qid, qr=QUESTION, opcode=0, aa=0, tc=0, rd=1, ra=0, z=0, rcode=0,
+                qd=(QuestionRecord(fqdn_transformed, qtype, qclass=1),), an=(), ns=(), ar=(),
+            )
+            packed = pack(req)
             await loop.sock_sendall(sock, packed)
 
             while True:  # We might be getting spoofed messages
