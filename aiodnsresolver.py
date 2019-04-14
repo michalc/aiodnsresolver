@@ -309,14 +309,15 @@ def Resolver(
 
     async def udp_request_namservers_until_response(fqdn, qtype):
         exception = None
-        async for timeout, addr in get_nameservers():
+        async for nameserver in get_nameservers():
+            timeout, addrs = nameserver[0], nameserver[1:]
             try:
-                return await memoized_udp_request(timeout, addr, fqdn, qtype)
+                return await memoized_udp_request(timeout, addrs, fqdn, qtype)
             except (asyncio.TimeoutError, TemporaryResolverError) as recent_exception:
                 exception = recent_exception
         raise exception
 
-    async def memoized_udp_request(timeout, addr, fqdn, qtype):
+    async def memoized_udp_request(timeout, addrs, fqdn, qtype):
         """Memoized udp_request, that allows a dynamic expiry for each result
 
         Multiple callers for the same args will wait for first call to
@@ -370,7 +371,7 @@ def Resolver(
                     del woken_waiter[key]
 
         try:
-            answers = await timeout_udp_request_attempt(timeout, addr, fqdn, qtype)
+            answers = await timeout_udp_request_attempt(timeout, addrs, fqdn, qtype)
 
         except asyncio.CancelledError:
             wake_next()
@@ -412,7 +413,7 @@ def Resolver(
         for key, _ in list(cache.items()):
             invalidate(key)
 
-    async def timeout_udp_request_attempt(timeout, addr, fqdn, qtype):
+    async def timeout_udp_request_attempt(timeout, addrs, fqdn, qtype):
         cancelling_due_to_timeout = False
         current_task = \
             asyncio.current_task() if hasattr(asyncio, 'current_task') else \
@@ -426,7 +427,7 @@ def Resolver(
         handle = loop.call_later(timeout, cancel)
 
         try:
-            return await udp_request_attempt(addr, fqdn, qtype)
+            return await udp_request_attempt(addrs, fqdn, qtype)
         except asyncio.CancelledError:
             if cancelling_due_to_timeout:
                 raise asyncio.TimeoutError()
@@ -436,7 +437,8 @@ def Resolver(
         finally:
             handle.cancel()
 
-    async def udp_request_attempt(addr, fqdn, qtype):
+    async def udp_request_attempt(addrs, fqdn, qtype):
+        addr = addrs[0]
         qid = secrets.randbelow(65536)
         fqdn_transformed = transform_fqdn(fqdn)
         req = Message(
