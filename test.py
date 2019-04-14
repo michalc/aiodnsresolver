@@ -659,6 +659,51 @@ class TestResolverIntegration(unittest.TestCase):
             self.assertEqual(str(res_2[0]), '123.100.123.4')
 
     @async_test
+    async def test_udp_timeout_try_next_nameserver(self):
+        loop = asyncio.get_event_loop()
+        queried_names_53 = []
+
+        with FastForward(loop) as forward:
+            async def get_response_53(query_data):
+                query = parse(query_data)
+                queried_names_53.append(query.qd[0].name)
+                await forward(0.5)
+                await asyncio.Future()
+
+            async def get_response_54(query_data):
+                print("54!!")
+                query = parse(query_data)
+                reponse_record = ResourceRecord(
+                    name=query.qd[0].name,
+                    qtype=TYPES.A,
+                    qclass=1,
+                    ttl=0,
+                    rdata=ipaddress.IPv4Address('123.100.123.1').packed,
+                )
+                response = Message(
+                    qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
+                    qd=query.qd, an=(reponse_record,), ns=(), ar=(),
+                )
+                return pack(response)
+
+            stop_nameserver_53 = await start_nameserver(53, get_response_53)
+            self.add_async_cleanup(loop, stop_nameserver_53)
+            stop_nameserver_54 = await start_nameserver(54, get_response_54)
+            self.add_async_cleanup(loop, stop_nameserver_54)
+
+            async def get_nameservers():
+                return (
+                    (0.5, (ipaddress.ip_address('127.0.0.1'), 53)),
+                    (0.5, (ipaddress.ip_address('127.0.0.1'), 54)),
+                )
+
+            resolve, _ = Resolver(get_nameservers=get_nameservers)
+
+            res = await resolve('my.domain', TYPES.A)
+            self.assertEqual(str(res[0]), '123.100.123.1')
+            self.assertEqual(queried_names_53[0].lower(), b'my.domain')
+
+    @async_test
     async def test_udp_timeout_eventually_fail(self):
         loop = asyncio.get_event_loop()
         blocker = asyncio.Event()
