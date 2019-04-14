@@ -888,6 +888,26 @@ class TestResolverEndToEnd(unittest.TestCase):
         self.assertIsInstance(res, tuple)
 
     @async_test
+    async def test_a_idna_query(self):
+        loop = asyncio.get_event_loop()
+        resolve, _ = Resolver()
+        res = await resolve('michał.charemza.name', TYPES.A)
+        self.assertIsInstance(res[0], ipaddress.IPv4Address)
+        self.assertEqual(str(res[0]), '127.0.0.1')
+        self.assertTrue(0 <= res[0].ttl(loop.time()) <= 300)
+        self.assertIsInstance(res, tuple)
+
+    @async_test
+    async def test_a_idna_via_cname_query(self):
+        loop = asyncio.get_event_loop()
+        resolve, _ = Resolver()
+        res = await resolve('cname-michał.charemza.name', TYPES.A)
+        self.assertIsInstance(res[0], ipaddress.IPv4Address)
+        self.assertEqual(str(res[0]), '127.0.0.1')
+        self.assertTrue(0 <= res[0].ttl(loop.time()) <= 300)
+        self.assertIsInstance(res, tuple)
+
+    @async_test
     async def test_a_query_multiple(self):
         resolve, _ = Resolver()
         res = await resolve('charemza.name', TYPES.A)
