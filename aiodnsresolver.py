@@ -36,6 +36,9 @@ class TemporaryResolverError(ResolverError):
 class DoesNotExist(ResolverError):
     pass
 
+class PointerLoop(ResolverError):
+    pass
+
 class IPv4AddressTTL(ipaddress.IPv4Address):
     def __init__(self, rdata, expires_at):
         super().__init__(rdata)
@@ -140,7 +143,7 @@ def parse(data):
                 local_cursor = (byte(local_cursor) - 192) * 256 + byte(local_cursor + 1)
                 followed_pointers.append(local_cursor)
                 if len(followed_pointers) != len(set(followed_pointers)):
-                    raise Exception('Pointer loop')
+                    raise PointerLoop()
                 if len(followed_pointers) == 1:
                     l += 2
 
