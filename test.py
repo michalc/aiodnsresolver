@@ -89,7 +89,7 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(get_response)
+        stop_nameserver = await start_nameserver(53, get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
         with FastForward(loop) as forward:
@@ -156,7 +156,7 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(get_response)
+        stop_nameserver = await start_nameserver(53, get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
         resolve, _ = Resolver()
@@ -195,7 +195,7 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(get_response)
+        stop_nameserver = await start_nameserver(53, get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
         resolve, _ = Resolver()
@@ -236,7 +236,7 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(get_response)
+        stop_nameserver = await start_nameserver(53, get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
         with FastForward(loop) as forward:
@@ -276,7 +276,7 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(get_response)
+        stop_nameserver = await start_nameserver(53, get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
         resolve, _ = Resolver()
@@ -319,7 +319,7 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(get_response)
+        stop_nameserver = await start_nameserver(53, get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
         resolve, _ = Resolver()
@@ -355,7 +355,7 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(get_response)
+        stop_nameserver = await start_nameserver(53, get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
         resolve, _ = Resolver()
@@ -390,7 +390,7 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(get_response)
+        stop_nameserver = await start_nameserver(53, get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
         resolve, _ = Resolver()
@@ -425,7 +425,7 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(get_response)
+        stop_nameserver = await start_nameserver(53, get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
         resolve, _ = Resolver()
@@ -459,7 +459,7 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(get_response)
+        stop_nameserver = await start_nameserver(53, get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
         resolve, _ = Resolver()
@@ -499,7 +499,7 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(get_response)
+        stop_nameserver = await start_nameserver(53, get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
         resolve, _ = Resolver()
@@ -541,7 +541,7 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(get_response)
+        stop_nameserver = await start_nameserver(53, get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
         resolve, _ = Resolver()
@@ -586,7 +586,7 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(get_response)
+        stop_nameserver = await start_nameserver(53, get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
         resolve, _ = Resolver()
@@ -636,7 +636,7 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(get_response)
+        stop_nameserver = await start_nameserver(53, get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
         with FastForward(loop) as forward:
@@ -670,7 +670,7 @@ class TestResolverIntegration(unittest.TestCase):
             await blocker.wait()
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(get_response)
+        stop_nameserver = await start_nameserver(53, get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
         with FastForward(loop) as forward:
@@ -715,7 +715,7 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(get_response)
+        stop_nameserver = await start_nameserver(53, get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
         resolve, _ = Resolver()
@@ -758,7 +758,7 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(get_response)
+        stop_nameserver = await start_nameserver(53, get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
         resolve, _ = Resolver()
@@ -845,7 +845,7 @@ class TestResolverIntegration(unittest.TestCase):
 
         loop = asyncio.get_event_loop()
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(get_response)
+        stop_nameserver = await start_nameserver(53, get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
         async def handle_get(_):
@@ -1015,12 +1015,12 @@ def patch_open():
     return patched_open.stop
 
 
-async def start_nameserver(get_response):
+async def start_nameserver(port, get_response):
     loop = asyncio.get_event_loop()
 
     sock = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
     sock.setblocking(False)
-    sock.bind(('', 53))
+    sock.bind(('', port))
 
     async def server():
         client_tasks = []
