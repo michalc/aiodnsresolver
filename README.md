@@ -72,7 +72,7 @@ CNAME records are followed transparently. The `ttl` of IP addresses found via in
 
 ## Custom nameservers and timeouts
 
-It is possible to query nameservers other than those in `etc/resolve.conf`, and for each to specify a timeout in seconds to wait for a reply before querying the next.
+It is possible to query nameservers other than those in `/etc/resolve.conf`, and for each to specify a timeout in seconds to wait for a reply before querying the next.
 
 ```python
 async def get_nameservers():
