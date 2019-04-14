@@ -85,6 +85,23 @@ resolve, _ = Resolver(get_nameservers=get_nameservers)
 ip_addresses = await resolve('www.google.com', TYPES.A)
 ```
 
+Parallel request to multiple nameservers are also possible, where the first response from each set of requests is used.
+
+```python
+async def get_nameservers():
+    # For any record request, udp packets are sent to both 8.8.8.8 and 1.1.1.1, waiting 0.5 seconds
+    # for the first response...
+    yield (0.5, (ipaddress.ip_address('8.8.8.8'), 53), (ipaddress.ip_address('1.1.1.1'), 53))
+    # ... if no response, make another set of requests, waiting 1.0 seconds before timing out
+    yield (1.0, (ipaddress.ip_address('8.8.8.8'), 53), (ipaddress.ip_address('1.1.1.1'), 53))
+
+
+resolve, _ = Resolver(get_nameservers=get_nameservers)
+ip_addresses = await resolve('www.google.com', TYPES.A)
+```
+
+This can be used as part of a HA system: if a nameserver isn't contactable, this pattern avoids waiting for its timeout before querying another nameserver.
+
 
 ## Example: aiohttp
 
