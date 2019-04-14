@@ -343,7 +343,7 @@ def Resolver(
                 # Delete the queue only if we haven't woken anything up
                 del waiter_queues[key]
 
-        key = (addr, fqdn, qtype)
+        key = (fqdn, qtype)
 
         try:
             return cache[key]
