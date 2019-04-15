@@ -308,7 +308,7 @@ def Resolver(
             if host is not None:
                 return (host,)
 
-            cname_rdata, qtype_rdata = await udp_request_namservers_until_response(fqdn, qtype)
+            cname_rdata, qtype_rdata = await memoized_udp_request(fqdn, qtype)
             if qtype_rdata:
                 return rdata_ttl_min_expires(qtype_rdata, fqdn._expires_at)
             else:
@@ -319,12 +319,12 @@ def Resolver(
         async for nameserver in get_nameservers():
             timeout, addrs = nameserver[0], nameserver[1:]
             try:
-                return await memoized_udp_request(timeout, addrs, fqdn, qtype)
+                return await timeout_udp_request_attempt(timeout, addrs, fqdn, qtype)
             except (asyncio.TimeoutError, TemporaryResolverError) as recent_exception:
                 exception = recent_exception
         raise exception
 
-    async def memoized_udp_request(timeout, addrs, fqdn, qtype):
+    async def memoized_udp_request(fqdn, qtype):
         """Memoized udp_request, that allows a dynamic expiry for each result
 
         Multiple callers for the same args will wait for first call to
@@ -378,7 +378,7 @@ def Resolver(
                     del woken_waiter[key]
 
         try:
-            answers = await timeout_udp_request_attempt(timeout, addrs, fqdn, qtype)
+            answers = await udp_request_namservers_until_response(fqdn, qtype)
 
         except asyncio.CancelledError:
             wake_next()
