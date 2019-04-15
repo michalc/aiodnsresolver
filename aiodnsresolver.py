@@ -314,16 +314,6 @@ def Resolver(
             else:
                 fqdn = rdata_ttl_min_expires([cname_rdata[0]], fqdn._expires_at)[0]
 
-    async def udp_request_namservers_until_response(fqdn, qtype):
-        exception = None
-        async for nameserver in get_nameservers():
-            timeout, addrs = nameserver[0], nameserver[1:]
-            try:
-                return await timeout_udp_request_attempt(timeout, addrs, fqdn, qtype)
-            except (asyncio.TimeoutError, TemporaryResolverError) as recent_exception:
-                exception = recent_exception
-        raise exception
-
     async def memoized_udp_request(fqdn, qtype):
         """Memoized udp_request, that allows a dynamic expiry for each result
 
@@ -419,6 +409,16 @@ def Resolver(
     def invalidate_all():
         for key, _ in list(cache.items()):
             invalidate(key)
+
+    async def udp_request_namservers_until_response(fqdn, qtype):
+        exception = None
+        async for nameserver in get_nameservers():
+            timeout, addrs = nameserver[0], nameserver[1:]
+            try:
+                return await timeout_udp_request_attempt(timeout, addrs, fqdn, qtype)
+            except (asyncio.TimeoutError, TemporaryResolverError) as recent_exception:
+                exception = recent_exception
+        raise exception
 
     async def timeout_udp_request_attempt(timeout, addrs, fqdn, qtype):
         cancelling_due_to_timeout = False
