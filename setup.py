@@ -6,6 +6,17 @@ def long_description():
         return file.read()
 
 
+def tests_require():
+    with open('requirements_test.txt', 'r') as file:
+        contents = file.read()
+    return [
+        line_before_comment.strip()
+        for line in contents.splitlines()
+        for (line_before_comment, _, __) in [line.partition('#')]
+        if line_before_comment
+    ]
+
+
 setuptools.setup(
     name='aiodnsresolver',
     version='0.0.82',
@@ -25,10 +36,7 @@ setuptools.setup(
     ],
     keywords='async dns asyncio',
     test_suite='test',
-    tests_require=[
-        'aiofastforward==0.0.24',
-        'aiohttp==3.5.4',
-    ],
+    tests_require=tests_require(),
     py_modules=[
         'aiodnsresolver',
     ],

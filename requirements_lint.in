@@ -1,0 +1,4 @@
+-r requirements_test.in
+
+pre-commit==1.15.1
+pylint==2.3.1

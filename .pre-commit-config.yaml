@@ -1,0 +1,38 @@
+repos:
+- repo: git://github.com/pre-commit/pre-commit-hooks
+  rev: v1.2.3
+  hooks:
+    - id: autopep8-wrapper
+      args:
+        - --in-place
+        - --max-line-length=99
+    - id: flake8
+      args:
+        - --max-line-length=99
+    - id: check-ast
+    - id: check-case-conflict
+    - id: debug-statements
+    - id: double-quote-string-fixer
+    - id: end-of-file-fixer
+# We run pylint from local env, to ensure modules can be found
+- repo: local
+  hooks:
+    - id: pylint
+      name: pylint
+      entry: python3 -m pylint.__main__
+      language: system
+      types: [python]
+      args:
+        - --disable=broad-except
+        - --disable=invalid-name
+        - --disable=missing-docstring
+        - --disable=protected-access
+        - --disable=too-many-branches
+        - --disable=too-many-lines
+        - --disable=too-many-locals
+        - --disable=too-many-public-methods
+        - --disable=too-many-statements
+        - --include-naming-hint=yes
+        - --max-args=10
+        - --max-locals=25
+        - --max-returns=10
