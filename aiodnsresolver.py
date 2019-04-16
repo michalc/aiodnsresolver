@@ -2,7 +2,6 @@ import asyncio
 import collections
 import contextlib
 import ipaddress
-import os
 import secrets
 import socket
 import struct
@@ -28,17 +27,22 @@ ResourceRecord = collections.namedtuple('Record', [
     'name', 'qtype', 'qclass', 'ttl', 'rdata',
 ])
 
+
 class ResolverError(Exception):
     pass
+
 
 class TemporaryResolverError(ResolverError):
     pass
 
+
 class DoesNotExist(ResolverError):
     pass
 
+
 class PointerLoop(ResolverError):
     pass
+
 
 class IPv4AddressTTL(ipaddress.IPv4Address):
     def __init__(self, rdata, expires_at):
@@ -48,6 +52,7 @@ class IPv4AddressTTL(ipaddress.IPv4Address):
     def ttl(self, now):
         return max(0.0, self._expires_at - now)
 
+
 class IPv6AddressTTL(ipaddress.IPv6Address):
     def __init__(self, rdata, expires_at):
         super().__init__(rdata)
@@ -56,6 +61,7 @@ class IPv6AddressTTL(ipaddress.IPv6Address):
     def ttl(self, now):
         return max(0.0, self._expires_at - now)
 
+
 class BytesTTL(bytes):
     def __new__(cls, rdata, expires_at):
         _rdata = super().__new__(cls, rdata)
@@ -63,7 +69,8 @@ class BytesTTL(bytes):
         return _rdata
 
     def ttl(self, now):
-        return max(0.0, self._expires_at - now)
+        return max(0.0, self._expires_at - now)  # pylint: disable=no-member
+
 
 def rdata_ttl(record, ttl_start):
     expires_at = ttl_start + record.ttl
@@ -72,10 +79,10 @@ def rdata_ttl(record, ttl_start):
         IPv6AddressTTL(record.rdata, expires_at) if record.qtype == TYPES.AAAA else \
         BytesTTL(record.rdata, expires_at)
 
+
 def rdata_ttl_min_expires(rdata_ttls, expires_at):
-    return tuple(type(rdata_ttl)(
-        rdata=rdata_ttl,
-        expires_at=min(expires_at, rdata_ttl._expires_at))
+    return tuple(
+        type(rdata_ttl)(rdata=rdata_ttl, expires_at=min(expires_at, rdata_ttl._expires_at))
         for rdata_ttl in rdata_ttls
     )
 
@@ -134,10 +141,10 @@ def parse(data):
         return offset + length + 1, data[offset + 1:offset + 1 + length]
 
     def load_labels():
-        nonlocal l
+        nonlocal c
 
         followed_pointers = []
-        local_cursor = l
+        local_cursor = c
 
         while True:
             if byte(local_cursor) >= 192:  # is pointer
@@ -146,11 +153,11 @@ def parse(data):
                 if len(followed_pointers) != len(set(followed_pointers)):
                     raise PointerLoop()
                 if len(followed_pointers) == 1:
-                    l += 2
+                    c += 2
 
             local_cursor, label = load_label(local_cursor)
             if not followed_pointers:
-                l = local_cursor
+                c = local_cursor
 
             if label:
                 yield label
@@ -164,10 +171,10 @@ def parse(data):
             num = high
 
     def unpack(struct_format):
-        nonlocal l
-        dl = struct_calcsize(struct_format)
-        unpacked = struct_unpack(struct_format, data[l: l + dl])
-        l += dl
+        nonlocal c
+        dc = struct_calcsize(struct_format)
+        unpacked = struct_unpack(struct_format, data[c: c + dc])
+        c += dc
         return unpacked
 
     def parse_question_record():
@@ -176,19 +183,19 @@ def parse(data):
         return QuestionRecord(name, qtype, qclass)
 
     def parse_resource_record():
-        nonlocal l
+        nonlocal c
         # The start is same as the question record
         name, qtype, qclass = parse_question_record()
-        ttl, dl = unpack('!LH')
+        ttl, dc = unpack('!LH')
         if qtype == TYPES.CNAME:
             rdata = b'.'.join(load_labels())
         else:
-            rdata = data[l: l + dl]
-            l += dl
+            rdata = data[c: c + dc]
+            c += dc
 
         return ResourceRecord(name, qtype, qclass, ttl, rdata)
 
-    l = 0
+    c = 0
     qid, x, qd_count, an_count, ns_count, ar_count = unpack('!HHHHHH')
     rcode, z, ra, rd, tc, aa, opcode, qr = split_bits(x, 4, 3, 1, 1, 1, 1, 4, 1)
 
@@ -289,7 +296,7 @@ def Resolver(
         get_host=get_host_from_etc_hosts,
         get_nameservers=get_nameservers_from_etc_resolve_conf,
         transform_fqdn=mix_case,
-    ):
+):
 
     loop = \
         asyncio.get_running_loop() if hasattr(asyncio, 'get_running_loop') else \
@@ -309,10 +316,10 @@ def Resolver(
                 return (host,)
 
             cname_rdata, qtype_rdata = await memoized_udp_request(fqdn, qtype)
+            min_expires_at = fqdn._expires_at  # pylint: disable=no-member
             if qtype_rdata:
-                return rdata_ttl_min_expires(qtype_rdata, fqdn._expires_at)
-            else:
-                fqdn = rdata_ttl_min_expires([cname_rdata[0]], fqdn._expires_at)[0]
+                return rdata_ttl_min_expires(qtype_rdata, min_expires_at)
+            fqdn = rdata_ttl_min_expires([cname_rdata[0]], min_expires_at)[0]
 
     async def memoized_udp_request(fqdn, qtype):
         """Memoized udp_request, that allows a dynamic expiry for each result
@@ -362,7 +369,7 @@ def Resolver(
                 raise
             else:
                 if has_other_task_result:
-                   return other_task_result
+                    return other_task_result
             finally:
                 if key in woken_waiter and waiter == woken_waiter[key]:
                     del woken_waiter[key]
@@ -438,9 +445,8 @@ def Resolver(
         except asyncio.CancelledError:
             if cancelling_due_to_timeout:
                 raise asyncio.TimeoutError()
-            else:
-                raise
-                
+            raise
+
         finally:
             handle.cancel()
 

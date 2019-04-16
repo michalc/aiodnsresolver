@@ -4,9 +4,7 @@ import socket
 import unittest
 from unittest.mock import (
     MagicMock,
-    Mock,
     patch,
-    call,
 )
 
 import aiohttp
@@ -241,13 +239,13 @@ class TestResolverIntegration(unittest.TestCase):
 
         with FastForward(loop) as forward:
             resolve, _ = Resolver()
-            res_1 = await resolve('my.domain', TYPES.A)
-            res_2 = await resolve('other.domain', TYPES.A)
+            await resolve('my.domain', TYPES.A)
+            await resolve('other.domain', TYPES.A)
             self.assertEqual(len(queried_names), 2)
 
             await forward(19)
-            res_1 = await resolve('my.domain', TYPES.A)
-            res_2 = await resolve('other.domain', TYPES.A)
+            await resolve('my.domain', TYPES.A)
+            await resolve('other.domain', TYPES.A)
             self.assertEqual(len(queried_names), 3)
             self.assertEqual(queried_names[2].lower(), b'other.domain')
 
@@ -284,10 +282,10 @@ class TestResolverIntegration(unittest.TestCase):
         res_2_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
 
         with self.assertRaises(ipaddress.AddressValueError):
-            res_1 = await res_1_task
+            await res_1_task
 
         with self.assertRaises(ipaddress.AddressValueError):
-            res_2 = await res_2_task
+            await res_2_task
 
         self.assertEqual(len(queried_names), 1)
 
@@ -307,10 +305,8 @@ class TestResolverIntegration(unittest.TestCase):
                 qtype=TYPES.A,
                 qclass=1,
                 ttl=21-len(queried_names),
-                rdata=\
-                    b'bad-ip-address' if len(queried_names) == 1 else \
-                    ipaddress.IPv4Address('123.100.123.' + str(len(queried_names))).packed
-                ,
+                rdata=b'bad-ip-address' if len(queried_names) == 1 else
+                ipaddress.IPv4Address('123.100.123.' + str(len(queried_names))).packed,
             )
             response = Message(
                 qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
@@ -380,8 +376,9 @@ class TestResolverIntegration(unittest.TestCase):
                 ttl=0,
                 rdata=ipaddress.IPv4Address('123.100.123.' + str(len(queried_names))).packed,
             )
+            lower = query.qd[0].name.lower()
             question = \
-                query.qd[0]._replace(name=query.qd[0].name.lower()) if len(queried_names) == 1 else \
+                query.qd[0]._replace(name=lower) if len(queried_names) == 1 else \
                 query.qd[0]
             response = Message(
                 qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
@@ -613,7 +610,8 @@ class TestResolverIntegration(unittest.TestCase):
     async def test_udp_timeout_try_again(self):
         loop = asyncio.get_event_loop()
         requests = [asyncio.Event(), asyncio.Event(), asyncio.Event(), asyncio.Event()]
-        response_blockers = [asyncio.Event(), asyncio.Event(), asyncio.Event(), asyncio.Event(), asyncio.Event()]
+        response_blockers = [asyncio.Event(), asyncio.Event(), asyncio.Event(),
+                             asyncio.Event(), asyncio.Event()]
         queried_names = []
 
         async def get_response(query_data):
@@ -641,7 +639,7 @@ class TestResolverIntegration(unittest.TestCase):
 
         with FastForward(loop) as forward:
             resolve, _ = Resolver()
-            res_1_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
+            asyncio.ensure_future(resolve('my.domain', TYPES.A))
             await requests[0].wait()
             self.assertEqual(len(queried_names), 1)
             await forward(0.5)
@@ -706,7 +704,7 @@ class TestResolverIntegration(unittest.TestCase):
         queried_names_53 = []
         queried_names_54 = []
 
-        with FastForward(loop) as forward:
+        with FastForward(loop):
             async def get_response_53(query_data):
                 query = parse(query_data)
                 queried_names_53.append(query.qd[0].name)
@@ -734,7 +732,11 @@ class TestResolverIntegration(unittest.TestCase):
             self.add_async_cleanup(loop, stop_nameserver_54)
 
             async def get_nameservers(_):
-                yield (0.5, (ipaddress.ip_address('127.0.0.1'), 53), (ipaddress.ip_address('127.0.0.1'), 54))
+                yield (
+                    0.5,
+                    (ipaddress.ip_address('127.0.0.1'), 53),
+                    (ipaddress.ip_address('127.0.0.1'), 54),
+                )
 
             resolve, _ = Resolver(get_nameservers=get_nameservers)
 
@@ -749,8 +751,7 @@ class TestResolverIntegration(unittest.TestCase):
         blocker = asyncio.Event()
         request = asyncio.Event()
 
-        async def get_response(query_data):
-            query = parse(query_data)
+        async def get_response(_):
             request.set()
             await blocker.wait()
 
@@ -770,7 +771,6 @@ class TestResolverIntegration(unittest.TestCase):
     @async_test
     async def test_a_socket_error_fail_immediately(self):
         # No nameserver started
-        loop = asyncio.get_event_loop()
         self.addCleanup(patch_open())
 
         resolve, _ = Resolver()
@@ -780,7 +780,6 @@ class TestResolverIntegration(unittest.TestCase):
     @async_test
     async def test_many_concurrent_queries_range(self):
         loop = asyncio.get_event_loop()
-        response_blockers = [asyncio.Future(), asyncio.Future(), asyncio.Future()]
 
         async def get_response(query_data):
             query = parse(query_data)
@@ -821,7 +820,6 @@ class TestResolverIntegration(unittest.TestCase):
     @async_test
     async def test_many_concurrent_queries_identical_0_ttl(self):
         loop = asyncio.get_event_loop()
-        response_blockers = [asyncio.Future(), asyncio.Future(), asyncio.Future()]
         num_queries = 0
 
         async def get_response(query_data):
@@ -946,15 +944,19 @@ class TestResolverIntegration(unittest.TestCase):
         await site.start()
 
         async with aiohttp.ClientSession(
-            connector=aiohttp.TCPConnector(use_dns_cache=False, resolver=AioHttpDnsResolver()),
+                connector=aiohttp.TCPConnector(use_dns_cache=False, resolver=AioHttpDnsResolver()),
         ) as session:
             async with await session.get('http://some-domain.com:8876/page') as result:
                 self.assertEqual(result.status, 204)
 
-            with self.assertRaisesRegex(aiohttp.client_exceptions.ClientConnectorError, 'does not exist'):
+            with self.assertRaisesRegex(
+                    aiohttp.client_exceptions.ClientConnectorError,
+                    'does not exist'):
                 await session.get('http://other-domain.com:8876/page')
 
-            with self.assertRaisesRegex(aiohttp.client_exceptions.ClientConnectorError, 'failed to resolve'):
+            with self.assertRaisesRegex(
+                    aiohttp.client_exceptions.ClientConnectorError,
+                    'failed to resolve'):
                 await session.get('http://more-domain.com:8876/page')
 
 
@@ -1047,14 +1049,14 @@ class TestResolverEndToEnd(unittest.TestCase):
     async def test_a_query_not_exists(self):
         resolve, _ = Resolver()
         with self.assertRaises(DoesNotExist):
-            res = await resolve('doenotexist.charemza.name', TYPES.A)
+            await resolve('doenotexist.charemza.name', TYPES.A)
 
     @async_test
     async def test_aaaa_query_not_exists(self):
         resolve, _ = Resolver()
 
         with self.assertRaises(DoesNotExist):
-            res = await resolve('doenotexist.charemza.name', TYPES.AAAA)
+            await resolve('doenotexist.charemza.name', TYPES.AAAA)
 
     @async_test
     async def test_a_query_cname(self):
@@ -1168,7 +1170,6 @@ async def sendto(loop, sock, data, addr):
         return await result
     finally:
         loop.remove_writer(fileno)
-        raise
 
 
 async def sendto_all(loop, sock, data, addr):
