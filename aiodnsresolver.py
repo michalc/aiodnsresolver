@@ -221,10 +221,10 @@ async def recvfrom(loop, socks, max_bytes):
             except BlockingIOError:
                 pass
             except BaseException as exception:
-                if not result.cancelled():
+                if not result.done():
                     result.set_exception(exception)
             else:
-                if not result.cancelled():
+                if not result.done():
                     result.set_result((data, addr))
         return _reader
 
