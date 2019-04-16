@@ -47,29 +47,29 @@ class PointerLoop(ResolverError):
 class IPv4AddressTTL(ipaddress.IPv4Address):
     def __init__(self, rdata, expires_at):
         super().__init__(rdata)
-        self._expires_at = expires_at
+        self.expires_at = expires_at
 
     def ttl(self, now):
-        return max(0.0, self._expires_at - now)
+        return max(0.0, self.expires_at - now)
 
 
 class IPv6AddressTTL(ipaddress.IPv6Address):
     def __init__(self, rdata, expires_at):
         super().__init__(rdata)
-        self._expires_at = expires_at
+        self.expires_at = expires_at
 
     def ttl(self, now):
-        return max(0.0, self._expires_at - now)
+        return max(0.0, self.expires_at - now)
 
 
 class BytesTTL(bytes):
     def __new__(cls, rdata, expires_at):
         _rdata = super().__new__(cls, rdata)
-        _rdata._expires_at = expires_at
+        _rdata.expires_at = expires_at
         return _rdata
 
     def ttl(self, now):
-        return max(0.0, self._expires_at - now)  # pylint: disable=no-member
+        return max(0.0, self.expires_at - now)  # pylint: disable=no-member
 
 
 def rdata_ttl(record, ttl_start):
@@ -82,7 +82,7 @@ def rdata_ttl(record, ttl_start):
 
 def rdata_ttl_min_expires(rdata_ttls, expires_at):
     return tuple(
-        type(rdata_ttl)(rdata=rdata_ttl, expires_at=min(expires_at, rdata_ttl._expires_at))
+        type(rdata_ttl)(rdata=rdata_ttl, expires_at=min(expires_at, rdata_ttl.expires_at))
         for rdata_ttl in rdata_ttls
     )
 
@@ -316,10 +316,10 @@ def Resolver(
                 return (host,)
 
             cname_rdata, qtype_rdata = await memoized_udp_request(fqdn, qtype)
-            min_expires_at = fqdn._expires_at  # pylint: disable=no-member
+            minexpires_at = fqdn.expires_at  # pylint: disable=no-member
             if qtype_rdata:
-                return rdata_ttl_min_expires(qtype_rdata, min_expires_at)
-            fqdn = rdata_ttl_min_expires([cname_rdata[0]], min_expires_at)[0]
+                return rdata_ttl_min_expires(qtype_rdata, minexpires_at)
+            fqdn = rdata_ttl_min_expires([cname_rdata[0]], minexpires_at)[0]
 
     async def memoized_udp_request(fqdn, qtype):
         """Memoized udp_request, that allows a dynamic expiry for each result
@@ -399,7 +399,7 @@ def Resolver(
             del waiter_queues[key]
 
             expires_at = min(
-                rdata_ttl._expires_at
+                rdata_ttl.expires_at
                 for rdata_groups in answers
                 for rdata_ttl in rdata_groups
             )
