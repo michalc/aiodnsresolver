@@ -30,9 +30,10 @@ setuptools.setup(
     classifiers=[
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
+        'Programming Language :: Python :: 3 :: Only',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3 :: Only',
+        'Topic :: Internet :: Name Service (DNS)',
     ],
     keywords='async dns asyncio',
     test_suite='test',
