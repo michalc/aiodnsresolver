@@ -35,7 +35,7 @@ setuptools.setup(
         'Programming Language :: Python :: 3.7',
         'Topic :: Internet :: Name Service (DNS)',
     ],
-    keywords='async dns asyncio',
+    keywords='async dns asyncio resolver gethostbyname getaddrinfo',
     test_suite='test',
     tests_require=tests_require(),
     py_modules=[
