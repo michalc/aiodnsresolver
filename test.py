@@ -97,24 +97,24 @@ class TestResolverIntegration(unittest.TestCase):
             self.assertEqual(len(queried_names), 1)
             self.assertEqual(queried_names[0].lower(), b'my.domain.quite-long.abcdefghijklm')
             self.assertEqual(str(res_1[0]), '123.100.123.1')
-            self.assertEqual(res_1[0].ttl(loop.time()), 20.0)
+            self.assertEqual(res_1[0].expires_at, loop.time() + 20.0)
             self.assertEqual(str(res_1[1]), '123.100.124.1')
-            self.assertEqual(res_1[1].ttl(loop.time()), 40.0)
+            self.assertEqual(res_1[1].expires_at, loop.time() + 40.0)
 
             await forward(19.5)
-            self.assertEqual(res_1[0].ttl(loop.time()), 0.5)
+            self.assertEqual(res_1[0].expires_at, loop.time() + 0.5)
 
             res_2 = await resolve('my.domain.quite-long.abcdefghijklm', TYPES.A)
             self.assertEqual(len(queried_names), 1)
             self.assertEqual(str(res_2[0]), '123.100.123.1')
-            self.assertEqual(res_2[0].ttl(loop.time()), 0.5)
+            self.assertEqual(res_2[0].expires_at, loop.time() + 0.5)
 
             await forward(0.5)
             res_3 = await resolve('my.domain.quite-long.abcdefghijklm', TYPES.A)
             self.assertEqual(len(queried_names), 2)
             self.assertEqual(queried_names[1].lower(), b'my.domain.quite-long.abcdefghijklm')
             self.assertEqual(str(res_3[0]), '123.100.123.2')
-            self.assertEqual(res_3[0].ttl(loop.time()), 19.0)
+            self.assertEqual(res_3[0].expires_at, loop.time() + 19.0)
 
             self.assertNotEqual(queried_names[0], queried_names[1])
 
@@ -970,8 +970,8 @@ class TestResolverEndToEnd(unittest.TestCase):
         resolve, _ = Resolver()
         res = await resolve('www.google.com', TYPES.A)
         self.assertIsInstance(res[0], ipaddress.IPv4Address)
-        self.assertIsInstance(res[0].ttl(loop.time()), float)
-        self.assertTrue(0 <= res[0].ttl(loop.time()) <= 300)
+        self.assertIsInstance(res[0].expires_at, float)
+        self.assertTrue(loop.time() <= res[0].expires_at <= loop.time() + 300)
         self.assertIsInstance(res, tuple)
 
     @async_test
@@ -981,7 +981,7 @@ class TestResolverEndToEnd(unittest.TestCase):
         res = await resolve('michał.charemza.name', TYPES.A)
         self.assertIsInstance(res[0], ipaddress.IPv4Address)
         self.assertEqual(str(res[0]), '127.0.0.1')
-        self.assertTrue(0 <= res[0].ttl(loop.time()) <= 300)
+        self.assertTrue(loop.time() <= res[0].expires_at <= loop.time() + 300)
         self.assertIsInstance(res, tuple)
 
     @async_test
@@ -991,7 +991,7 @@ class TestResolverEndToEnd(unittest.TestCase):
         res = await resolve('cname-michał.charemza.name', TYPES.A)
         self.assertIsInstance(res[0], ipaddress.IPv4Address)
         self.assertEqual(str(res[0]), '127.0.0.1')
-        self.assertTrue(0 <= res[0].ttl(loop.time()) <= 300)
+        self.assertTrue(loop.time() <= res[0].expires_at <= loop.time() + 300)
         self.assertIsInstance(res, tuple)
 
     @async_test
@@ -1041,8 +1041,7 @@ class TestResolverEndToEnd(unittest.TestCase):
         resolve, _ = Resolver()
         res = await resolve('www.google.com', TYPES.AAAA)
         self.assertIsInstance(res[0], ipaddress.IPv6Address)
-        self.assertIsInstance(res[0].ttl(loop.time()), float)
-        self.assertTrue(0 <= res[0].ttl(loop.time()) <= 300)
+        self.assertTrue(loop.time() <= res[0].expires_at <= loop.time() + 300)
         self.assertIsInstance(res, tuple)
 
     @async_test
@@ -1068,21 +1067,23 @@ class TestResolverEndToEnd(unittest.TestCase):
     async def test_localhost_a(self):
         loop = asyncio.get_event_loop()
         resolve, _ = Resolver()
-        res = await resolve('localhost', TYPES.A)
-        self.assertIsInstance(res, tuple)
-        self.assertIsInstance(res[0], ipaddress.IPv4Address)
-        self.assertEqual(str(res[0]), '127.0.0.1')
-        self.assertEqual(res[0].ttl(loop.time()), 0)
+        with FastForward(loop):
+            res = await resolve('localhost', TYPES.A)
+            self.assertIsInstance(res, tuple)
+            self.assertIsInstance(res[0], ipaddress.IPv4Address)
+            self.assertEqual(str(res[0]), '127.0.0.1')
+            self.assertEqual(res[0].expires_at, loop.time())
 
     @async_test
     async def test_localhost_aaaa(self):
         loop = asyncio.get_event_loop()
         resolve, _ = Resolver()
-        res = await resolve('localhost', TYPES.AAAA)
-        self.assertIsInstance(res, tuple)
-        self.assertIsInstance(res[0], ipaddress.IPv6Address)
-        self.assertEqual(str(res[0]), '::1')
-        self.assertEqual(res[0].ttl(loop.time()), 0)
+        with FastForward(loop):
+            res = await resolve('localhost', TYPES.AAAA)
+            self.assertIsInstance(res, tuple)
+            self.assertIsInstance(res[0], ipaddress.IPv6Address)
+            self.assertEqual(str(res[0]), '::1')
+            self.assertEqual(res[0].expires_at, loop.time())
 
 
 def patch_open():

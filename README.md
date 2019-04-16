@@ -48,9 +48,9 @@ ip_addresses = await resolve('www.google.com', TYPES.A)
 The cache for each record starts on the _start_ of each request, so duplicate concurrent requests for the same record are not made.
 
 
-## TTL
+## TTL / Record expiry
 
-The address objects each have an extra method, `ttl`, that returns the seconds left until the address expires.
+The address objects each have an extra property, `expires_at`, that returns the expiry time of the address, according to the `loop.time()` clock, and the TTL of the records involved to find that address.
 
 ```python
 import asyncio
@@ -61,15 +61,15 @@ ip_addresses = await resolve('www.google.com', TYPES.A)
 
 loop = asyncio.get_event_loop()
 for ip_address in ip_address:
-    print('TTL', ip_address.ttl(loop.time()))
+    print('TTL',  max(0.0, ip_address.expires_at - loop.time())
 ```
 
-This can be used in HA situations to assist failovers. The timer for TTL starts just _before_ the request to the nameserver is made.
+This can be used in HA situations to assist failovers. The timer for `expires_at `starts just _before_ the request to the nameserver is made.
 
 
 ## CNAMEs
 
-CNAME records are followed transparently. The `ttl` of IP addresses found via intermediate CNAME(s) is determined by using the minimum TTL of all the records involved in determining those IP addresses.
+CNAME records are followed transparently. The `expires_at` of IP addresses found via intermediate CNAME(s) is determined by using the minimum `expires_at` of all the records involved in determining those IP addresses.
 
 
 ## Custom nameservers and timeouts

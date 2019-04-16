@@ -49,17 +49,11 @@ class IPv4AddressTTL(ipaddress.IPv4Address):
         super().__init__(rdata)
         self.expires_at = expires_at
 
-    def ttl(self, now):
-        return max(0.0, self.expires_at - now)
-
 
 class IPv6AddressTTL(ipaddress.IPv6Address):
     def __init__(self, rdata, expires_at):
         super().__init__(rdata)
         self.expires_at = expires_at
-
-    def ttl(self, now):
-        return max(0.0, self.expires_at - now)
 
 
 class BytesTTL(bytes):
@@ -67,9 +61,6 @@ class BytesTTL(bytes):
         _rdata = super().__new__(cls, rdata)
         _rdata.expires_at = expires_at
         return _rdata
-
-    def ttl(self, now):
-        return max(0.0, self.expires_at - now)  # pylint: disable=no-member
 
 
 def rdata_ttl(record, ttl_start):
