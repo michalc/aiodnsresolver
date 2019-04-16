@@ -690,7 +690,7 @@ class TestResolverIntegration(unittest.TestCase):
             stop_nameserver_54 = await start_nameserver(54, get_response_54)
             self.add_async_cleanup(loop, stop_nameserver_54)
 
-            async def get_nameservers():
+            async def get_nameservers(_):
                 yield (0.5, (ipaddress.ip_address('127.0.0.1'), 53))
                 yield (0.5, (ipaddress.ip_address('127.0.0.1'), 54))
 
@@ -733,7 +733,7 @@ class TestResolverIntegration(unittest.TestCase):
             stop_nameserver_54 = await start_nameserver(54, get_response_54)
             self.add_async_cleanup(loop, stop_nameserver_54)
 
-            async def get_nameservers():
+            async def get_nameservers(_):
                 yield (0.5, (ipaddress.ip_address('127.0.0.1'), 53), (ipaddress.ip_address('127.0.0.1'), 54))
 
             resolve, _ = Resolver(get_nameservers=get_nameservers)

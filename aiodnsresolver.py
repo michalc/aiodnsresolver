@@ -238,7 +238,7 @@ async def recvfrom(loop, socks, max_bytes):
             loop.remove_reader(fileno)
 
 
-async def get_nameservers_from_etc_resolve_conf():
+async def get_nameservers_from_etc_resolve_conf(_):
     with open('/etc/resolv.conf', 'r') as file:
         nameservers = tuple(
             ipaddress.ip_address(words_on_line[1])
@@ -412,7 +412,7 @@ def Resolver(
 
     async def udp_request_namservers_until_response(fqdn, qtype):
         exception = None
-        async for nameserver in get_nameservers():
+        async for nameserver in get_nameservers(fqdn):
             timeout, addrs = nameserver[0], nameserver[1:]
             try:
                 return await timeout_udp_request_attempt(timeout, addrs, fqdn, qtype)

@@ -77,7 +77,7 @@ CNAME records are followed transparently. The `ttl` of IP addresses found via in
 It is possible to query nameservers other than those in `/etc/resolve.conf`, and for each to specify a timeout in seconds to wait for a reply before querying the next.
 
 ```python
-async def get_nameservers():
+async def get_nameservers(_):
     yield (0.5, (ipaddress.ip_address('8.8.8.8'), 53))
     yield (0.5, (ipaddress.ip_address('1.1.1.1'), 53))
     yield (1.0, (ipaddress.ip_address('8.8.8.8'), 53))
@@ -90,7 +90,7 @@ ip_addresses = await resolve('www.google.com', TYPES.A)
 Parallel requests to multiple nameservers are also possible, where the first response from each set of requests is used.
 
 ```python
-async def get_nameservers():
+async def get_nameservers(_):
     # For any record request, udp packets are sent to both 8.8.8.8 and 1.1.1.1, waiting 0.5 seconds
     # for the first response...
     yield (0.5, (ipaddress.ip_address('8.8.8.8'), 53), (ipaddress.ip_address('1.1.1.1'), 53))
