@@ -64,7 +64,7 @@ for ip_address in ip_address:
     print('TTL',  max(0.0, ip_address.expires_at - loop.time())
 ```
 
-This can be used in HA situations to assist failovers. The timer for `expires_at `starts just _before_ the request to the nameserver is made.
+This can be used in HA situations to assist failovers. The timer for `expires_at` starts just _before_ the request to the nameserver is made.
 
 
 ## CNAMEs
