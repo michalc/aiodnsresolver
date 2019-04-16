@@ -316,10 +316,10 @@ def Resolver(
                 return (host,)
 
             cname_rdata, qtype_rdata = await memoized_udp_request(fqdn, qtype)
-            minexpires_at = fqdn.expires_at  # pylint: disable=no-member
+            min_expires_at = fqdn.expires_at  # pylint: disable=no-member
             if qtype_rdata:
-                return rdata_ttl_min_expires(qtype_rdata, minexpires_at)
-            fqdn = rdata_ttl_min_expires([cname_rdata[0]], minexpires_at)[0]
+                return rdata_ttl_min_expires(qtype_rdata, min_expires_at)
+            fqdn = rdata_ttl_min_expires([cname_rdata[0]], min_expires_at)[0]
 
     async def memoized_udp_request(fqdn, qtype):
         """Memoized udp_request, that allows a dynamic expiry for each result
