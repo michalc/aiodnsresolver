@@ -276,7 +276,7 @@ async def get_host_from_etc_hosts(fqdn, qtype):
         return None
 
 
-def mix_case(fqdn):
+async def mix_case(fqdn):
     return bytes(
         (char | secrets.choice((32, 0))) if 65 <= char < 91 else char
         for char in fqdn.upper()
@@ -442,9 +442,9 @@ def Resolver(
             handle.cancel()
 
     async def udp_request_attempt(addrs, fqdn, qtype):
-        def req():
+        async def req():
             qid = secrets.randbelow(65536)
-            fqdn_transformed = transform_fqdn(fqdn)
+            fqdn_transformed = await transform_fqdn(fqdn)
             return Message(
                 qid=qid, qr=QUESTION, opcode=0, aa=0, tc=0, rd=1, ra=0, z=0, rcode=0,
                 qd=(QuestionRecord(fqdn_transformed, qtype, qclass=1),), an=(), ns=(), ar=(),
@@ -466,7 +466,7 @@ def Resolver(
                 except BaseException:
                     pass
                 else:
-                    connections[addr_str] = (sock, req())
+                    connections[addr_str] = (sock, await req())
                     connected_socks.append(sock)
 
             if not connections:
