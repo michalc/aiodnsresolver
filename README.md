@@ -166,6 +166,59 @@ loop.close()
 ```
 
 
+## Example: tornado
+
+```python
+import asyncio
+import socket
+
+from aiodnsresolver import (
+    TYPES,
+    ResolverError,
+    DoesNotExist,
+    Resolver,
+)
+
+import tornado.httpclient
+import tornado.netutil
+
+class AioHttpDnsResolver(tornado.netutil.Resolver):
+    def initialize(self):
+        self.resolver, self.clear_cache = Resolver()
+
+    async def resolve(self, host, port=0, family=socket.AF_UNSPEC):
+        # Use ipv4 unless ipv6 requested
+        record_type, family_conn = \
+            (TYPES.AAAA, socket.AF_INET6) if family == socket.AF_INET6 else \
+            (TYPES.A, socket.AF_INET)
+
+        try:
+            ip_addresses = await self.resolver(host, record_type)
+        except DoesNotExist as does_not_exist:
+            raise IOError('{} does not exist'.format(host)) from does_not_exist
+        except ResolverError as resolver_error:
+            raise IOError('{} failed to resolve'.format(host)) from resolver_error
+
+        return [
+            (family_conn, (str(ip_address), port))
+            for ip_address in ip_addresses
+        ]
+
+    async def close(self):
+        self.clear_cache()
+
+async def main():
+    tornado.netutil.Resolver.configure(AioHttpDnsResolver)
+    http_client = tornado.httpclient.AsyncHTTPClient()
+    response = await http_client.fetch("http://www.google.com")
+    print(response.body)
+
+loop = asyncio.get_event_loop()
+loop.run_until_complete(main())
+loop.close()
+```
+
+
 ## Security considerations
 
 To migitate spoofing, several techniques are used.
