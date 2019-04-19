@@ -861,7 +861,7 @@ class TestResolverIntegration(unittest.TestCase):
         self.assertEqual(num_queries, 1)
 
     @async_test
-    async def test_aiohttp_integration(self):
+    async def test_aiohttp_resolver_integration(self):
         queried_names = []
 
         async def get_response(query_data):
