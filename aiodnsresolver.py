@@ -479,7 +479,7 @@ def Resolver(
                 raise last_exception
 
             ttl_start = loop.time()
-            for _, (sock, req) in connections.items():
+            for (sock, req) in connections.values():
                 await loop.sock_sendall(sock, pack(req))
 
             trusted_responses_from = set()
