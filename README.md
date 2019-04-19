@@ -77,13 +77,11 @@ CNAME records are followed transparently. The `expires_at` of IP addresses found
 It is possible to query nameservers other than those in `/etc/resolve.conf`, and for each to specify a timeout in seconds to wait for a reply before querying the next.
 
 ```python
-from ipaddress import ip_address
-
 async def get_nameservers(_):
-    yield (0.5, (ip_address('8.8.8.8'), 53))
-    yield (0.5, (ip_address('1.1.1.1'), 53))
-    yield (1.0, (ip_address('8.8.8.8'), 53))
-    yield (1.0, (ip_address('1.1.1.1'), 53))
+    yield (0.5, ('8.8.8.8', 53))
+    yield (0.5, ('1.1.1.1', 53))
+    yield (1.0, ('8.8.8.8', 53))
+    yield (1.0, ('1.1.1.1', 53))
 
 resolve, _ = Resolver(get_nameservers=get_nameservers)
 ip_addresses = await resolve('www.google.com', TYPES.A)
@@ -95,9 +93,9 @@ Parallel requests to multiple nameservers are also possible, where the first res
 async def get_nameservers(_):
     # For any record request, udp packets are sent to both 8.8.8.8 and 1.1.1.1, waiting 0.5 seconds
     # for the first response...
-    yield (0.5, (ip_address('8.8.8.8'), 53), (ip_address('1.1.1.1'), 53))
+    yield (0.5, ('8.8.8.8', 53), ('1.1.1.1', 53))
     # ... if no response, make another set of requests, waiting 1.0 seconds before timing out
-    yield (1.0, (ip_address('8.8.8.8'), 53), (ip_address('1.1.1.1'), 53))
+    yield (1.0, ('8.8.8.8', 53), ('1.1.1.1', 53))
 
 resolve, _ = Resolver(get_nameservers=get_nameservers)
 ip_addresses = await resolve('www.google.com', TYPES.A)

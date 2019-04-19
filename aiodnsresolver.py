@@ -243,7 +243,7 @@ async def recvfrom(loop, socks, max_bytes):
 async def get_nameservers_from_etc_resolve_conf(_):
     with open('/etc/resolv.conf', 'r') as file:
         nameservers = tuple(
-            ipaddress.ip_address(words_on_line[1])
+            words_on_line[1]
             for words_on_line in (
                 line.split() for line in file
                 if line[0] not in ['#', ';']
@@ -466,14 +466,14 @@ def Resolver(
             connected_socks = []
             last_exception = OSError()
             for addr, sock in zip(addrs, socks):
-                addr_str = (str(addr[0]), addr[1])
+                addr_port = (addr[0], addr[1])
                 try:
                     sock.setblocking(False)
-                    sock.connect(addr_str)
+                    sock.connect(addr_port)
                 except OSError as exception:
                     last_exception = exception
                 else:
-                    connections[addr_str] = (sock, await req())
+                    connections[addr_port] = (sock, await req())
                     connected_socks.append(sock)
 
             if not connections:
@@ -486,12 +486,12 @@ def Resolver(
             trusted_responses_from = set()
 
             while len(trusted_responses_from) < len(connections):
-                response_data, addr_str = await recvfrom(loop, connected_socks, 512)
+                response_data, addr_port = await recvfrom(loop, connected_socks, 512)
 
                 # Some initial peeking before parsing
                 if len(response_data) < 12:
                     continue
-                req = connections[addr_str][1]
+                req = connections[addr_port][1]
                 qid_matches = req.qid == struct.unpack('!H', response_data[:2])[0]
                 if not qid_matches:
                     continue
@@ -502,9 +502,9 @@ def Resolver(
                 if not trusted:
                     continue
 
-                if addr_str in trusted_responses_from:
+                if addr_port in trusted_responses_from:
                     continue
-                trusted_responses_from.add(addr_str)
+                trusted_responses_from.add(addr_port)
 
                 name_error = res.rcode == 3
                 non_name_error = res.rcode and not name_error
