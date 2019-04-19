@@ -394,8 +394,7 @@ def Resolver(
                 for rdata_groups in answers
                 for rdata_ttl in rdata_groups
             )
-            invalidate_callback = loop.call_at(expires_at, invalidate, key)
-            invalidate_callbacks[key] = invalidate_callback
+            invalidate_callbacks[key] = loop.call_at(expires_at, invalidate, key)
             cache[key] = answers
             return answers
 
