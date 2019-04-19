@@ -469,7 +469,7 @@ def Resolver(
                 try:
                     sock.setblocking(False)
                     sock.connect(addr_str)
-                except BaseException:
+                except OSError:
                     pass
                 else:
                     connections[addr_str] = (sock, await req())
