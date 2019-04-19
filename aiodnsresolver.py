@@ -465,8 +465,7 @@ def Resolver(
             connections = {}
             connected_socks = []
             last_exception = OSError()
-            for addr, sock in zip(addrs, socks):
-                addr_port = (addr[0], addr[1])
+            for addr_port, sock in zip(addrs, socks):
                 try:
                     sock.setblocking(False)
                     sock.connect(addr_port)
@@ -480,7 +479,7 @@ def Resolver(
                 raise last_exception
 
             ttl_start = loop.time()
-            for addr, (sock, req) in connections.items():
+            for _, (sock, req) in connections.items():
                 await loop.sock_sendall(sock, pack(req))
 
             trusted_responses_from = set()
