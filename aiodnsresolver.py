@@ -404,7 +404,7 @@ def Resolver(
         del invalidate_callbacks[key]
 
     def invalidate_all():
-        for key, _ in list(cache.items()):
+        for key in list(cache):
             invalidate(key)
 
     async def udp_request_namservers_until_response(fqdn, qtype):
