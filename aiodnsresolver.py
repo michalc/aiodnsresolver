@@ -109,14 +109,14 @@ def pack(message):
         len(message.ns),
         len(message.ar),
     )
-    records = b''.join([
+    records = b''.join(tuple(
         pack_name(rec.name) + struct_pack('!HH', rec.qtype, rec.qclass)
         for rec in message.qd
-    ] + [
+    ) + tuple(
         pack_name(rec.name) + struct_pack('!HH', rec.qtype, rec.qclass) + pack_resource(rec)
         for group in (message.an, message.ns, message.ar)
         for rec in group
-    ])
+    ))
     return header + records
 
 
