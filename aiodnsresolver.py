@@ -44,6 +44,10 @@ class PointerLoop(ResolverError):
     pass
 
 
+class CnameChainTooLong(ResolverError):
+    pass
+
+
 class IPv4AddressTTL(ipaddress.IPv4Address):
     def __init__(self, rdata, expires_at):
         super().__init__(rdata)
@@ -93,7 +97,7 @@ def pack(message):
 
     def pack_resource(record):
         rdata = \
-            b'.'.join(pack_name(record.rdata)) if record.qtype == TYPES.CNAME else \
+            pack_name(record.rdata) if record.qtype == TYPES.CNAME else \
             record.rdata
         ttl = struct_pack('!L', record.ttl)
         dl = struct_pack('!H', len(rdata))
@@ -287,6 +291,7 @@ def Resolver(
         get_host=get_host_from_etc_hosts,
         get_nameservers=get_nameservers_from_etc_resolve_conf,
         transform_fqdn=mix_case,
+        max_cname_chain_length=20,
 ):
 
     loop = \
@@ -301,7 +306,7 @@ def Resolver(
     async def resolve(fqdn_str, qtype):
         fqdn = BytesTTL(fqdn_str.encode('idna'), expires_at=float('inf'))
 
-        while True:
+        for _ in range(max_cname_chain_length):
             host = await get_host(fqdn, qtype)
             if host is not None:
                 return (host,)
@@ -311,6 +316,8 @@ def Resolver(
             if qtype_rdata:
                 return rdata_ttl_min_expires(qtype_rdata, min_expires_at)
             fqdn = rdata_ttl_min_expires([cname_rdata[0]], min_expires_at)[0]
+
+        raise CnameChainTooLong()
 
     async def memoized_udp_request(fqdn, qtype):
         """Memoized udp_request, that allows a dynamic expiry for each result

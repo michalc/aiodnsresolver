@@ -16,6 +16,7 @@ from aiofastforward import (
 from aiodnsresolver import (
     TYPES,
     RESPONSE,
+    CnameChainTooLong,
     DoesNotExist,
     Message,
     Resolver,
@@ -128,6 +129,72 @@ class TestResolverIntegration(unittest.TestCase):
             self.assertEqual(len(queried_names), 3)
             self.assertEqual(queried_names[2].lower(), b'my.domain.quite-long.abcdefghijklm')
             self.assertEqual(str(res_5[0]), '123.100.123.3')
+
+    @async_test
+    async def test_cname_short_chain(self):
+        loop = asyncio.get_event_loop()
+        queried_names = []
+
+        async def get_response(query_data):
+            query = parse(query_data)
+            name = query.qd[0].name
+            queried_names.append(name)
+
+            def cname_record(to):
+                return ResourceRecord(
+                    name=name, qtype=TYPES.CNAME, qclass=1, ttl=0, rdata=to,
+                )
+
+            def a_record(to):
+                return ResourceRecord(
+                    name=name, qtype=TYPES.A, qclass=1, ttl=0, rdata=to,
+                )
+
+            record = \
+                cname_record(b'second') if name.lower() == b'first' else \
+                cname_record(b'third') if name.lower() == b'second' else \
+                a_record(ipaddress.IPv4Address('123.100.124.1').packed)
+            response = Message(
+                qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
+                qd=query.qd, an=(record,), ns=(), ar=(),
+            )
+            return pack(response)
+
+        self.addCleanup(patch_open())
+        stop_nameserver = await start_nameserver(53, get_response)
+        self.add_async_cleanup(loop, stop_nameserver)
+
+        resolve, _ = Resolver()
+        res_1 = await resolve('first', TYPES.A)
+        self.assertEqual(str(res_1[0]), '123.100.124.1')
+
+    @async_test
+    async def test_cname_long_chain(self):
+        loop = asyncio.get_event_loop()
+        queried_names = []
+
+        async def get_response(query_data):
+            query = parse(query_data)
+            name = query.qd[0].name
+            queried_names.append(name)
+
+            record = ResourceRecord(
+                name=name, qtype=TYPES.CNAME, qclass=1, ttl=0,
+                rdata=('some-domain-' + str(len(queried_names))).encode(),
+            )
+            response = Message(
+                qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
+                qd=query.qd, an=(record,), ns=(), ar=(),
+            )
+            return pack(response)
+
+        self.addCleanup(patch_open())
+        stop_nameserver = await start_nameserver(53, get_response)
+        self.add_async_cleanup(loop, stop_nameserver)
+
+        resolve, _ = Resolver()
+        with self.assertRaises(CnameChainTooLong):
+            await resolve('first', TYPES.A)
 
     @async_test
     async def test_concurrent_identical_a_query_not_made(self):
