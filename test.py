@@ -1,6 +1,7 @@
 import asyncio
 import ipaddress
 import socket
+import struct
 import unittest
 from unittest.mock import (
     MagicMock,
@@ -195,6 +196,158 @@ class TestResolverIntegration(unittest.TestCase):
         resolve, _ = Resolver()
         with self.assertRaises(CnameChainTooLong):
             await resolve('first', TYPES.A)
+
+    @async_test
+    async def test_single_pointer_to_question(self):
+        loop = asyncio.get_event_loop()
+
+        async def get_response(query_data):
+            query = parse(query_data)
+            name = query.qd[0].name
+
+            record_1 = ResourceRecord(
+                name=query.qd[0].name, qtype=TYPES.A, qclass=1, ttl=0,
+                rdata=ipaddress.IPv4Address('123.100.124.1').packed,
+            )
+            response = Message(
+                qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
+                qd=query.qd, an=(record_1,), ns=(), ar=(),
+            )
+
+            data = pack(response)
+            packed_name = b''.join(
+                component
+                for label in name.split(b'.')
+                for component in (bytes([len(label)]), label)
+            ) + b'\0'
+
+            occurance_1 = data.index(packed_name)
+            occurance_1_end = occurance_1 + len(packed_name)
+            occurance_2 = occurance_1_end + data[occurance_1_end:].index(packed_name)
+            occurance_2_end = occurance_2 + len(packed_name)
+
+            data_compressed = \
+                data[:occurance_2] + \
+                struct.pack('!H', (192 * 256) + occurance_1) + \
+                data[occurance_2_end:]
+
+            return data_compressed
+
+        self.addCleanup(patch_open())
+        stop_nameserver = await start_nameserver(53, get_response)
+        self.add_async_cleanup(loop, stop_nameserver)
+
+        resolve, _ = Resolver()
+        res = await resolve('some.domain', TYPES.A)
+        self.assertEqual(str(res[0]), '123.100.124.1')
+
+    @async_test
+    async def test_single_pointer_to_answer(self):
+        loop = asyncio.get_event_loop()
+
+        async def get_response(query_data):
+            query = parse(query_data)
+            name = query.qd[0].name
+
+            record_1 = ResourceRecord(
+                name=query.qd[0].name, qtype=TYPES.A, qclass=1, ttl=0,
+                rdata=ipaddress.IPv4Address('123.100.124.1').packed,
+            )
+            record_2 = ResourceRecord(
+                name=query.qd[0].name, qtype=TYPES.A, qclass=1, ttl=0,
+                rdata=ipaddress.IPv4Address('123.100.124.2').packed,
+            )
+            response = Message(
+                qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
+                qd=query.qd, an=(record_1, record_2), ns=(), ar=(),
+            )
+
+            data = pack(response)
+            packed_name = b''.join(
+                component
+                for label in name.split(b'.')
+                for component in (bytes([len(label)]), label)
+            ) + b'\0'
+
+            occurance_1 = data.index(packed_name)
+            occurance_1_end = occurance_1 + len(packed_name)
+            occurance_2 = occurance_1_end + data[occurance_1_end:].index(packed_name)
+            occurance_2_end = occurance_2 + len(packed_name)
+            occurance_3 = occurance_2_end + data[occurance_2_end:].index(packed_name)
+            occurance_3_end = occurance_3 + len(packed_name)
+
+            data_compressed = \
+                data[:occurance_3] + \
+                struct.pack('!H', (192 * 256) + occurance_2) + \
+                data[occurance_3_end:]
+
+            return data_compressed
+
+        self.addCleanup(patch_open())
+        stop_nameserver = await start_nameserver(53, get_response)
+        self.add_async_cleanup(loop, stop_nameserver)
+
+        resolve, _ = Resolver()
+        res = await resolve('some.domain', TYPES.A)
+        self.assertEqual(str(res[0]), '123.100.124.1')
+        self.assertEqual(str(res[1]), '123.100.124.2')
+
+    @async_test
+    async def test_pointer_to_pointer(self):
+        loop = asyncio.get_event_loop()
+
+        async def get_response(query_data):
+            query = parse(query_data)
+            name = query.qd[0].name
+
+            record_1 = ResourceRecord(
+                name=query.qd[0].name, qtype=TYPES.A, qclass=1, ttl=0,
+                rdata=ipaddress.IPv4Address('123.100.124.1').packed,
+            )
+            record_2 = ResourceRecord(
+                name=query.qd[0].name, qtype=TYPES.A, qclass=1, ttl=0,
+                rdata=ipaddress.IPv4Address('123.100.124.2').packed,
+            )
+            response = Message(
+                qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
+                qd=query.qd, an=(record_1, record_2), ns=(), ar=(),
+            )
+
+            data = pack(response)
+            packed_name = b''.join(
+                component
+                for label in name.split(b'.')
+                for component in (bytes([len(label)]), label)
+            ) + b'\0'
+
+            occurance_1 = data.index(packed_name)
+            occurance_1_end = occurance_1 + len(packed_name)
+            occurance_2 = occurance_1_end + data[occurance_1_end:].index(packed_name)
+            occurance_2_end = occurance_2 + len(packed_name)
+
+            data_compressed_1 = \
+                data[:occurance_2] + \
+                struct.pack('!H', (192 * 256) + occurance_1) + \
+                data[occurance_2_end:]
+
+            occurance_3 = occurance_2 + 2 + data_compressed_1[occurance_2 + 2:].index(packed_name)
+            occurance_3_end = occurance_3 + len(packed_name)
+
+            data_compressed_2 = \
+                data_compressed_1[:occurance_3] + \
+                struct.pack('!H', (192 * 256) + occurance_2) + \
+                data_compressed_1[occurance_3_end:]
+
+            return data_compressed_2
+
+        self.addCleanup(patch_open())
+        stop_nameserver = await start_nameserver(53, get_response)
+        self.add_async_cleanup(loop, stop_nameserver)
+
+        resolve, _ = Resolver()
+        res = await resolve('some.domain', TYPES.A)
+        self.assertEqual(str(res[0]), '123.100.124.1')
+        self.assertEqual(str(res[1]), '123.100.124.2')
 
     @async_test
     async def test_concurrent_identical_a_query_not_made(self):

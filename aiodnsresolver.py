@@ -142,7 +142,7 @@ def parse(data):
         local_cursor = c
 
         while True:
-            if byte(local_cursor) >= 192:  # is pointer
+            while byte(local_cursor) >= 192:  # is pointer
                 local_cursor = (byte(local_cursor) - 192) * 256 + byte(local_cursor + 1)
                 followed_pointers.append(local_cursor)
                 if len(followed_pointers) != len(set(followed_pointers)):
