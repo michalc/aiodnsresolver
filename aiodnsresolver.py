@@ -463,7 +463,6 @@ def Resolver(
             )
 
             connections = {}
-            connected_socks = []
             last_exception = OSError()
             for addr_port, sock in zip(addrs, socks):
                 try:
@@ -473,7 +472,6 @@ def Resolver(
                     last_exception = exception
                 else:
                     connections[addr_port] = (sock, await req())
-                    connected_socks.append(sock)
 
             if not connections:
                 raise last_exception
@@ -483,6 +481,7 @@ def Resolver(
                 await loop.sock_sendall(sock, pack(req))
 
             while connections:
+                connected_socks = tuple(sock for sock, req in connections.values())
                 response_data, addr_port = await recvfrom(loop, connected_socks, 512)
 
                 # Some initial peeking before parsing
@@ -499,7 +498,6 @@ def Resolver(
                 if not trusted:
                     continue
 
-                connected_socks.remove(sock)
                 del connections[addr_port]
 
                 name_error = res.rcode == 3
