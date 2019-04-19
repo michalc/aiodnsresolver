@@ -467,6 +467,8 @@ def Resolver(
             for addr_port, sock in zip(addrs, socks):
                 try:
                     sock.setblocking(False)
+                    sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 512)
+                    sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 512)
                     sock.connect(addr_port)
                 except OSError as exception:
                     last_exception = exception
