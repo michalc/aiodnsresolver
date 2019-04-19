@@ -942,6 +942,7 @@ class TestResolverIntegration(unittest.TestCase):
         await runner.setup()
         site = web.TCPSite(runner, '0.0.0.0', 8876)
         await site.start()
+        self.add_async_cleanup(loop, runner.cleanup)
 
         async with aiohttp.ClientSession(
                 connector=aiohttp.TCPConnector(use_dns_cache=False, resolver=AioHttpDnsResolver()),
