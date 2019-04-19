@@ -240,10 +240,10 @@ async def get_nameservers_from_etc_resolve_conf(_):
     with open('/etc/resolv.conf', 'r') as file:
         nameservers = tuple(
             ipaddress.ip_address(words_on_line[1])
-            for words_on_line in [
+            for words_on_line in (
                 line.split() for line in file
                 if line[0] not in ['#', ';']
-            ]
+            )
             if len(words_on_line) >= 2 and words_on_line[0] == 'nameserver'
         )
     for _ in range(5):
