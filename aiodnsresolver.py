@@ -256,8 +256,8 @@ async def get_host_from_etc_hosts(fqdn, qtype):
         hosts = [
             (host, ipaddress.ip_address(words[0]))
             for line in file
-            for (line_before_comment, _, __) in [line.partition('#')]
-            for words in [line_before_comment.split()]
+            for (line_before_comment, _, __) in (line.partition('#'),)
+            for words in (line_before_comment.split(),)
             for host in words[1:]
         ]
     hosts = {
