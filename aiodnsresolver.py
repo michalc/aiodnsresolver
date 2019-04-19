@@ -482,9 +482,7 @@ def Resolver(
             for (sock, req) in connections.values():
                 await loop.sock_sendall(sock, pack(req))
 
-            trusted_responses_from = set()
-
-            while len(trusted_responses_from) < len(connections):
+            while connections:
                 response_data, addr_port = await recvfrom(loop, connected_socks, 512)
 
                 # Some initial peeking before parsing
@@ -501,9 +499,8 @@ def Resolver(
                 if not trusted:
                     continue
 
-                if addr_port in trusted_responses_from:
-                    continue
-                trusted_responses_from.add(addr_port)
+                connected_socks.remove(sock)
+                del connections[addr_port]
 
                 name_error = res.rcode == 3
                 non_name_error = res.rcode and not name_error
