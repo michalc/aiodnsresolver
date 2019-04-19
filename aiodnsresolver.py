@@ -86,10 +86,10 @@ def pack(message):
         return struct_pack('B%ds' % (length), length, string)
 
     def pack_name(name):
-        return b''.join([
+        return b''.join(
             pack_string(part)
             for part in name.split(b'.')
-        ]) + b'\0'
+        ) + b'\0'
 
     def pack_resource(record):
         rdata = \
