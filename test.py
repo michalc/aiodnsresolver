@@ -1016,9 +1016,6 @@ class TestResolverIntegration(unittest.TestCase):
             Union,
             cast,
         )
-        from aiohttp import (
-            hdrs,
-        )
         from aiohttp.client import (
             ClientTimeout,
         )
@@ -1026,8 +1023,6 @@ class TestResolverIntegration(unittest.TestCase):
             ClientConnectorCertificateError,
             ClientConnectorError,
             ClientConnectorSSLError,
-            ClientHttpProxyError,
-            ClientProxyConnectionError,
             ServerFingerprintMismatch,
             cert_errors,
             ssl_errors,
@@ -1036,22 +1031,17 @@ class TestResolverIntegration(unittest.TestCase):
             ResponseHandler,
         )
         from aiohttp.client_reqrep import (
-            SSL_ALLOWED_TYPES,
             ClientRequest,
             Fingerprint,
         )
         from aiohttp.connector import (
             _DNSCacheTable,
             BaseConnector,
-            Connection,
             sentinel,
         )
         from aiohttp.helpers import (
             CeilTimeout,
             is_ip_address,
-        )
-        from aiohttp.http import (
-            RESPONSES,
         )
         from aiohttp.locks import (
             EventResultOrError,
@@ -1060,7 +1050,6 @@ class TestResolverIntegration(unittest.TestCase):
             AbstractResolver,
             DefaultResolver,
         )
-        import attr
 
         class TCPConnector(BaseConnector):
             """TCP connector.
@@ -1101,10 +1090,6 @@ class TestResolverIntegration(unittest.TestCase):
                                  limit=limit, limit_per_host=limit_per_host,
                                  enable_cleanup_closed=enable_cleanup_closed,
                                  loop=loop)
-
-                if not isinstance(ssl, SSL_ALLOWED_TYPES):
-                    raise TypeError('ssl should be SSLContext, bool, Fingerprint, '
-                                    'or None, got {!r} instead.'.format(ssl))
                 self._ssl = ssl
                 if resolver is None:
                     resolver = DefaultResolver(loop=self._loop)
@@ -1214,18 +1199,14 @@ class TestResolverIntegration(unittest.TestCase):
 
                 return self._cached_hosts.next_addrs(key)
 
-            async def _create_connection(self, req: 'ClientRequest',
+            async def _create_connection(self, req: ClientRequest,
                                          traces: List['Trace'],
                                          timeout: ClientTimeout) -> ResponseHandler:
                 """Create connection.
                 Has same keyword arguments as BaseEventLoop.create_connection.
                 """
-                if req.proxy:
-                    _, proto = await self._create_proxy_connection(
-                        req, timeout)
-                else:
-                    _, proto = await self._create_direct_connection(
-                        req, traces, timeout)
+                assert not req.proxy
+                _, proto = await self._create_direct_connection(req, traces, timeout)
 
                 return proto
 
@@ -1362,102 +1343,6 @@ class TestResolverIntegration(unittest.TestCase):
 
                 assert last_exc is not None
                 raise last_exc
-
-            async def _create_proxy_connection(
-                    self,
-                    req: 'ClientRequest',
-                    timeout: 'ClientTimeout'
-            ) -> Tuple[asyncio.Transport, ResponseHandler]:
-                headers = {}  # type: Dict[str, str]
-                if req.proxy_headers is not None:
-                    headers = req.proxy_headers  # type: ignore
-                headers[hdrs.HOST] = req.headers[hdrs.HOST]
-
-                url = req.proxy
-                assert url is not None
-                proxy_req = ClientRequest(
-                    hdrs.METH_GET, url,
-                    headers=headers,
-                    auth=req.proxy_auth,
-                    loop=self._loop,
-                    ssl=req.ssl)
-
-                # create connection to proxy server
-                transport, proto = await self._create_direct_connection(
-                    proxy_req, [], timeout, client_error=ClientProxyConnectionError)
-
-                # Many HTTP proxies has buggy keepalive support.  Let's not
-                # reuse connection but close it after processing every
-                # response.
-                proto.force_close()
-
-                auth = proxy_req.headers.pop(hdrs.AUTHORIZATION, None)
-                if auth is not None:
-                    if not req.is_ssl():
-                        req.headers[hdrs.PROXY_AUTHORIZATION] = auth
-                    else:
-                        proxy_req.headers[hdrs.PROXY_AUTHORIZATION] = auth
-
-                if req.is_ssl():
-                    sslcontext = self._get_ssl_context(req)
-                    # For HTTPS requests over HTTP proxy
-                    # we must notify proxy to tunnel connection
-                    # so we send CONNECT command:
-                    #   CONNECT www.python.org:443 HTTP/1.1
-                    #   Host: www.python.org
-                    #
-                    # next we must do TLS handshake and so on
-                    # to do this we must wrap raw socket into secure one
-                    # asyncio handles this perfectly
-                    proxy_req.method = hdrs.METH_CONNECT
-                    proxy_req.url = req.url
-                    key = attr.evolve(req.connection_key,
-                                      proxy=None,
-                                      proxy_auth=None,
-                                      proxy_headers_hash=None)
-                    conn = Connection(self, key, proto, self._loop)
-                    proxy_resp = await proxy_req.send(conn)
-                    try:
-                        protocol = conn._protocol
-                        assert protocol is not None
-                        protocol.set_response_params()
-                        resp = await proxy_resp.start(conn)
-                    except BaseException:
-                        proxy_resp.close()
-                        conn.close()
-                        raise
-                    else:
-                        conn._protocol = None
-                        conn._transport = None
-                        try:
-                            if resp.status != 200:
-                                message = resp.reason
-                                if message is None:
-                                    message = RESPONSES[resp.status][0]
-                                raise ClientHttpProxyError(
-                                    proxy_resp.request_info,
-                                    resp.history,
-                                    status=resp.status,
-                                    message=message,
-                                    headers=resp.headers)
-                            rawsock = transport.get_extra_info('socket', default=None)
-                            if rawsock is None:
-                                raise RuntimeError(
-                                    'Transport does not expose socket instance')
-                            # Duplicate the socket, so now we can close proxy transport
-                            rawsock = rawsock.dup()
-                        finally:
-                            transport.close()
-
-                        transport, proto = await self._wrap_create_connection(
-                            self._factory, timeout=timeout,
-                            ssl=sslcontext, sock=rawsock,
-                            server_hostname=req.host,
-                            req=req)
-                    finally:
-                        proxy_resp.close()
-
-                return transport, proto
 
         class AioHttpDnsResolver(aiohttp.abc.AbstractResolver):
             def __init__(self):
