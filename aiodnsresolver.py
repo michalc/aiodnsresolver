@@ -408,7 +408,7 @@ def Resolver(
             invalidate(key)
 
     async def udp_request_namservers_until_response(fqdn, qtype):
-        exception = None
+        exception = ResolverError()
         async for nameserver in get_nameservers(fqdn):
             timeout, addrs = nameserver[0], nameserver[1:]
             try:
