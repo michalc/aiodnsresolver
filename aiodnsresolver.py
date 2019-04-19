@@ -464,19 +464,20 @@ def Resolver(
 
             connections = {}
             connected_socks = []
+            last_exception = OSError()
             for addr, sock in zip(addrs, socks):
                 addr_str = (str(addr[0]), addr[1])
                 try:
                     sock.setblocking(False)
                     sock.connect(addr_str)
-                except OSError:
-                    pass
+                except OSError as exception:
+                    last_exception = exception
                 else:
                     connections[addr_str] = (sock, await req())
                     connected_socks.append(sock)
 
             if not connections:
-                raise ResolverError('Unable to connect sockets')
+                raise last_exception
 
             ttl_start = loop.time()
             for addr, (sock, req) in connections.items():

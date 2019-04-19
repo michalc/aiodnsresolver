@@ -1125,6 +1125,19 @@ class TestResolverIntegration(unittest.TestCase):
                 await res_1_task
 
     @async_test
+    async def test_bad_nameservers_fail(self):
+        loop = asyncio.get_event_loop()
+
+        with FastForward(loop):
+            async def get_nameservers(_):
+                yield (0.5, ('300.300.300.300', 53))
+
+            resolve, _ = Resolver(get_nameservers=get_nameservers)
+
+            with self.assertRaises(OSError):
+                await resolve('my.domain', TYPES.A)
+
+    @async_test
     async def test_a_socket_error_fail_immediately(self):
         # No nameserver started
         self.addCleanup(patch_open())
