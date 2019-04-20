@@ -1354,8 +1354,10 @@ class TestResolverIntegration(unittest.TestCase):
         site = web.TCPSite(runner, '0.0.0.0', 8876)
         await site.start()
 
+        resolver = AioHttpDnsResolver()
+        self.add_async_cleanup(loop, resolver.close)
         async with aiohttp.ClientSession(
-                connector=aiohttp.TCPConnector(use_dns_cache=False, resolver=AioHttpDnsResolver()),
+                connector=aiohttp.TCPConnector(use_dns_cache=False, resolver=resolver),
         ) as session:
             async with await session.get('http://some-domain.com:8876/page') as result:
                 self.assertEqual(result.status, 204)
