@@ -38,20 +38,6 @@ def async_test(func):
     return wrapper
 
 
-def until_called(num_times):
-    num_times_called = 0
-    future = asyncio.Future()
-
-    def func():
-        nonlocal num_times_called
-        num_times_called += 1
-        if num_times_called == num_times:
-            future.set_result(None)
-        return future
-
-    return func
-
-
 class TestResolverIntegration(unittest.TestCase):
     """ Tests that run a controllable nameserver locally, mocking access to
     `/ect/resolve.conf` so this one is used by the resolver
