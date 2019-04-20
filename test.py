@@ -1537,7 +1537,11 @@ async def start_nameserver(port, get_response):
 
     async def client_task(data, addr):
         response = await get_response(data)
-        await sendto_all(loop, sock, response, addr)
+        # This can raise BlockingIOError, or not send all the data, but for
+        # these tests, it's acceptable. Always less than 512 bytes are sent,
+        # so _very_ unlikely, and if this does happen, at worse the test will
+        # fail
+        sock.sendto(response, addr)
 
     server_task = asyncio.ensure_future(server())
 
@@ -1547,44 +1551,3 @@ async def start_nameserver(port, get_response):
         sock.close()
 
     return stop
-
-
-# recvfrom/ sendto for nonblocking sockets for use in asyncio doesn't seem to
-# be part of the standard library, and not wanting the inflexibility of using
-# the streams/protocol/datagram endpoint framework
-
-async def sendto(loop, sock, data, addr):
-    try:
-        return sock.sendto(data, addr)
-    except BlockingIOError:
-        pass
-
-    fileno = sock.fileno()
-    result = asyncio.Future()
-
-    def write_with_writer():
-        try:
-            bytes_sent = sock.sendto(data, addr)
-        except BlockingIOError:
-            pass
-        except BaseException as exception:
-            loop.remove_writer(fileno)
-            if not result.cancelled():
-                result.set_exception(exception)
-        else:
-            loop.remove_writer(fileno)
-            if not result.cancelled():
-                result.set_result(bytes_sent)
-
-    loop.add_witer(fileno, write_with_writer)
-
-    try:
-        return await result
-    finally:
-        loop.remove_writer(fileno)
-
-
-async def sendto_all(loop, sock, data, addr):
-    bytes_sent = await sendto(loop, sock, data, addr)
-    while bytes_sent != len(data):
-        bytes_sent += await sendto(loop, sock, data[bytes_sent:], addr)
