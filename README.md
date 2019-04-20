@@ -253,7 +253,7 @@ Tests attempt to closly match real-world use, and assert on how input translate 
 
 There are however exceptions.
 
-Many tests assume that timeouts are controlled by `asyncio.sleep`, `loop.call_later` or `loop.call_at`. This is to allow time to be fast-forwarded through cache invalidation using [aiofastforward](https://github.com/michalc/aiofastforward) without actually having to wait the corresponding time in the tests. Also, many tests assume `open` is used to access files, and patch it to allow assertions on what the code would do with different content of `/etc/resolve.conf` or `/etc/hosts`.
+Many tests assume that timeouts are controlled by `asyncio.sleep`, `loop.call_later` or `loop.call_at`. This is to allow time to be fast-forwarded through cache invalidation using [aiofastforward](https://github.com/michalc/aiofastforward) without actually having to wait the corresponding time in the tests. Also, many tests assume `open` is used to access files, and patch it to allow assertions on what the code would do with different contents of `/etc/resolve.conf` or `/etc/hosts`.
 
 While both being assumptions, they are both unlikely to change, and in the case that they are changed, this would much more likely result in tests failing incorrectly rather than passing incorrectly. Therefore these are low-risk assumptions.
 
