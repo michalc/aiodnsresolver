@@ -245,3 +245,18 @@ loop = asyncio.get_event_loop()
 loop.run_until_complete(main())
 loop.close()
 ```
+
+
+## Testing strategy
+
+Tests attempt to closly match real-world use, and assert on how input translate to output, i.e. the _public_ behaviour of the resolver. Therefore the tests avoid assumptions on implementation details.
+
+There are however exceptions.
+
+Many tests assume that timeouts are controlled by `asyncio.sleep`, `loop.call_later` or `loop.call_at`. This is to allow time to be fast-forwarded through cache invalidation using [aiofastforward](https://github.com/michalc/aiofastforward) without actually having to wait the corresponding time in the tests. Also, many tests assume `open` is used to access files, and patch it to allow assertions on what the code would do with different content of `/etc/resolve.conf` or `/etc/hosts`.
+
+While both being assumptions, they are both unlikely to change, and in the case that they are changed, this would much more likely result in tests failing incorrectly rather than passing incorrectly. Therefore these are low-risk assumptions.
+
+A higher risk assumption is that many tests use the, otherwise private, `pack` and `parse` functions as part of the built-in DNS server that is used by the tests. These are the core functions used by the production code used to pack and parse DNS messages. While asserting that the resolver can communicate to the built-in nameserver, all the tests do is assert that `pack` and `parse` are consistent with each other: it is an assumption that other nameservers have equivalent behaviour.
+
+To mitigate the risks that this assumption brings, some "end to end"-style tests are included, which use whatever nameservers are in `/etc/resolve.conf`, and asserting on globally available DNS results. While not going through every possible case of input, they do validate that core behaviour is consistent with one other implementation of the protocol.
