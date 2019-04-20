@@ -104,6 +104,30 @@ ip_addresses = await resolve('www.google.com', TYPES.A)
 This can be used as part of a HA system: if a nameserver isn't contactable, this pattern avoids waiting for its timeout before querying another nameserver.
 
 
+## Security considerations
+
+To migitate spoofing, several techniques are used.
+
+- Each query is given a random ID, which is checked against any response.
+
+- Each domain name is encoded with [0x20-bit encoding](https://astrolavos.gatech.edu/articles/increased_dns_resistance.pdf), which is checked against any response.
+
+- A new socket, and so a new random local port, is used for each query.
+
+- Requests made for a domain while there is an in-flight query for that domain, wait for the the in-flight query to finish, and use its result.
+
+
+## Scope
+
+The scope of this project is deliberately restricted to operations that are used to resolve A or AAAA records: to resolve a domain name to its IP addresses, and have similar responsibilities to `gethostbyname`. Some limited extra behaviour is present/may be added, but great care is taken to prevent scope creep, especially to not add complexity that isn't required to resolve A or AAAA records.
+
+- UDP queries are made, but not TCP. DNS servers must support UDP, and it's impossible for a single A and AAAA record to not fit into the maximum size of a UDP DNS response, 512 bytes. There may be other data that the DNS server would return in TCP connections, but this isn't required to resolve a domain name to a single IP address.
+
+  It is technically possible that in the case of extremely high numbers of A or AAAA records for a domain, they would not fit in a single UDP message. However, this is extremely unlikely, and in this unlikely case, extremely unlikely to affect applications in any meaningful way.
+
+- The resolver is a _stub_ resolver: it delegates the responsibility of recursion to the nameserver(s) it queries. In the vast majority of envisioned use cases this is acceptable, since the nameservers in `/etc/resolve.conf` will be recursive.
+
+
 ## Example: aiohttp
 
 ```python
@@ -215,27 +239,3 @@ loop = asyncio.get_event_loop()
 loop.run_until_complete(main())
 loop.close()
 ```
-
-
-## Security considerations
-
-To migitate spoofing, several techniques are used.
-
-- Each query is given a random ID, which is checked against any response.
-
-- Each domain name is encoded with [0x20-bit encoding](https://astrolavos.gatech.edu/articles/increased_dns_resistance.pdf), which is checked against any response.
-
-- A new socket, and so a new random local port, is used for each query.
-
-- Requests made for a domain while there is an in-flight query for that domain, wait for the the in-flight query to finish, and use its result.
-
-
-## Scope
-
-The scope of this project is deliberately restricted to operations that are used to resolve A or AAAA records: to resolve a domain name to its IP addresses, and have similar responsibilities to `gethostbyname`. Some limited extra behaviour is present/may be added, but great care is taken to prevent scope creep, especially to not add complexity that isn't required to resolve A or AAAA records.
-
-- UDP queries are made, but not TCP. DNS servers must support UDP, and it's impossible for a single A and AAAA record to not fit into the maximum size of a UDP DNS response, 512 bytes. There may be other data that the DNS server would return in TCP connections, but this isn't required to resolve a domain name to a single IP address.
-
-  It is technically possible that in the case of extremely high numbers of A or AAAA records for a domain, they would not fit in a single UDP message. However, this is extremely unlikely, and in this unlikely case, extremely unlikely to affect applications in any meaningful way.
-
-- The resolver is a _stub_ resolver: it delegates the responsibility of recursion to the nameserver(s) it queries. In the vast majority of envisioned use cases this is acceptable, since the nameservers in `/etc/resolve.conf` will be recursive.
