@@ -116,6 +116,12 @@ To migitate spoofing, several techniques are used.
 
 - Requests made for a domain while there is an in-flight query for that domain, wait for the the in-flight query to finish, and use its result.
 
+Also, to migitate the risk of evil responses/configuration
+
+- [Pointer loops](https://nvd.nist.gov/vuln/detail/CVE-2017-2909) are detected.
+
+- CNAME chains have a maximum length.
+
 
 ## Scope
 
