@@ -1527,10 +1527,6 @@ async def start_nameserver(port, get_response):
             while True:
                 data, addr = await recvfrom(loop, [sock], 512)
                 client_tasks.append(asyncio.ensure_future(client_task(data, addr)))
-        except asyncio.CancelledError:
-            pass
-        except BaseException as exception:
-            print(exception)
         finally:
             for task in client_tasks:
                 task.cancel()
