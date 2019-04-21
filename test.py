@@ -774,6 +774,30 @@ class TestResolverIntegration(unittest.TestCase):
         self.assertEqual(len(queried_names), 2)
 
     @async_test
+    async def test_listen_then_close_local_raises_exception(self):
+        loop = asyncio.get_event_loop()
+
+        async def server():
+            with socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM) as sock:
+                sock.setblocking(False)
+                sock.bind(('', 53))
+                await recvfrom(loop, [sock], 512)
+                await asyncio.sleep(0)
+
+        self.addCleanup(patch_open())
+        server_task = asyncio.ensure_future(server())
+
+        async def cleanup():
+            server_task.cancel()
+        self.add_async_cleanup(loop, cleanup)
+
+        resolve, _ = Resolver()
+        # Suspect that the loopback interface "knows" if it won't be able
+        # to receive packets if nothing is bound on the other end
+        with self.assertRaises(ConnectionRefusedError):
+            await resolve('my.domain', TYPES.A)
+
+    @async_test
     async def test_cancel_can_run_next(self):
         loop = asyncio.get_event_loop()
         response_blockers = [asyncio.Future(), asyncio.Future()]
