@@ -799,6 +799,37 @@ class TestResolverIntegration(unittest.TestCase):
             await resolve('my.domain', TYPES.A)
 
     @async_test
+    async def test_not_loopback_interface(self):
+        loop = asyncio.get_event_loop()
+
+        async def get_response(query_data):
+            query = parse(query_data)
+            reponse_record = ResourceRecord(
+                name=query.qd[0].name,
+                qtype=TYPES.A,
+                qclass=1,
+                ttl=0,
+                rdata=ipaddress.IPv4Address('123.100.123.1').packed,
+            )
+            response = Message(
+                qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
+                qd=query.qd, an=(reponse_record,), ns=(), ar=(),
+            )
+            return pack(response)
+
+        stop_nameserver = await start_nameserver(53, get_response)
+        self.add_async_cleanup(loop, stop_nameserver)
+
+        local_ip = socket.gethostbyname(socket.gethostname())
+
+        async def get_nameservers(_):
+            yield (0.5, (local_ip, 53))
+
+        resolve, _ = Resolver(get_nameservers=get_nameservers)
+        res = await resolve('my.domain', TYPES.A)
+        self.assertEqual(str(res[0]), '123.100.123.1')
+
+    @async_test
     async def test_cancel_can_run_next(self):
         loop = asyncio.get_event_loop()
         response_blockers = [asyncio.Future(), asyncio.Future()]
