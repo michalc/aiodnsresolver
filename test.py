@@ -786,6 +786,7 @@ class TestResolverIntegration(unittest.TestCase):
 
         self.addCleanup(patch_open())
         server_task = asyncio.ensure_future(server())
+        await asyncio.sleep(0)
 
         async def cleanup():
             server_task.cancel()
