@@ -222,11 +222,7 @@ async def recvfrom(loop, socks, max_bytes):
                     result.set_result((data, addr))
         return _reader
 
-    fileno_socks = tuple(
-        (sock.fileno(), sock)
-        for sock in socks
-    )
-
+    fileno_socks = tuple((sock.fileno(), sock) for sock in socks)
     result = asyncio.Future()
 
     for fileno, sock in fileno_socks:
