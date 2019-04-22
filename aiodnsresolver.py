@@ -126,7 +126,7 @@ def pack(message):
 
 def parse(data):
     struct_calcsize = struct.calcsize
-    struct_unpack = struct.unpack
+    struct_unpack_from = struct.unpack_from
 
     def byte(offset):
         return data[offset:offset + 1][0]
@@ -168,7 +168,7 @@ def parse(data):
     def unpack(struct_format):
         nonlocal c
         dc = struct_calcsize(struct_format)
-        unpacked = struct_unpack(struct_format, data[c: c + dc])
+        unpacked = struct_unpack_from(struct_format, data, c)
         c += dc
         return unpacked
 
