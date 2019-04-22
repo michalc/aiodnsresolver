@@ -144,9 +144,9 @@ def parse(data):
         while True:
             while byte(local_cursor) >= 192:  # is pointer
                 local_cursor = (byte(local_cursor) - 192) * 256 + byte(local_cursor + 1)
-                followed_pointers.append(local_cursor)
-                if len(followed_pointers) != len(set(followed_pointers)):
+                if local_cursor in followed_pointers:
                     raise PointerLoop()
+                followed_pointers.append(local_cursor)
                 if len(followed_pointers) == 1:
                     c += 2
 
