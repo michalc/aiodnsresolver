@@ -167,9 +167,8 @@ def parse(data):
 
     def unpack(struct_format):
         nonlocal c
-        dc = struct_calcsize(struct_format)
         unpacked = struct_unpack_from(struct_format, data, c)
-        c += dc
+        c += struct_calcsize(struct_format)
         return unpacked
 
     def parse_question_record():
