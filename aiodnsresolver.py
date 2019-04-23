@@ -95,9 +95,7 @@ def pack(message):
         rdata = \
             pack_name(record.rdata) if record.qtype == TYPES.CNAME else \
             record.rdata
-        ttl = struct_pack('!L', record.ttl)
-        dl = struct_pack('!H', len(rdata))
-        return ttl + dl + rdata
+        return struct_pack('!LH', record.ttl, len(rdata)) + rdata
 
     header = struct_pack(
         '!HHHHHH',
