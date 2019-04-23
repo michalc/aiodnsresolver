@@ -379,8 +379,7 @@ def Resolver(
 
     def invalidate(key):
         del cache[key]
-        invalidate_callbacks[key].cancel()
-        del invalidate_callbacks[key]
+        invalidate_callbacks.pop(key).cancel()
 
     def invalidate_all():
         for key in list(cache):
