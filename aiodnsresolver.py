@@ -461,7 +461,7 @@ def Resolver(
 
                 try:
                     res = parse(response_data)
-                except (struct.error, IndexError):
+                except (struct.error, IndexError, PointerLoop):
                     continue
 
                 trusted = res.qid == req.qid and res.qd == req.qd

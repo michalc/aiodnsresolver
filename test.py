@@ -20,7 +20,6 @@ from aiodnsresolver import (
     CnameChainTooLong,
     DoesNotExist,
     Message,
-    PointerLoop,
     Resolver,
     ResolverError,
     ResourceRecord,
@@ -377,7 +376,7 @@ class TestResolverIntegration(unittest.TestCase):
         self.add_async_cleanup(loop, stop_nameserver)
 
         resolve, _ = Resolver()
-        with self.assertRaises(PointerLoop):
+        with self.assertRaises(asyncio.TimeoutError):
             await resolve('some.domain', TYPES.A)
 
     @async_test
@@ -422,7 +421,7 @@ class TestResolverIntegration(unittest.TestCase):
         self.add_async_cleanup(loop, stop_nameserver)
 
         resolve, _ = Resolver()
-        with self.assertRaises(PointerLoop):
+        with self.assertRaises(asyncio.TimeoutError):
             await resolve('some.domain', TYPES.A)
 
     @async_test
@@ -468,7 +467,7 @@ class TestResolverIntegration(unittest.TestCase):
         self.add_async_cleanup(loop, stop_nameserver)
 
         resolve, _ = Resolver()
-        with self.assertRaises(PointerLoop):
+        with self.assertRaises(asyncio.TimeoutError):
             await resolve('some.domain', TYPES.A)
 
     @async_test
