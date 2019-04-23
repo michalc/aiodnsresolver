@@ -19,7 +19,7 @@ def tests_require():
 
 setuptools.setup(
     name='aiodnsresolver',
-    version='0.0.104',
+    version='0.0.105',
     description='Pure asyncio Python DNS resolver',
     long_description=long_description(),
     long_description_content_type='text/markdown',
