@@ -13,6 +13,10 @@ TYPES = collections.namedtuple('Types', [
     'A', 'CNAME', 'TXT', 'AAAA'
 ])(A=1, CNAME=5, TXT=16, AAAA=28)
 
+STRUCT_HEADER = struct.Struct('!HHHHHH')
+STRUCT_TTL_RDATALEN = struct.Struct('!LH')
+STRUCT_QTYPE_QCLASS = struct.Struct('!HH')
+
 # Field names chosen to be consistent with RFC 1035
 Message = collections.namedtuple('Message', [
     'qid', 'qr', 'opcode', 'aa', 'tc', 'rd', 'ra', 'z', 'rcode',
@@ -68,8 +72,6 @@ class BytesTTL(bytes):
 
 
 def pack(message):
-    struct_pack = struct.pack
-
     def pack_name(name):
         return b''.join(
             bytes((len(part),)) + part
@@ -80,10 +82,9 @@ def pack(message):
         rdata = \
             pack_name(record.rdata) if record.qtype == TYPES.CNAME else \
             record.rdata
-        return struct_pack('!LH', record.ttl, len(rdata)) + rdata
+        return STRUCT_TTL_RDATALEN.pack(record.ttl, len(rdata)) + rdata
 
-    header = struct_pack(
-        '!HHHHHH',
+    header = STRUCT_HEADER.pack(
         message.qid,
         (message.qr << 15) + (message.opcode << 11) + (message.aa << 10) + (message.tc << 9) +
         (message.rd << 8) + (message.ra << 7) + (message.z << 4) + message.rcode,
@@ -93,10 +94,10 @@ def pack(message):
         len(message.ar),
     )
     records = b''.join(tuple(
-        pack_name(rec.name) + struct_pack('!HH', rec.qtype, rec.qclass)
+        pack_name(rec.name) + STRUCT_QTYPE_QCLASS.pack(rec.qtype, rec.qclass)
         for rec in message.qd
     ) + tuple(
-        pack_name(rec.name) + struct_pack('!HH', rec.qtype, rec.qclass) + pack_resource(rec)
+        pack_name(rec.name) + STRUCT_QTYPE_QCLASS.pack(rec.qtype, rec.qclass) + pack_resource(rec)
         for group in (message.an, message.ns, message.ar)
         for rec in group
     ))
@@ -104,9 +105,6 @@ def pack(message):
 
 
 def parse(data):
-    struct_calcsize = struct.calcsize
-    struct_unpack_from = struct.unpack_from
-
     def byte(offset):
         return data[offset:offset + 1][0]
 
@@ -144,22 +142,22 @@ def parse(data):
             yield num - (high << length)
             num = high
 
-    def unpack(struct_format):
+    def unpack(struct_obj):
         nonlocal c
-        unpacked = struct_unpack_from(struct_format, data, c)
-        c += struct_calcsize(struct_format)
+        unpacked = struct_obj.unpack_from(data, c)
+        c += struct_obj.size
         return unpacked
 
     def parse_question_record():
         name = b'.'.join(load_labels())
-        qtype, qclass = unpack('!HH')
+        qtype, qclass = unpack(STRUCT_QTYPE_QCLASS)
         return QuestionRecord(name, qtype, qclass)
 
     def parse_resource_record():
         nonlocal c
         # The start is same as the question record
         name, qtype, qclass = parse_question_record()
-        ttl, dc = unpack('!LH')
+        ttl, dc = unpack(STRUCT_TTL_RDATALEN)
         if qtype == TYPES.CNAME:
             rdata = b'.'.join(load_labels())
         else:
@@ -169,7 +167,7 @@ def parse(data):
         return ResourceRecord(name, qtype, qclass, ttl, rdata)
 
     c = 0
-    qid, x, qd_count, an_count, ns_count, ar_count = unpack('!HHHHHH')
+    qid, x, qd_count, an_count, ns_count, ar_count = unpack(STRUCT_HEADER)
     rcode, z, ra, rd, tc, aa, opcode, qr = split_bits(x, 4, 3, 1, 1, 1, 1, 4, 1)
 
     qd = tuple(parse_question_record() for _ in range(qd_count))
