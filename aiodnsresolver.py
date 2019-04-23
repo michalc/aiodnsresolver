@@ -459,17 +459,12 @@ def Resolver(
                 connected_socks = tuple(sock for sock, req in connections.values())
                 response_data, addr_port = await recvfrom(loop, connected_socks, 512)
 
-                # Some initial peeking before parsing
-                if len(response_data) < 12:
-                    continue
-                req = connections[addr_port][1]
-                qid_matches = req.qid == struct.unpack('!H', response_data[:2])[0]
-                if not qid_matches:
+                try:
+                    res = parse(response_data)
+                except (struct.error, IndexError):
                     continue
 
-                res = parse(response_data)
                 trusted = res.qid == req.qid and res.qd == req.qd
-
                 if not trusted:
                     continue
 
