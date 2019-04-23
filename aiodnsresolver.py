@@ -382,8 +382,10 @@ def Resolver(
         invalidate_callbacks.pop(key).cancel()
 
     def invalidate_all():
-        for key in list(cache):
-            invalidate(key)
+        for callback in invalidate_callbacks.values():
+            callback.cancel()
+        invalidate_callbacks.clear()
+        cache.clear()
 
     async def udp_request_namservers_until_response(fqdn, qtype):
         exception = ResolverError()
