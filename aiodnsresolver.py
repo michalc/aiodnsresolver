@@ -67,21 +67,6 @@ class BytesTTL(bytes):
         return _rdata
 
 
-def rdata_ttl(record, ttl_start):
-    expires_at = ttl_start + record.ttl
-    return \
-        IPv4AddressTTL(record.rdata, expires_at) if record.qtype == TYPES.A else \
-        IPv6AddressTTL(record.rdata, expires_at) if record.qtype == TYPES.AAAA else \
-        BytesTTL(record.rdata, expires_at)
-
-
-def rdata_ttl_min_expires(rdata_ttls, expires_at):
-    return tuple(
-        type(rdata_ttl)(rdata=rdata_ttl, expires_at=min(expires_at, rdata_ttl.expires_at))
-        for rdata_ttl in rdata_ttls
-    )
-
-
 def pack(message):
     struct_pack = struct.pack
 
@@ -513,5 +498,18 @@ def Resolver(
                     return cname_answers, qtype_answers
 
             raise TemporaryResolverError()
+
+    def rdata_ttl(record, ttl_start):
+        expires_at = ttl_start + record.ttl
+        return \
+            IPv4AddressTTL(record.rdata, expires_at) if record.qtype == TYPES.A else \
+            IPv6AddressTTL(record.rdata, expires_at) if record.qtype == TYPES.AAAA else \
+            BytesTTL(record.rdata, expires_at)
+
+    def rdata_ttl_min_expires(rdata_ttls, expires_at):
+        return tuple(
+            type(rdata_ttl)(rdata=rdata_ttl, expires_at=min(expires_at, rdata_ttl.expires_at))
+            for rdata_ttl in rdata_ttls
+        )
 
     return resolve, invalidate_all
