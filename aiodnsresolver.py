@@ -86,7 +86,7 @@ def pack(message):
     struct_pack = struct.pack
 
     def pack_string(string):
-        return struct_pack('B', len(string)) + string
+        return bytes((len(string),)) + string
 
     def pack_name(name):
         return b''.join(
