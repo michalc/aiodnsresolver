@@ -85,12 +85,9 @@ def rdata_ttl_min_expires(rdata_ttls, expires_at):
 def pack(message):
     struct_pack = struct.pack
 
-    def pack_string(string):
-        return bytes((len(string),)) + string
-
     def pack_name(name):
         return b''.join(
-            pack_string(part)
+            bytes((len(part),)) + part
             for part in name.split(b'.')
         ) + b'\0'
 
