@@ -480,7 +480,7 @@ def Resolver(
                 qtype_answers = tuple(
                     rdata_ttl(answer, ttl_start)
                     for answer in res.an
-                    if answer.name == req.qd[0].name and answer.qtype == qtype
+                    if answer.name.lower() == req.qd[0].name.lower() and answer.qtype == qtype
                 )
                 if non_name_error:
                     continue
