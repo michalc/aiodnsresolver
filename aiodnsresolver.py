@@ -302,6 +302,13 @@ def Resolver(
         it. A non-cancellation exception is propagated to all callers
         """
 
+        key = (fqdn, qtype)
+
+        try:
+            return cache[key]
+        except KeyError:
+            pass
+
         def wake_next():
             # Find the next non cancelled...
             while waiter_queue and waiter_queue[0].cancelled():
@@ -315,13 +322,6 @@ def Resolver(
             elif not waiter_queue:
                 # Delete the queue only if we haven't woken anything up
                 del waiter_queues[key]
-
-        key = (fqdn, qtype)
-
-        try:
-            return cache[key]
-        except KeyError:
-            pass
 
         if key not in waiter_queues:
             waiter_queue = collections.deque()
