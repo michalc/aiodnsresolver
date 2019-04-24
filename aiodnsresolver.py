@@ -472,15 +472,16 @@ def Resolver(
 
                 name_error = res.rcode == 3
                 non_name_error = res.rcode and not name_error
+                name_lower = req.qd[0].name.lower()
                 cname_answers = tuple(
                     rdata_ttl(answer, ttl_start)
                     for answer in res.an
-                    if answer.name == req.qd[0].name and answer.qtype == TYPES.CNAME
+                    if answer.name.lower() == name_lower and answer.qtype == TYPES.CNAME
                 )
                 qtype_answers = tuple(
                     rdata_ttl(answer, ttl_start)
                     for answer in res.an
-                    if answer.name.lower() == req.qd[0].name.lower() and answer.qtype == qtype
+                    if answer.name.lower() == name_lower and answer.qtype == qtype
                 )
                 if non_name_error:
                     continue
