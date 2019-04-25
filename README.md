@@ -123,6 +123,15 @@ Also, to migitate the risk of evil responses/configuration
 - CNAME chains have a maximum length.
 
 
+## Event loop, tasks, and yielding
+
+No tasks are created, and the event loop is only yielded to during socket communication. Because fetching results from the cache involves socket communication, this means that cached results are fetched without yielding. This introduces a small inconsistency between fetching cached and non-cached results, and so clients should be written to not depend on the presence or lack of a yield during resolution. This is a typically recommended process however: it should be expected that coroutines might yield.
+
+The trade-off for this inconsistency is that cached results are fetched slightly faster than if resolving were to yield in all cases.
+
+For CNAME chains, the event loop is yielded during each communication for non-cached parts of the chain.
+
+
 ## Scope
 
 The scope of this project is deliberately restricted to operations that are used to resolve A or AAAA records: to resolve a domain name to its IP addresses, and have similar responsibilities to `gethostbyname`. Some limited extra behaviour is present/may be added, but great care is taken to prevent scope creep, especially to not add complexity that isn't required to resolve A or AAAA records.
