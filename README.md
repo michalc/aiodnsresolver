@@ -125,7 +125,7 @@ Also, to migitate the risk of evil responses/configuration
 
 ## Event loop, tasks, and yielding
 
-No tasks are created, and the event loop is only yielded to during socket communication. Because fetching results from the cache involves socket communication, this means that cached results are fetched without yielding. This introduces a small inconsistency between fetching cached and non-cached results, and so clients should be written to not depend on the presence or lack of a yield during resolution. This is a typically recommended process however: it should be expected that coroutines might yield.
+No tasks are created, and the event loop is only yielded to during socket communication. Because fetching results from the cache involves no socket communication, this means that cached results are fetched without yielding. This introduces a small inconsistency between fetching cached and non-cached results, and so clients should be written to not depend on the presence or lack of a yield during resolution. This is a typically recommended process however: it should be expected that coroutines might yield.
 
 The trade-off for this inconsistency is that cached results are fetched slightly faster than if resolving were to yield in all cases.
 
