@@ -230,7 +230,7 @@ async def get_nameservers_from_etc_resolve_conf(_):
 async def get_host_from_etc_hosts(fqdn, qtype):
     with open('/etc/hosts', 'r') as file:
         hosts = tuple(
-            (host, ipaddress.ip_address(words[0]))
+            (host.encode(), ipaddress.ip_address(words[0]))
             for line in file
             for (line_before_comment, _, __) in (line.partition('#'),)
             for words in (line_before_comment.split(),)
@@ -238,11 +238,11 @@ async def get_host_from_etc_hosts(fqdn, qtype):
         )
     hosts = {
         TYPES.A: {
-            host.encode(): IPv4AddressTTL(ip_address, expires_at=0)
+            host: IPv4AddressTTL(ip_address, expires_at=0)
             for host, ip_address in hosts if isinstance(ip_address, ipaddress.IPv4Address)
         },
         TYPES.AAAA: {
-            host.encode(): IPv6AddressTTL(ip_address, expires_at=0)
+            host: IPv6AddressTTL(ip_address, expires_at=0)
             for host, ip_address in hosts if isinstance(ip_address, ipaddress.IPv6Address)
         }
     }
