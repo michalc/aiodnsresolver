@@ -242,13 +242,14 @@ async def get_nameservers_from_etc_resolve_conf(_):
 
 def parse_etc_hosts():
     with open('/etc/hosts', 'r') as file:
-        hosts = tuple(
-            (host.encode(), ipaddress.ip_address(words[0]))
-            for line in file
-            for (line_before_comment, _, __) in (line.partition('#'),)
-            for words in (line_before_comment.split(),)
-            for host in words[1:]
-        )
+        lines = tuple(file)
+    hosts = tuple(
+        (host.encode(), ipaddress.ip_address(words[0]))
+        for line in lines
+        for (line_before_comment, _, __) in (line.partition('#'),)
+        for words in (line_before_comment.split(),)
+        for host in words[1:]
+    )
     return {
         TYPES.A: {
             host: IPv4AddressTTL(ip_address, expires_at=0)
