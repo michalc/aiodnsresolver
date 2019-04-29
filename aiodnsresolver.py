@@ -220,9 +220,9 @@ async def recvfrom(loop, socks, max_bytes):
             loop.remove_reader(fileno)
 
 
-async def get_nameservers_from_etc_resolve_conf(_):
+def parse_resolve_conf():
     with open('/etc/resolv.conf', 'r') as file:
-        nameservers = tuple(
+        return tuple(
             words_on_line[1]
             for words_on_line in (
                 line.split() for line in file
@@ -230,12 +230,16 @@ async def get_nameservers_from_etc_resolve_conf(_):
             )
             if len(words_on_line) >= 2 and words_on_line[0] == 'nameserver'
         )
+
+
+async def get_nameservers_from_etc_resolve_conf(_):
+    nameservers = parse_resolve_conf()
     for _ in range(5):
         for nameserver in nameservers:
             yield (0.5, (nameserver, 53))
 
 
-async def get_host_from_etc_hosts(fqdn, qtype):
+def parse_etc_hosts():
     with open('/etc/hosts', 'r') as file:
         hosts = tuple(
             (host.encode(), ipaddress.ip_address(words[0]))
@@ -244,7 +248,7 @@ async def get_host_from_etc_hosts(fqdn, qtype):
             for words in (line_before_comment.split(),)
             for host in words[1:]
         )
-    hosts = {
+    return {
         TYPES.A: {
             host: IPv4AddressTTL(ip_address, expires_at=0)
             for host, ip_address in hosts if isinstance(ip_address, ipaddress.IPv4Address)
@@ -254,6 +258,10 @@ async def get_host_from_etc_hosts(fqdn, qtype):
             for host, ip_address in hosts if isinstance(ip_address, ipaddress.IPv6Address)
         }
     }
+
+
+async def get_host_from_etc_hosts(fqdn, qtype):
+    hosts = parse_etc_hosts()
     try:
         return hosts[qtype][fqdn]
     except KeyError:
