@@ -222,14 +222,15 @@ async def recvfrom(loop, socks, max_bytes):
 
 def parse_resolve_conf():
     with open('/etc/resolv.conf', 'r') as file:
-        return tuple(
-            words_on_line[1]
-            for words_on_line in (
-                line.split() for line in file
-                if line[0] not in ('#', ';')
-            )
-            if len(words_on_line) >= 2 and words_on_line[0] == 'nameserver'
+        lines = tuple(file)
+    return tuple(
+        words_on_line[1]
+        for words_on_line in (
+            line.split() for line in lines
+            if line[0] not in ('#', ';')
         )
+        if len(words_on_line) >= 2 and words_on_line[0] == 'nameserver'
+    )
 
 
 async def get_nameservers_from_etc_resolve_conf(_):
