@@ -104,6 +104,28 @@ ip_addresses = await resolve('www.google.com', TYPES.A)
 This can be used as part of a HA system: if a nameserver isn't contactable, this pattern avoids waiting for its timeout before querying another nameserver.
 
 
+## Exceptions
+
+Exceptions are subclasses of `ResolverError`, and are raised if a record does not exist, on socket errors, timeouts, message parsing errors, or other errors returned from the nameserver.
+
+Specifically, if a record is determined to not exist, `RecordDoesNotExist` is raised.
+
+
+```python
+from aiodnsresolver import Resolver, TYPES, RecordDoesNotExist, ResolverError
+
+resolve, _ = Resolver()
+try:
+    ip_addresses = await resolve('www.google.com', TYPES.A)
+except RecordDoesNotExist:
+    print('domain does not exist')
+    raise
+except ResolverError as exception:
+    print(type(exception))
+    raise
+```
+
+
 ## Security considerations
 
 To migitate spoofing, several techniques are used.
@@ -151,9 +173,9 @@ import socket
 
 from aiodnsresolver import (
     TYPES,
-    ResolverError,
-    DoesNotExist,
     Resolver,
+    ResolverError,
+    RecordDoesNotExist,
 )
 import aiohttp
 
@@ -172,7 +194,7 @@ class AioHttpDnsResolver(aiohttp.abc.AbstractResolver):
 
         try:
             ip_addresses = await self.resolver(host, record_type)
-        except DoesNotExist as does_not_exist:
+        except RecordDoesNotExist as does_not_exist:
             raise OSError(0, '{} does not exist'.format(host)) from does_not_exist
         except ResolverError as resolver_error:
             raise OSError(0, '{} failed to resolve'.format(host)) from resolver_error
@@ -212,7 +234,7 @@ import socket
 from aiodnsresolver import (
     TYPES,
     ResolverError,
-    DoesNotExist,
+    RecordDoesNotExist,
     Resolver,
 )
 
@@ -231,7 +253,7 @@ class AioHttpDnsResolver(tornado.netutil.Resolver):
 
         try:
             ip_addresses = await self.resolver(host, record_type)
-        except DoesNotExist as does_not_exist:
+        except RecordDoesNotExist as does_not_exist:
             raise IOError('{} does not exist'.format(host)) from does_not_exist
         except ResolverError as resolver_error:
             raise IOError('{} failed to resolve'.format(host)) from resolver_error

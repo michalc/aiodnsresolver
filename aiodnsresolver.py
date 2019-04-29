@@ -36,15 +36,11 @@ class ResolverError(Exception):
     pass
 
 
-class SocketError(ResolverError):
+class CnameChainTooLong(ResolverError):
     pass
 
 
-class TemporaryResolverError(ResolverError):
-    pass
-
-
-class DoesNotExist(ResolverError):
+class RecordDoesNotExist(ResolverError):
     pass
 
 
@@ -52,7 +48,15 @@ class PointerLoop(ResolverError):
     pass
 
 
-class CnameChainTooLong(ResolverError):
+class ResponseCode(ResolverError):
+    pass
+
+
+class SocketError(ResolverError):
+    pass
+
+
+class Timeout(ResolverError):
     pass
 
 
@@ -397,8 +401,11 @@ def Resolver(
             timeout, addrs = nameserver[0], nameserver[1:]
             try:
                 return await timeout_udp_request_attempt(timeout, addrs, fqdn, qtype)
-            except (asyncio.TimeoutError, TemporaryResolverError) as recent_exception:
+            except RecordDoesNotExist:
+                raise
+            except ResolverError as recent_exception:
                 exception = recent_exception
+
         raise exception
 
     async def timeout_udp_request_attempt(timeout, addrs, fqdn, qtype):
@@ -418,7 +425,7 @@ def Resolver(
             return await udp_request_attempt(addrs, fqdn, qtype)
         except asyncio.CancelledError:
             if cancelling_due_to_timeout:
-                raise asyncio.TimeoutError()
+                raise Timeout()
             raise
 
         finally:
@@ -459,13 +466,15 @@ def Resolver(
             for (sock, req) in connections.values():
                 await loop.sock_sendall(sock, pack(req))
 
+            last_exception = ResolverError()
             while connections:
                 connected_socks = tuple(sock for sock, req in connections.values())
                 response_data, addr_port = await recvfrom(loop, connected_socks, 512)
 
                 try:
                     res = parse(response_data)
-                except (struct.error, IndexError, PointerLoop):
+                except (struct.error, IndexError, PointerLoop) as exception:
+                    last_exception = exception
                     continue
 
                 trusted = res.qid == req.qid and res.qd == req.qd
@@ -488,15 +497,17 @@ def Resolver(
                     if answer.name.lower() == name_lower and answer.qtype == qtype
                 )
                 if non_name_error:
-                    continue
+                    last_exception = ResponseCode(res.rcode)
                 elif name_error or (not cname_answers and not qtype_answers):
                     # a name error can be returned by some non-authoritative
                     # servers on not-existing, contradicting RFC 1035
-                    raise DoesNotExist()
+                    raise RecordDoesNotExist()
                 else:
                     return cname_answers, qtype_answers
 
-            raise TemporaryResolverError()
+            if isinstance(last_exception, ResolverError):
+                raise last_exception
+            raise ResolverError() from last_exception
 
     def rdata_ttl(record, ttl_start):
         expires_at = ttl_start + record.ttl
