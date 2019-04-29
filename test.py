@@ -22,6 +22,7 @@ from aiodnsresolver import (
     Message,
     Resolver,
     ResolverError,
+    SocketError,
     ResourceRecord,
     pack,
     parse,
@@ -1231,8 +1232,10 @@ class TestResolverIntegration(unittest.TestCase):
 
             resolve, _ = Resolver(get_nameservers=get_nameservers)
 
-            with self.assertRaises(OSError):
+            with self.assertRaises(SocketError) as cm:
                 await resolve('my.domain', TYPES.A)
+
+            self.assertIsInstance(cm.exception.__cause__, OSError)
 
     @async_test
     async def test_a_socket_error_fail_immediately(self):

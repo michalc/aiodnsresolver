@@ -36,6 +36,10 @@ class ResolverError(Exception):
     pass
 
 
+class SocketError(ResolverError):
+    pass
+
+
 class TemporaryResolverError(ResolverError):
     pass
 
@@ -449,7 +453,7 @@ def Resolver(
                     connections[addr_port] = (sock, await req())
 
             if not connections:
-                raise last_exception
+                raise SocketError() from last_exception
 
             ttl_start = loop.time()
             for (sock, req) in connections.values():
