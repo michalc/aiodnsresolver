@@ -502,6 +502,7 @@ def Resolver(
                     res = parse(response_data)
                 except (struct.error, IndexError, DnsPointerLoop) as exception:
                     last_exception = exception
+                    set_exception(exception)
                     continue
 
                 trusted = res.qid == req.qid and res.qd == req.qd
