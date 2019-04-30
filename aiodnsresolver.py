@@ -432,7 +432,7 @@ def Resolver(
         handle = loop.call_later(timeout, cancel)
 
         try:
-            return await udp_request_attempt(addrs, fqdn, qtype)
+            return await request(addrs, fqdn, qtype)
         except asyncio.CancelledError:
             if cancelling_due_to_DnsTimeout:
                 raise DnsTimeout()
@@ -441,7 +441,7 @@ def Resolver(
         finally:
             handle.cancel()
 
-    async def udp_request_attempt(addrs, fqdn, qtype):
+    async def request(addrs, fqdn, qtype):
         async def req():
             qid = secrets.randbelow(65536)
             fqdn_transformed = await transform_fqdn(fqdn)
