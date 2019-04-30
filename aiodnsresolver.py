@@ -304,8 +304,8 @@ def Resolver(
             cname_rdata, qtype_rdata = await memoized_request(fqdn, qtype)
             min_expires_at = fqdn.expires_at  # pylint: disable=no-member
             if qtype_rdata:
-                return rdata_ttl_min_expires(qtype_rdata, min_expires_at)
-            fqdn = rdata_ttl_min_expires([cname_rdata[0]], min_expires_at)[0]
+                return rdata_expires_at_min(qtype_rdata, min_expires_at)
+            fqdn = rdata_expires_at_min([cname_rdata[0]], min_expires_at)[0]
 
         raise DnsCnameChainTooLong()
 
@@ -497,12 +497,12 @@ def Resolver(
                 non_name_error = res.rcode and not name_error
                 name_lower = req.qd[0].name.lower()
                 cname_answers = tuple(
-                    rdata_ttl(answer, ttl_start)
+                    rdata_expires_at(answer, ttl_start)
                     for answer in res.an
                     if answer.name.lower() == name_lower and answer.qtype == TYPES.CNAME
                 )
                 qtype_answers = tuple(
-                    rdata_ttl(answer, ttl_start)
+                    rdata_expires_at(answer, ttl_start)
                     for answer in res.an
                     if answer.name.lower() == name_lower and answer.qtype == qtype
                 )
@@ -519,14 +519,14 @@ def Resolver(
                 raise last_exception
             raise DnsError() from last_exception
 
-    def rdata_ttl(record, ttl_start):
+    def rdata_expires_at(record, ttl_start):
         expires_at = ttl_start + record.ttl
         return \
             IPv4AddressExpiresAt(record.rdata, expires_at) if record.qtype == TYPES.A else \
             IPv6AddressExpiresAt(record.rdata, expires_at) if record.qtype == TYPES.AAAA else \
             BytesExpiresAt(record.rdata, expires_at)
 
-    def rdata_ttl_min_expires(rdata_ttls, expires_at):
+    def rdata_expires_at_min(rdata_ttls, expires_at):
         return tuple(
             type(rdata_ttl)(rdata=rdata_ttl, expires_at=min(expires_at, rdata_ttl.expires_at))
             for rdata_ttl in rdata_ttls
