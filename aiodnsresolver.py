@@ -363,7 +363,7 @@ def Resolver(
                     del woken_waiter[key]
 
         try:
-            answers = await udp_request_namservers_until_response(fqdn, qtype)
+            answers = await request_namservers_until_response(fqdn, qtype)
 
         except asyncio.CancelledError:
             wake_next()
@@ -405,7 +405,7 @@ def Resolver(
         invalidate_callbacks.clear()
         cache.clear()
 
-    async def udp_request_namservers_until_response(fqdn, qtype):
+    async def request_namservers_until_response(fqdn, qtype):
         exception = DnsError()
         async for nameserver in get_nameservers(fqdn):
             timeout, addrs = nameserver[0], nameserver[1:]
