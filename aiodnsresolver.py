@@ -310,10 +310,10 @@ def Resolver(
         raise DnsCnameChainTooLong()
 
     async def request_memoized(fqdn, qtype):
-        """Memoized udp_request, that allows a dynamic expiry for each result
+        """Memoized request, that allows a dynamic expiry for each result
 
-        Multiple callers for the same args will wait for first call to
-        udp_request to finish, and will use its result.
+        Multiple callers for the same args will wait for first call to finish,
+        and will use its result.
 
         A queue of concurrent callers is maintained for the same args. If the
         task making the request is cancelled, the next in the queue will make
