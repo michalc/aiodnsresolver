@@ -410,7 +410,7 @@ def Resolver(
         async for nameserver in get_nameservers(fqdn):
             timeout, addrs = nameserver[0], nameserver[1:]
             try:
-                return await timeout_udp_request_attempt(timeout, addrs, fqdn, qtype)
+                return await request_with_timeout(timeout, addrs, fqdn, qtype)
             except DnsRecordDoesNotExist:
                 raise
             except DnsError as recent_exception:
@@ -418,7 +418,7 @@ def Resolver(
 
         raise exception
 
-    async def timeout_udp_request_attempt(timeout, addrs, fqdn, qtype):
+    async def request_with_timeout(timeout, addrs, fqdn, qtype):
         cancelling_due_to_DnsTimeout = False
         current_task = \
             asyncio.current_task() if hasattr(asyncio, 'current_task') else \
