@@ -277,18 +277,15 @@ async def mix_case(fqdn):
     )
 
 
-def get_sock_default():
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setblocking(False)
+def set_sock_options_default(sock):
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 512)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 512)
-    return sock
 
 
 def Resolver(
         get_host=get_host_from_etc_hosts,
         get_nameservers=get_nameservers_from_etc_resolve_conf,
-        get_sock=get_sock_default,
+        set_sock_options=set_sock_options_default,
         transform_fqdn=mix_case,
         max_cname_chain_length=20,
 ):
@@ -460,12 +457,17 @@ def Resolver(
             )
 
         with contextlib.ExitStack() as stack:
-            socks = tuple(stack.enter_context(get_sock()) for addr in addrs)
+            socks = tuple(
+                stack.enter_context(socket.socket(socket.AF_INET, socket.SOCK_DGRAM))
+                for addr in addrs
+            )
 
             connections = {}
             last_exception = OSError()
             for addr_port, sock in zip(addrs, socks):
                 try:
+                    sock.setblocking(False)
+                    set_sock_options(sock)
                     sock.connect(addr_port)
                 except OSError as exception:
                     last_exception = exception

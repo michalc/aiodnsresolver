@@ -1251,6 +1251,17 @@ class TestResolverIntegration(unittest.TestCase):
             await resolve('my.domain', TYPES.A)
 
     @async_test
+    async def test_bad_sock_option_raises_socket_error(self):
+        def set_sock_options(sock):
+            sock.setsockopt(socket.SOL_SOCKET, 1123432, 512)
+
+        resolve, _ = Resolver(set_sock_options=set_sock_options)
+        with self.assertRaises(DnsSocketError) as cm:
+            await resolve('my.domain', TYPES.A)
+
+        self.assertIsInstance(cm.exception.__cause__, OSError)
+
+    @async_test
     async def test_many_concurrent_queries_range(self):
         loop = asyncio.get_event_loop()
 
