@@ -106,13 +106,13 @@ This can be used as part of a HA system: if a nameserver isn't contactable, this
 
 ## Exceptions
 
-Exceptions are subclasses of `ResolverError`, and are raised if a record does not exist, on socket errors, timeouts, message parsing errors, or other errors returned from the nameserver.
+Exceptions are subclasses of `DnsError`, and are raised if a record does not exist, on socket errors, timeouts, message parsing errors, or other errors returned from the nameserver.
 
 Specifically, if a record is determined to not exist, `RecordDoesNotExist` is raised.
 
 
 ```python
-from aiodnsresolver import Resolver, TYPES, RecordDoesNotExist, ResolverError
+from aiodnsresolver import Resolver, TYPES, RecordDoesNotExist, DnsError
 
 resolve, _ = Resolver()
 try:
@@ -120,7 +120,7 @@ try:
 except RecordDoesNotExist:
     print('domain does not exist')
     raise
-except ResolverError as exception:
+except DnsError as exception:
     print(type(exception))
     raise
 ```

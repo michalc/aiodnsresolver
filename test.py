@@ -21,7 +21,7 @@ from aiodnsresolver import (
     Message,
     RecordDoesNotExist,
     Resolver,
-    ResolverError,
+    DnsError,
     ResourceRecord,
     SocketError,
     Timeout,
@@ -1384,7 +1384,7 @@ class TestResolverIntegration(unittest.TestCase):
                     ip_addresses = await self.resolver(host, record_type)
                 except RecordDoesNotExist as does_not_exist:
                     raise OSError(0, '{} does not exist'.format(host)) from does_not_exist
-                except ResolverError as resolver_error:
+                except DnsError as resolver_error:
                     raise OSError(0, '{} failed to resolve'.format(host)) from resolver_error
 
                 return [{

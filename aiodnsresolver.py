@@ -32,31 +32,31 @@ ResourceRecord = collections.namedtuple('Record', [
 ])
 
 
-class ResolverError(Exception):
+class DnsError(Exception):
     pass
 
 
-class CnameChainTooLong(ResolverError):
+class CnameChainTooLong(DnsError):
     pass
 
 
-class RecordDoesNotExist(ResolverError):
+class RecordDoesNotExist(DnsError):
     pass
 
 
-class PointerLoop(ResolverError):
+class PointerLoop(DnsError):
     pass
 
 
-class ResponseCode(ResolverError):
+class ResponseCode(DnsError):
     pass
 
 
-class SocketError(ResolverError):
+class SocketError(DnsError):
     pass
 
 
-class Timeout(ResolverError):
+class Timeout(DnsError):
     pass
 
 
@@ -406,14 +406,14 @@ def Resolver(
         cache.clear()
 
     async def udp_request_namservers_until_response(fqdn, qtype):
-        exception = ResolverError()
+        exception = DnsError()
         async for nameserver in get_nameservers(fqdn):
             timeout, addrs = nameserver[0], nameserver[1:]
             try:
                 return await timeout_udp_request_attempt(timeout, addrs, fqdn, qtype)
             except RecordDoesNotExist:
                 raise
-            except ResolverError as recent_exception:
+            except DnsError as recent_exception:
                 exception = recent_exception
 
         raise exception
@@ -476,7 +476,7 @@ def Resolver(
             for (sock, req) in connections.values():
                 await loop.sock_sendall(sock, pack(req))
 
-            last_exception = ResolverError()
+            last_exception = DnsError()
             while connections:
                 connected_socks = tuple(sock for sock, req in connections.values())
                 response_data, addr_port = await recvfrom(loop, connected_socks, 512)
@@ -515,9 +515,9 @@ def Resolver(
                 else:
                     return cname_answers, qtype_answers
 
-            if isinstance(last_exception, ResolverError):
+            if isinstance(last_exception, DnsError):
                 raise last_exception
-            raise ResolverError() from last_exception
+            raise DnsError() from last_exception
 
     def rdata_ttl(record, ttl_start):
         expires_at = ttl_start + record.ttl
