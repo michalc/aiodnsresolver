@@ -233,8 +233,7 @@ def parse_resolve_conf():
     )
 
 
-async def get_nameservers_from_etc_resolve_conf(_):
-    nameservers = parse_resolve_conf()
+async def get_nameservers_default(nameservers, _):
     for _ in range(5):
         for nameserver in nameservers:
             yield (0.5, (nameserver, 53))
@@ -262,8 +261,7 @@ def parse_etc_hosts():
     }
 
 
-async def get_host_from_etc_hosts(fqdn, qtype):
-    hosts = parse_etc_hosts()
+async def get_host_default(hosts, fqdn, qtype):
     try:
         return hosts[qtype][fqdn]
     except KeyError:
@@ -283,8 +281,8 @@ def set_sock_options_default(sock):
 
 
 def Resolver(
-        get_host=get_host_from_etc_hosts,
-        get_nameservers=get_nameservers_from_etc_resolve_conf,
+        get_host=get_host_default,
+        get_nameservers=get_nameservers_default,
         set_sock_options=set_sock_options_default,
         transform_fqdn=mix_case,
         max_cname_chain_length=20,
@@ -298,12 +296,14 @@ def Resolver(
     invalidate_callbacks = {}
     waiter_queues = {}
     woken_waiter = {}
+    parsed_etc_hosts = parse_etc_hosts()
+    parsed_resolve_conf = parse_resolve_conf()
 
     async def resolve(fqdn_str, qtype):
         fqdn = BytesExpiresAt(fqdn_str.encode('idna'), expires_at=float('inf'))
 
         for _ in range(max_cname_chain_length):
-            host = await get_host(fqdn, qtype)
+            host = await get_host(parsed_etc_hosts, fqdn, qtype)
             if host is not None:
                 return (host,)
 
@@ -413,7 +413,7 @@ def Resolver(
 
     async def request_until_response(fqdn, qtype):
         exception = DnsError()
-        async for nameserver in get_nameservers(fqdn):
+        async for nameserver in get_nameservers(parsed_resolve_conf, fqdn):
             timeout, addrs = nameserver[0], nameserver[1:]
             try:
                 return await request_with_timeout(timeout, addrs, fqdn, qtype)

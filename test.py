@@ -825,7 +825,7 @@ class TestResolverIntegration(unittest.TestCase):
 
         local_ip = socket.gethostbyname(socket.gethostname())
 
-        async def get_nameservers(_):
+        async def get_nameservers(_, __):
             yield (0.5, (local_ip, 53))
 
         resolve, _ = Resolver(get_nameservers=get_nameservers)
@@ -1145,7 +1145,7 @@ class TestResolverIntegration(unittest.TestCase):
             stop_nameserver_54 = await start_nameserver(54, get_response_54)
             self.add_async_cleanup(loop, stop_nameserver_54)
 
-            async def get_nameservers(_):
+            async def get_nameservers(_, __):
                 yield (0.5, ('127.0.0.1', 53))
                 yield (0.5, ('127.0.0.1', 54))
 
@@ -1188,7 +1188,7 @@ class TestResolverIntegration(unittest.TestCase):
             stop_nameserver_54 = await start_nameserver(54, get_response_54)
             self.add_async_cleanup(loop, stop_nameserver_54)
 
-            async def get_nameservers(_):
+            async def get_nameservers(_, __):
                 yield (
                     0.5,
                     ('127.0.0.1', 53),
@@ -1233,7 +1233,7 @@ class TestResolverIntegration(unittest.TestCase):
         loop = asyncio.get_event_loop()
 
         with FastForward(loop):
-            async def get_nameservers(_):
+            async def get_nameservers(_, __):
                 yield (0.5, ('300.300.300.300', 53))
 
             resolve, _ = Resolver(get_nameservers=get_nameservers)
