@@ -60,19 +60,19 @@ class DnsTimeout(DnsError):
     pass
 
 
-class IPv4AddressTTL(ipaddress.IPv4Address):
+class IPv4AddressExpiresAt(ipaddress.IPv4Address):
     def __init__(self, rdata, expires_at):
         super().__init__(rdata)
         self.expires_at = expires_at
 
 
-class IPv6AddressTTL(ipaddress.IPv6Address):
+class IPv6AddressExpiresAt(ipaddress.IPv6Address):
     def __init__(self, rdata, expires_at):
         super().__init__(rdata)
         self.expires_at = expires_at
 
 
-class BytesTTL(bytes):
+class BytesExpiresAt(bytes):
     def __new__(cls, rdata, expires_at):
         _rdata = super().__new__(cls, rdata)
         _rdata.expires_at = expires_at
@@ -252,11 +252,11 @@ def parse_etc_hosts():
     )
     return {
         TYPES.A: {
-            host: IPv4AddressTTL(ip_address, expires_at=0)
+            host: IPv4AddressExpiresAt(ip_address, expires_at=0)
             for host, ip_address in hosts if isinstance(ip_address, ipaddress.IPv4Address)
         },
         TYPES.AAAA: {
-            host: IPv6AddressTTL(ip_address, expires_at=0)
+            host: IPv6AddressExpiresAt(ip_address, expires_at=0)
             for host, ip_address in hosts if isinstance(ip_address, ipaddress.IPv6Address)
         }
     }
@@ -294,7 +294,7 @@ def Resolver(
     woken_waiter = {}
 
     async def resolve(fqdn_str, qtype):
-        fqdn = BytesTTL(fqdn_str.encode('idna'), expires_at=float('inf'))
+        fqdn = BytesExpiresAt(fqdn_str.encode('idna'), expires_at=float('inf'))
 
         for _ in range(max_cname_chain_length):
             host = await get_host(fqdn, qtype)
@@ -522,9 +522,9 @@ def Resolver(
     def rdata_ttl(record, ttl_start):
         expires_at = ttl_start + record.ttl
         return \
-            IPv4AddressTTL(record.rdata, expires_at) if record.qtype == TYPES.A else \
-            IPv6AddressTTL(record.rdata, expires_at) if record.qtype == TYPES.AAAA else \
-            BytesTTL(record.rdata, expires_at)
+            IPv4AddressExpiresAt(record.rdata, expires_at) if record.qtype == TYPES.A else \
+            IPv6AddressExpiresAt(record.rdata, expires_at) if record.qtype == TYPES.AAAA else \
+            BytesExpiresAt(record.rdata, expires_at)
 
     def rdata_ttl_min_expires(rdata_ttls, expires_at):
         return tuple(
