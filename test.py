@@ -796,8 +796,10 @@ class TestResolverIntegration(unittest.TestCase):
         resolve, _ = Resolver()
         # Suspect that the loopback interface "knows" if it won't be able
         # to receive packets if nothing is bound on the other end
-        with self.assertRaises(ConnectionRefusedError):
+        with self.assertRaises(DnsTimeout) as cm:
             await resolve('my.domain', TYPES.A)
+
+        self.assertIsInstance(cm.exception.__cause__, ConnectionRefusedError)
 
     @async_test
     async def test_not_loopback_interface(self):
@@ -1242,13 +1244,15 @@ class TestResolverIntegration(unittest.TestCase):
             self.assertIsInstance(cm.exception.__cause__, OSError)
 
     @async_test
-    async def test_a_socket_error_fail_immediately(self):
+    async def test_a_socket_error(self):
         # No nameserver started
         self.addCleanup(patch_open())
 
         resolve, _ = Resolver()
-        with self.assertRaises(ConnectionRefusedError):
+        with self.assertRaises(DnsTimeout) as cm:
             await resolve('my.domain', TYPES.A)
+
+        self.assertIsInstance(cm.exception.__cause__, ConnectionRefusedError)
 
     @async_test
     async def test_bad_sock_option_raises_socket_error(self):

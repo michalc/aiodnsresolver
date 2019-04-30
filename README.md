@@ -125,6 +125,8 @@ except DnsError as exception:
     raise
 ```
 
+If a lower-level exception caused the `DnsError`, it will be in the `__cause__` attribute of the exception.
+
 
 ## Security considerations
 
