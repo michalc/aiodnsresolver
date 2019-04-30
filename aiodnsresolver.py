@@ -439,12 +439,12 @@ def Resolver(
 
         last_exception = None
 
-        def set_exception(exception):
+        def set_timeout_cause(exception):
             nonlocal last_exception
             last_exception = exception
 
         try:
-            return await request(addrs, fqdn, qtype, set_exception)
+            return await request(addrs, fqdn, qtype, set_timeout_cause)
         except asyncio.CancelledError:
             if cancelling_due_to_DnsTimeout:
                 raise DnsTimeout() from last_exception
@@ -453,7 +453,7 @@ def Resolver(
         finally:
             handle.cancel()
 
-    async def request(addrs, fqdn, qtype, set_exception):
+    async def request(addrs, fqdn, qtype, set_timeout_cause):
         async def req():
             qid = secrets.randbelow(65536)
             fqdn_transformed = await transform_fqdn(fqdn)
@@ -477,7 +477,7 @@ def Resolver(
                     sock.connect(addr_port)
                 except OSError as exception:
                     last_exception = exception
-                    set_exception(exception)
+                    set_timeout_cause(exception)
                 else:
                     connections[addr_port] = (sock, await req())
 
@@ -495,14 +495,14 @@ def Resolver(
                     response_data, addr_port = await recvfrom(loop, connected_socks, 512)
                 except OSError as exception:
                     last_exception = exception
-                    set_exception(exception)
+                    set_timeout_cause(exception)
                     continue
 
                 try:
                     res = parse(response_data)
                 except (struct.error, IndexError, DnsPointerLoop) as exception:
                     last_exception = exception
-                    set_exception(exception)
+                    set_timeout_cause(exception)
                     continue
 
                 trusted = res.qid == req.qid and res.qd == req.qd
@@ -526,7 +526,7 @@ def Resolver(
                 )
                 if non_name_error:
                     last_exception = DnsResponseCode(res.rcode)
-                    set_exception(last_exception)
+                    set_timeout_cause(last_exception)
                 elif name_error or (not cname_answers and not qtype_answers):
                     # a name error can be returned by some non-authoritative
                     # servers on not-existing, contradicting RFC 1035
