@@ -17,14 +17,14 @@ from aiofastforward import (
 from aiodnsresolver import (
     RESPONSE,
     TYPES,
-    CnameChainTooLong,
-    Message,
-    RecordDoesNotExist,
-    Resolver,
+    DnsCnameChainTooLong,
     DnsError,
+    DnsRecordDoesNotExist,
+    DnsSocketError,
+    DnsTimeout,
+    Message,
+    Resolver,
     ResourceRecord,
-    SocketError,
-    Timeout,
     pack,
     parse,
     recvfrom,
@@ -182,7 +182,7 @@ class TestResolverIntegration(unittest.TestCase):
         self.add_async_cleanup(loop, stop_nameserver)
 
         resolve, _ = Resolver()
-        with self.assertRaises(CnameChainTooLong):
+        with self.assertRaises(DnsCnameChainTooLong):
             await resolve('first', TYPES.A)
 
     @async_test
@@ -378,7 +378,7 @@ class TestResolverIntegration(unittest.TestCase):
         self.add_async_cleanup(loop, stop_nameserver)
 
         resolve, _ = Resolver()
-        with self.assertRaises(Timeout):
+        with self.assertRaises(DnsTimeout):
             await resolve('some.domain', TYPES.A)
 
     @async_test
@@ -423,7 +423,7 @@ class TestResolverIntegration(unittest.TestCase):
         self.add_async_cleanup(loop, stop_nameserver)
 
         resolve, _ = Resolver()
-        with self.assertRaises(Timeout):
+        with self.assertRaises(DnsTimeout):
             await resolve('some.domain', TYPES.A)
 
     @async_test
@@ -469,7 +469,7 @@ class TestResolverIntegration(unittest.TestCase):
         self.add_async_cleanup(loop, stop_nameserver)
 
         resolve, _ = Resolver()
-        with self.assertRaises(Timeout):
+        with self.assertRaises(DnsTimeout):
             await resolve('some.domain', TYPES.A)
 
     @async_test
@@ -1220,10 +1220,10 @@ class TestResolverIntegration(unittest.TestCase):
             await request.wait()
             await forward(2.5)
 
-            with self.assertRaises(Timeout):
+            with self.assertRaises(DnsTimeout):
                 await res_1_task
 
-            with self.assertRaises(Timeout):
+            with self.assertRaises(DnsTimeout):
                 await res_1_task
 
     @async_test
@@ -1236,7 +1236,7 @@ class TestResolverIntegration(unittest.TestCase):
 
             resolve, _ = Resolver(get_nameservers=get_nameservers)
 
-            with self.assertRaises(SocketError) as cm:
+            with self.assertRaises(DnsSocketError) as cm:
                 await resolve('my.domain', TYPES.A)
 
             self.assertIsInstance(cm.exception.__cause__, OSError)
@@ -1382,7 +1382,7 @@ class TestResolverIntegration(unittest.TestCase):
 
                 try:
                     ip_addresses = await self.resolver(host, record_type)
-                except RecordDoesNotExist as does_not_exist:
+                except DnsRecordDoesNotExist as does_not_exist:
                     raise OSError(0, '{} does not exist'.format(host)) from does_not_exist
                 except DnsError as resolver_error:
                     raise OSError(0, '{} failed to resolve'.format(host)) from resolver_error
@@ -1522,14 +1522,14 @@ class TestResolverEndToEnd(unittest.TestCase):
     @async_test
     async def test_a_query_not_exists(self):
         resolve, _ = Resolver()
-        with self.assertRaises(RecordDoesNotExist):
+        with self.assertRaises(DnsRecordDoesNotExist):
             await resolve('doenotexist.charemza.name', TYPES.A)
 
     @async_test
     async def test_aaaa_query_not_exists(self):
         resolve, _ = Resolver()
 
-        with self.assertRaises(RecordDoesNotExist):
+        with self.assertRaises(DnsRecordDoesNotExist):
             await resolve('doenotexist.charemza.name', TYPES.AAAA)
 
     @async_test

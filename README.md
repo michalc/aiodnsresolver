@@ -108,16 +108,16 @@ This can be used as part of a HA system: if a nameserver isn't contactable, this
 
 Exceptions are subclasses of `DnsError`, and are raised if a record does not exist, on socket errors, timeouts, message parsing errors, or other errors returned from the nameserver.
 
-Specifically, if a record is determined to not exist, `RecordDoesNotExist` is raised.
+Specifically, if a record is determined to not exist, `DnsRecordDoesNotExist` is raised.
 
 
 ```python
-from aiodnsresolver import Resolver, TYPES, RecordDoesNotExist, DnsError
+from aiodnsresolver import Resolver, TYPES, DnsRecordDoesNotExist, DnsError
 
 resolve, _ = Resolver()
 try:
     ip_addresses = await resolve('www.google.com', TYPES.A)
-except RecordDoesNotExist:
+except DnsRecordDoesNotExist:
     print('domain does not exist')
     raise
 except DnsError as exception:
@@ -175,7 +175,7 @@ from aiodnsresolver import (
     TYPES,
     Resolver,
     ResolverError,
-    RecordDoesNotExist,
+    DnsRecordDoesNotExist,
 )
 import aiohttp
 
@@ -194,7 +194,7 @@ class AioHttpDnsResolver(aiohttp.abc.AbstractResolver):
 
         try:
             ip_addresses = await self.resolver(host, record_type)
-        except RecordDoesNotExist as does_not_exist:
+        except DnsRecordDoesNotExist as does_not_exist:
             raise OSError(0, '{} does not exist'.format(host)) from does_not_exist
         except ResolverError as resolver_error:
             raise OSError(0, '{} failed to resolve'.format(host)) from resolver_error
@@ -234,7 +234,7 @@ import socket
 from aiodnsresolver import (
     TYPES,
     ResolverError,
-    RecordDoesNotExist,
+    DnsRecordDoesNotExist,
     Resolver,
 )
 
@@ -253,7 +253,7 @@ class AioHttpDnsResolver(tornado.netutil.Resolver):
 
         try:
             ip_addresses = await self.resolver(host, record_type)
-        except RecordDoesNotExist as does_not_exist:
+        except DnsRecordDoesNotExist as does_not_exist:
             raise IOError('{} does not exist'.format(host)) from does_not_exist
         except ResolverError as resolver_error:
             raise IOError('{} failed to resolve'.format(host)) from resolver_error

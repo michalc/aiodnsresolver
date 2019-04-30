@@ -36,27 +36,27 @@ class DnsError(Exception):
     pass
 
 
-class CnameChainTooLong(DnsError):
+class DnsCnameChainTooLong(DnsError):
     pass
 
 
-class RecordDoesNotExist(DnsError):
+class DnsRecordDoesNotExist(DnsError):
     pass
 
 
-class PointerLoop(DnsError):
+class DnsPointerLoop(DnsError):
     pass
 
 
-class ResponseCode(DnsError):
+class DnsResponseCode(DnsError):
     pass
 
 
-class SocketError(DnsError):
+class DnsSocketError(DnsError):
     pass
 
 
-class Timeout(DnsError):
+class DnsTimeout(DnsError):
     pass
 
 
@@ -130,7 +130,7 @@ def parse(data):
             while byte(local_cursor) >= 192:  # is pointer
                 local_cursor = (byte(local_cursor) - 192) * 256 + byte(local_cursor + 1)
                 if local_cursor in followed_pointers:
-                    raise PointerLoop()
+                    raise DnsPointerLoop()
                 followed_pointers.append(local_cursor)
                 if len(followed_pointers) == 1:
                     c += 2
@@ -307,7 +307,7 @@ def Resolver(
                 return rdata_ttl_min_expires(qtype_rdata, min_expires_at)
             fqdn = rdata_ttl_min_expires([cname_rdata[0]], min_expires_at)[0]
 
-        raise CnameChainTooLong()
+        raise DnsCnameChainTooLong()
 
     async def memoized_udp_request(fqdn, qtype):
         """Memoized udp_request, that allows a dynamic expiry for each result
@@ -411,7 +411,7 @@ def Resolver(
             timeout, addrs = nameserver[0], nameserver[1:]
             try:
                 return await timeout_udp_request_attempt(timeout, addrs, fqdn, qtype)
-            except RecordDoesNotExist:
+            except DnsRecordDoesNotExist:
                 raise
             except DnsError as recent_exception:
                 exception = recent_exception
@@ -419,14 +419,14 @@ def Resolver(
         raise exception
 
     async def timeout_udp_request_attempt(timeout, addrs, fqdn, qtype):
-        cancelling_due_to_timeout = False
+        cancelling_due_to_DnsTimeout = False
         current_task = \
             asyncio.current_task() if hasattr(asyncio, 'current_task') else \
             asyncio.Task.current_task()
 
         def cancel():
-            nonlocal cancelling_due_to_timeout
-            cancelling_due_to_timeout = True
+            nonlocal cancelling_due_to_DnsTimeout
+            cancelling_due_to_DnsTimeout = True
             current_task.cancel()
 
         handle = loop.call_later(timeout, cancel)
@@ -434,8 +434,8 @@ def Resolver(
         try:
             return await udp_request_attempt(addrs, fqdn, qtype)
         except asyncio.CancelledError:
-            if cancelling_due_to_timeout:
-                raise Timeout()
+            if cancelling_due_to_DnsTimeout:
+                raise DnsTimeout()
             raise
 
         finally:
@@ -470,7 +470,7 @@ def Resolver(
                     connections[addr_port] = (sock, await req())
 
             if not connections:
-                raise SocketError() from last_exception
+                raise DnsSocketError() from last_exception
 
             ttl_start = loop.time()
             for (sock, req) in connections.values():
@@ -483,7 +483,7 @@ def Resolver(
 
                 try:
                     res = parse(response_data)
-                except (struct.error, IndexError, PointerLoop) as exception:
+                except (struct.error, IndexError, DnsPointerLoop) as exception:
                     last_exception = exception
                     continue
 
@@ -507,11 +507,11 @@ def Resolver(
                     if answer.name.lower() == name_lower and answer.qtype == qtype
                 )
                 if non_name_error:
-                    last_exception = ResponseCode(res.rcode)
+                    last_exception = DnsResponseCode(res.rcode)
                 elif name_error or (not cname_answers and not qtype_answers):
                     # a name error can be returned by some non-authoritative
                     # servers on not-existing, contradicting RFC 1035
-                    raise RecordDoesNotExist()
+                    raise DnsRecordDoesNotExist()
                 else:
                     return cname_answers, qtype_answers
 
