@@ -734,7 +734,7 @@ class TestResolverIntegration(unittest.TestCase):
         self.add_async_cleanup(loop, stop_nameserver)
 
         resolve, _ = Resolver()
-        res_1 = await resolve('my.domain', TYPES.A)
+        res_1 = await resolve('my.domain.that-is.fairly.long', TYPES.A)
 
         self.assertEqual(str(res_1[0]), '123.100.123.2')
         self.assertEqual(len(queried_names), 2)
