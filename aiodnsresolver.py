@@ -301,7 +301,7 @@ def Resolver(
             if host is not None:
                 return (host,)
 
-            cname_rdata, qtype_rdata = await memoized_request(fqdn, qtype)
+            cname_rdata, qtype_rdata = await request_memoized(fqdn, qtype)
             min_expires_at = fqdn.expires_at  # pylint: disable=no-member
             if qtype_rdata:
                 return rdata_expires_at_min(qtype_rdata, min_expires_at)
@@ -309,7 +309,7 @@ def Resolver(
 
         raise DnsCnameChainTooLong()
 
-    async def memoized_request(fqdn, qtype):
+    async def request_memoized(fqdn, qtype):
         """Memoized udp_request, that allows a dynamic expiry for each result
 
         Multiple callers for the same args will wait for first call to
