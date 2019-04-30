@@ -526,10 +526,10 @@ def Resolver(
             IPv6AddressExpiresAt(record.rdata, expires_at) if record.qtype == TYPES.AAAA else \
             BytesExpiresAt(record.rdata, expires_at)
 
-    def rdata_expires_at_min(rdata_ttls, expires_at):
+    def rdata_expires_at_min(rdatas, expires_at):
         return tuple(
-            type(rdata_ttl)(rdata=rdata_ttl, expires_at=min(expires_at, rdata_ttl.expires_at))
-            for rdata_ttl in rdata_ttls
+            type(rdata)(rdata=rdata, expires_at=min(expires_at, rdata.expires_at))
+            for rdata in rdatas
         )
 
     return resolve, invalidate_all
