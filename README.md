@@ -176,7 +176,7 @@ import socket
 from aiodnsresolver import (
     TYPES,
     Resolver,
-    ResolverError,
+    DnsError,
     DnsRecordDoesNotExist,
 )
 import aiohttp
@@ -198,8 +198,8 @@ class AioHttpDnsResolver(aiohttp.abc.AbstractResolver):
             ip_addresses = await self.resolver(host, record_type)
         except DnsRecordDoesNotExist as does_not_exist:
             raise OSError(0, '{} does not exist'.format(host)) from does_not_exist
-        except ResolverError as resolver_error:
-            raise OSError(0, '{} failed to resolve'.format(host)) from resolver_error
+        except DnsError as dns_error:
+            raise OSError(0, '{} failed to resolve'.format(host)) from dns_error
 
         return [{
             'hostname': host,
@@ -235,7 +235,7 @@ import socket
 
 from aiodnsresolver import (
     TYPES,
-    ResolverError,
+    DnsError,
     DnsRecordDoesNotExist,
     Resolver,
 )
@@ -257,8 +257,8 @@ class AioHttpDnsResolver(tornado.netutil.Resolver):
             ip_addresses = await self.resolver(host, record_type)
         except DnsRecordDoesNotExist as does_not_exist:
             raise IOError('{} does not exist'.format(host)) from does_not_exist
-        except ResolverError as resolver_error:
-            raise IOError('{} failed to resolve'.format(host)) from resolver_error
+        except DnsError as dns_error:
+            raise IOError('{} failed to resolve'.format(host)) from dns_error
 
         return [
             (family_conn, (str(ip_address), port))
