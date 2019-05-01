@@ -113,10 +113,6 @@ def pack(message):
 
 
 def parse(data):
-    def load_label(offset):
-        length = data[offset]
-        return offset + length + 1, data[offset + 1:offset + 1 + length]
-
     def load_labels():
         nonlocal c
 
@@ -132,7 +128,10 @@ def parse(data):
                 if len(followed_pointers) == 1:
                     c += 2
 
-            local_cursor, label = load_label(local_cursor)
+            label_length = data[local_cursor]
+            label = data[local_cursor + 1:local_cursor + 1 + label_length]
+            local_cursor = local_cursor + label_length + 1
+
             if not followed_pointers:
                 c = local_cursor
 
