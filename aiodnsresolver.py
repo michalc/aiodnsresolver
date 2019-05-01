@@ -114,7 +114,7 @@ def pack(message):
 
 def parse(data):
     def byte(offset):
-        return data[offset:offset + 1][0]
+        return data[offset]
 
     def load_label(offset):
         length = byte(offset)
