@@ -113,11 +113,8 @@ def pack(message):
 
 
 def parse(data):
-    def byte(offset):
-        return data[offset]
-
     def load_label(offset):
-        length = byte(offset)
+        length = data[offset]
         return offset + length + 1, data[offset + 1:offset + 1 + length]
 
     def load_labels():
@@ -127,8 +124,8 @@ def parse(data):
         local_cursor = c
 
         while True:
-            while byte(local_cursor) >= 192:  # is pointer
-                local_cursor = (byte(local_cursor) - 192) * 256 + byte(local_cursor + 1)
+            while data[local_cursor] >= 192:  # is pointer
+                local_cursor = (data[local_cursor] - 192) * 256 + data[local_cursor + 1]
                 if local_cursor in followed_pointers:
                     raise DnsPointerLoop()
                 followed_pointers.append(local_cursor)
