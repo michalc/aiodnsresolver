@@ -117,7 +117,7 @@ def parse(data):
     def load_labels():
         nonlocal c
 
-        followed_pointers = []
+        followed_pointers = ()
         local_cursor = c
 
         while True:
@@ -127,7 +127,7 @@ def parse(data):
                     c += 2
                 if local_cursor in followed_pointers:
                     raise DnsPointerLoop()
-                followed_pointers.append(local_cursor)
+                followed_pointers += (local_cursor,)
 
             label_length = data[local_cursor]
             label = data[local_cursor + 1:local_cursor + 1 + label_length]
