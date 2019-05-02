@@ -319,7 +319,7 @@ def Resolver(
         except KeyError:
             pass
 
-        result_mutex = locks.setdefault(key, default=ResultMutex())
+        function_mutex = locks.setdefault(key, default=FunctionMutex())
 
         async def get_result():
             answers = await request_until_response(fqdn, qtype)
@@ -333,7 +333,7 @@ def Resolver(
             cache[key] = answers
             return answers
 
-        return await result_mutex(get_result)
+        return await function_mutex(get_result)
 
     def invalidate(key):
         del cache[key]
@@ -487,7 +487,7 @@ def Resolver(
     return resolve, invalidate_all
 
 
-def ResultMutex():
+def FunctionMutex():
 
     waiters = collections.deque()
     acquired = False
@@ -510,7 +510,7 @@ def ResultMutex():
             else:
                 break
 
-    async def enter(context):
+    async def runner(func):
         nonlocal acquired, has_result, result
 
         waiter = asyncio.Future()
@@ -529,7 +529,7 @@ def ResultMutex():
             return result
 
         try:
-            result = await context()
+            result = await func()
         except asyncio.CancelledError:
             acquired = False
             maybe_acquire()
@@ -550,4 +550,4 @@ def ResultMutex():
                     waiter.set_result(None)
             return result
 
-    return enter
+    return runner
