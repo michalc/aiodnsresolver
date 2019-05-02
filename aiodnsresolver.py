@@ -493,7 +493,7 @@ class ResultMutex():
 
     def __init__(self):
         self._waiters = collections.deque()
-        self._holds = False
+        self._acquired = False
         self._has_result = False
         self._result = ()
 
@@ -503,9 +503,9 @@ class ResultMutex():
             if self._waiters[0].cancelled():
                 self._waiters.popleft()
 
-            elif not self._holds:
+            elif not self._acquired:
                 waiter = self._waiters.popleft()
-                self._holds = True
+                self._acquired = True
                 waiter.set_result(None)
 
             else:
@@ -519,7 +519,7 @@ class ResultMutex():
             await waiter
         except asyncio.CancelledError:
             if waiter.done() and not waiter.cancelled():
-                self._holds = False
+                self._acquired = False
                 self._maybe_acquire()
             raise
 
@@ -530,7 +530,7 @@ class ResultMutex():
         return set_result, self._has_result, self._result
 
     async def __aexit__(self, _, exception, __):
-        self._holds = False
+        self._acquired = False
         if exception is None or isinstance(exception, asyncio.CancelledError):
             self._maybe_acquire()
         else:
