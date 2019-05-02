@@ -122,11 +122,11 @@ def parse(data):
         while True:
             while data[local_cursor] >= 192:  # is pointer
                 local_cursor = (data[local_cursor] - 192) * 256 + data[local_cursor + 1]
+                if not followed_pointers:
+                    c += 2
                 if local_cursor in followed_pointers:
                     raise DnsPointerLoop()
                 followed_pointers.append(local_cursor)
-                if len(followed_pointers) == 1:
-                    c += 2
 
             label_length = data[local_cursor]
             label = data[local_cursor + 1:local_cursor + 1 + label_length]
