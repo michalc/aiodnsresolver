@@ -319,11 +319,11 @@ def Resolver(
         except KeyError:
             pass
 
-        lock = locks.setdefault(key, default=ResultMutex())
+        result_mutex = locks.setdefault(key, default=ResultMutex())
 
-        async with lock as lock_result:
-            if lock_result.has_result:
-                return lock_result.result
+        async with result_mutex as (set_result, has_result, result):
+            if has_result:
+                return result
 
             answers = await request_until_response(fqdn, qtype)
 
@@ -334,7 +334,7 @@ def Resolver(
             )
             invalidate_callbacks[key] = loop.call_at(expires_at, invalidate, key)
             cache[key] = answers
-            lock_result.set_result(answers)
+            set_result(answers)
             return answers
 
     def invalidate(key):
@@ -494,8 +494,8 @@ class ResultMutex():
     def __init__(self):
         self._waiters = collections.deque()
         self._holds = 0
-        self.has_result = False
-        self.result = ()
+        self._has_result = False
+        self._result = ()
 
     def _maybe_acquire(self):
         while self._waiters:
@@ -511,10 +511,6 @@ class ResultMutex():
             else:
                 break
 
-    def set_result(self, result):
-        self.result = result
-        self.has_result = True
-
     async def __aenter__(self):
         waiter = asyncio.Future()
         self._waiters.append(waiter)
@@ -527,7 +523,11 @@ class ResultMutex():
                 self._maybe_acquire()
             raise
 
-        return self
+        def set_result(result):
+            self._has_result = True
+            self._result = result
+
+        return set_result, self._has_result, self._result
 
     async def __aexit__(self, _, exception, __):
         self._holds -= 1
