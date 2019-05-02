@@ -319,7 +319,7 @@ def Resolver(
         except KeyError:
             pass
 
-        function_mutex = locks.setdefault(key, default=FunctionMutex())
+        memoize = locks.setdefault(key, default=MemoizedMutex())
 
         async def get_result():
             answers = await request_until_response(fqdn, qtype)
@@ -333,7 +333,7 @@ def Resolver(
             cache[key] = answers
             return answers
 
-        return await function_mutex(get_result)
+        return await memoize(get_result)
 
     def invalidate(key):
         del cache[key]
@@ -487,7 +487,7 @@ def Resolver(
     return resolve, invalidate_all
 
 
-def FunctionMutex():
+def MemoizedMutex():
 
     waiters = collections.deque()
     acquired = False
