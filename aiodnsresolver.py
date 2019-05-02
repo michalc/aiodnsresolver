@@ -130,7 +130,7 @@ def parse(data):
 
             label_length = data[local_cursor]
             label = data[local_cursor + 1:local_cursor + 1 + label_length]
-            local_cursor = local_cursor + label_length + 1
+            local_cursor = local_cursor + 1 + label_length
 
             if not followed_pointers:
                 c = local_cursor
