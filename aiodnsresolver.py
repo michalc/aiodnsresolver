@@ -321,10 +321,7 @@ def Resolver(
 
         result_mutex = locks.setdefault(key, default=ResultMutex())
 
-        async with result_mutex as (set_result, has_result, result):
-            if has_result:
-                return result
-
+        async def get_result():
             answers = await request_until_response(fqdn, qtype)
 
             expires_at = min(
@@ -334,8 +331,9 @@ def Resolver(
             )
             invalidate_callbacks[key] = loop.call_at(expires_at, invalidate, key)
             cache[key] = answers
-            set_result(answers)
             return answers
+
+        return await result_mutex(get_result)
 
     def invalidate(key):
         del cache[key]
@@ -489,52 +487,67 @@ def Resolver(
     return resolve, invalidate_all
 
 
-class ResultMutex():
+def ResultMutex():
 
-    def __init__(self):
-        self._waiters = collections.deque()
-        self._acquired = False
-        self._has_result = False
-        self._result = ()
+    waiters = collections.deque()
+    acquired = False
+    has_result = False
+    result = ()
 
-    def _maybe_acquire(self):
-        while self._waiters:
+    def maybe_acquire():
+        nonlocal acquired
 
-            if self._waiters[0].cancelled():
-                self._waiters.popleft()
+        while waiters:
 
-            elif not self._acquired:
-                waiter = self._waiters.popleft()
-                self._acquired = True
+            if waiters[0].cancelled():
+                waiters.popleft()
+
+            elif not acquired:
+                waiter = waiters.popleft()
+                acquired = True
                 waiter.set_result(None)
 
             else:
                 break
 
-    async def __aenter__(self):
+    async def enter(context):
+        nonlocal acquired, has_result, result
+
         waiter = asyncio.Future()
-        self._waiters.append(waiter)
-        self._maybe_acquire()
+        waiters.append(waiter)
+        maybe_acquire()
+
         try:
             await waiter
         except asyncio.CancelledError:
             if waiter.done() and not waiter.cancelled():
-                self._acquired = False
-                self._maybe_acquire()
+                acquired = False
+                maybe_acquire()
             raise
 
-        def set_result(result):
-            self._has_result = True
-            self._result = result
+        if has_result:
+            return result
 
-        return set_result, self._has_result, self._result
-
-    async def __aexit__(self, _, exception, __):
-        self._acquired = False
-        if exception is None or isinstance(exception, asyncio.CancelledError):
-            self._maybe_acquire()
-        else:
-            while self._waiters:
-                waiter = self._waiters.popleft()
+        try:
+            result = await context()
+        except asyncio.CancelledError:
+            acquired = False
+            maybe_acquire()
+            raise
+        except BaseException as exception:
+            acquired = False
+            while waiters:
+                waiter = waiters.popleft()
                 if not waiter.cancelled():
                     waiter.set_exception(exception)
+            raise
+        else:
+            acquired = False
+            has_result = True
+            while waiters:
+                waiter = waiters.popleft()
+                if not waiter.cancelled():
+                    waiter.set_result(None)
+            return result
+
+    return enter
