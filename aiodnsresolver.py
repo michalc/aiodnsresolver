@@ -5,6 +5,7 @@ import ipaddress
 import secrets
 import socket
 import struct
+import weakref
 
 QUESTION = 0
 RESPONSE = 1
@@ -116,7 +117,7 @@ def parse(data):
     def load_labels():
         nonlocal c
 
-        followed_pointers = []
+        followed_pointers = ()
         local_cursor = c
 
         while True:
@@ -126,7 +127,7 @@ def parse(data):
                     c += 2
                 if local_cursor in followed_pointers:
                     raise DnsPointerLoop()
-                followed_pointers.append(local_cursor)
+                followed_pointers += (local_cursor,)
 
             label_length = data[local_cursor]
             label = data[local_cursor + 1:local_cursor + 1 + label_length]
@@ -290,8 +291,7 @@ def Resolver(
 
     cache = {}
     invalidate_callbacks = {}
-    waiter_queues = {}
-    woken_waiter = {}
+    locks = weakref.WeakValueDictionary()
     parsed_etc_hosts = parse_etc_hosts()
     parsed_resolve_conf = parse_resolve_conf()
 
@@ -312,16 +312,6 @@ def Resolver(
         raise DnsCnameChainTooLong()
 
     async def request_memoized(fqdn, qtype):
-        """Memoized request, that allows a dynamic expiry for each result
-
-        Multiple callers for the same args will wait for first call to finish,
-        and will use its result.
-
-        A queue of concurrent callers is maintained for the same args. If the
-        task making the request is cancelled, the next in the queue will make
-        it. A non-cancellation exception is propagated to all callers
-        """
-
         key = (fqdn, qtype)
 
         try:
@@ -329,64 +319,10 @@ def Resolver(
         except KeyError:
             pass
 
-        def wake_next():
-            # Find the next non cancelled...
-            while waiter_queue and waiter_queue[0].cancelled():
-                waiter_queue.popleft()
+        memoize = locks.setdefault(key, default=MemoizedMutex())
 
-            # ... wake it up to call the func...
-            if waiter_queue:
-                waiter = waiter_queue.popleft()
-                waiter.set_result((False, None))
-                woken_waiter[key] = waiter
-            elif not waiter_queue:
-                # Delete the queue only if we haven't woken anything up
-                del waiter_queues[key]
-
-        if key not in waiter_queues:
-            waiter_queue = collections.deque()
-            waiter_queues[key] = waiter_queue
-        else:
-            waiter = asyncio.Future()
-            waiter_queue = waiter_queues[key]
-            waiter_queue.append(waiter)
-
-            try:
-                has_other_task_result, other_task_result = await waiter
-            except asyncio.CancelledError:
-                if key in woken_waiter and waiter == woken_waiter[key]:
-                    wake_next()
-                raise
-            else:
-                if has_other_task_result:
-                    return other_task_result
-            finally:
-                if key in woken_waiter and waiter == woken_waiter[key]:
-                    del woken_waiter[key]
-
-        try:
+        async def get_result():
             answers = await request_until_response(fqdn, qtype)
-
-        except asyncio.CancelledError:
-            wake_next()
-            raise
-
-        except BaseException as exception:
-            # Propagate the non-cancellation exception to all waiters
-            while waiter_queue:
-                waiter = waiter_queue.popleft()
-                if not waiter.cancelled():
-                    waiter.set_exception(exception)
-            del waiter_queues[key]
-            raise exception
-
-        else:
-            # Have a result, so cache it and wake up all waiters
-            while waiter_queue:
-                waiter = waiter_queue.popleft()
-                if not waiter.cancelled():
-                    waiter.set_result((True, answers))
-            del waiter_queues[key]
 
             expires_at = min(
                 rdata_ttl.expires_at
@@ -396,6 +332,8 @@ def Resolver(
             invalidate_callbacks[key] = loop.call_at(expires_at, invalidate, key)
             cache[key] = answers
             return answers
+
+        return await memoize(get_result)
 
     def invalidate(key):
         del cache[key]
@@ -547,3 +485,69 @@ def Resolver(
         )
 
     return resolve, invalidate_all
+
+
+def MemoizedMutex():
+
+    waiters = collections.deque()
+    acquired = False
+    has_result = False
+    result = ()
+
+    def maybe_acquire():
+        nonlocal acquired
+
+        while waiters:
+
+            if waiters[0].cancelled():
+                waiters.popleft()
+
+            elif not acquired:
+                waiter = waiters.popleft()
+                acquired = True
+                waiter.set_result(None)
+
+            else:
+                break
+
+    async def runner(func):
+        nonlocal acquired, has_result, result
+
+        waiter = asyncio.Future()
+        waiters.append(waiter)
+        maybe_acquire()
+
+        try:
+            await waiter
+        except asyncio.CancelledError:
+            if waiter.done() and not waiter.cancelled():
+                acquired = False
+                maybe_acquire()
+            raise
+
+        if has_result:
+            return result
+
+        try:
+            result = await func()
+        except asyncio.CancelledError:
+            acquired = False
+            maybe_acquire()
+            raise
+        except BaseException as exception:
+            acquired = False
+            while waiters:
+                waiter = waiters.popleft()
+                if not waiter.cancelled():
+                    waiter.set_exception(exception)
+            raise
+        else:
+            acquired = False
+            has_result = True
+            while waiters:
+                waiter = waiters.popleft()
+                if not waiter.cancelled():
+                    waiter.set_result(None)
+            return result
+
+    return runner
