@@ -322,22 +322,25 @@ def Resolver(
         try:
             memoized_mutex = in_progress[key]
         except KeyError:
-            async def get_result():
-                answers = await request_until_response(fqdn, qtype)
-
-                expires_at = min(
-                    rdata_ttl.expires_at
-                    for rdata_groups in answers
-                    for rdata_ttl in rdata_groups
-                )
-                invalidate_callbacks[key] = loop.call_at(expires_at, invalidate, key)
-                cache[key] = answers
-                return answers
-
-            memoized_mutex = MemoizedMutex(get_result)
+            memoized_mutex = MemoizedMutex(request_and_cache(fqdn, qtype))
             in_progress[key] = memoized_mutex
 
         return await memoized_mutex()
+
+    def request_and_cache(fqdn, qtype):
+        async def _request():
+            answers = await request_until_response(fqdn, qtype)
+
+            expires_at = min(
+                rdata_ttl.expires_at
+                for rdata_groups in answers
+                for rdata_ttl in rdata_groups
+            )
+            key = (fqdn, qtype)
+            invalidate_callbacks[key] = loop.call_at(expires_at, invalidate, key)
+            cache[key] = answers
+            return answers
+        return _request
 
     def invalidate(key):
         del cache[key]
