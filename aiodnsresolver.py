@@ -291,7 +291,7 @@ def Resolver(
 
     cache = {}
     invalidate_callbacks = {}
-    locks = weakref.WeakValueDictionary()
+    in_progress = weakref.WeakValueDictionary()
     parsed_etc_hosts = parse_etc_hosts()
     parsed_resolve_conf = parse_resolve_conf()
 
@@ -332,12 +332,12 @@ def Resolver(
             return answers
 
         try:
-            memoized = locks[key]
+            memoized_mutex = in_progress[key]
         except KeyError:
-            memoized = MemoizedMutex(get_result)
-            locks[key] = memoized
+            memoized_mutex = MemoizedMutex(get_result)
+            in_progress[key] = memoized_mutex
 
-        return await memoized()
+        return await memoized_mutex()
 
     def invalidate(key):
         del cache[key]
