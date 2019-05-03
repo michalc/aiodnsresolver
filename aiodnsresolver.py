@@ -331,7 +331,11 @@ def Resolver(
             cache[key] = answers
             return answers
 
-        memoized = locks.setdefault(key, default=MemoizedMutex(get_result))
+        try:
+            memoized = locks[key]
+        except KeyError:
+            memoized = MemoizedMutex(get_result)
+            locks[key] = memoized
 
         return await memoized()
 
