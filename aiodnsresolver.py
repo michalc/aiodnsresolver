@@ -319,8 +319,6 @@ def Resolver(
         except KeyError:
             pass
 
-        memoize = locks.setdefault(key, default=MemoizedMutex())
-
         async def get_result():
             answers = await request_until_response(fqdn, qtype)
 
@@ -333,7 +331,9 @@ def Resolver(
             cache[key] = answers
             return answers
 
-        return await memoize(get_result)
+        memoized = locks.setdefault(key, default=MemoizedMutex(get_result))
+
+        return await memoized()
 
     def invalidate(key):
         del cache[key]
@@ -487,7 +487,7 @@ def Resolver(
     return resolve, invalidate_all
 
 
-def MemoizedMutex():
+def MemoizedMutex(func):
 
     waiters = collections.deque()
     acquired = False
@@ -510,7 +510,7 @@ def MemoizedMutex():
             else:
                 break
 
-    async def runner(func):
+    async def runner():
         nonlocal acquired, has_result, result
 
         waiter = asyncio.Future()
