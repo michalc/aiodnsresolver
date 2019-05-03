@@ -322,25 +322,23 @@ def Resolver(
         try:
             memoized_mutex = in_progress[key]
         except KeyError:
-            memoized_mutex = MemoizedMutex(request_and_cache(fqdn, qtype))
+            memoized_mutex = MemoizedMutex(request_and_cache, fqdn, qtype)
             in_progress[key] = memoized_mutex
 
         return await memoized_mutex()
 
-    def request_and_cache(fqdn, qtype):
-        async def _request():
-            answers = await request_until_response(fqdn, qtype)
+    async def request_and_cache(fqdn, qtype):
+        answers = await request_until_response(fqdn, qtype)
 
-            expires_at = min(
-                rdata_ttl.expires_at
-                for rdata_groups in answers
-                for rdata_ttl in rdata_groups
-            )
-            key = (fqdn, qtype)
-            invalidate_callbacks[key] = loop.call_at(expires_at, invalidate, key)
-            cache[key] = answers
-            return answers
-        return _request
+        expires_at = min(
+            rdata_ttl.expires_at
+            for rdata_groups in answers
+            for rdata_ttl in rdata_groups
+        )
+        key = (fqdn, qtype)
+        invalidate_callbacks[key] = loop.call_at(expires_at, invalidate, key)
+        cache[key] = answers
+        return answers
 
     def invalidate(key):
         del cache[key]
@@ -494,7 +492,7 @@ def Resolver(
     return resolve, invalidate_all
 
 
-def MemoizedMutex(func):
+def MemoizedMutex(func, *args):
 
     waiters = collections.deque()
     acquired = False
@@ -536,7 +534,7 @@ def MemoizedMutex(func):
             return result
 
         try:
-            result = await func()
+            result = await func(*args)
         except asyncio.CancelledError:
             acquired = False
             maybe_acquire()
