@@ -43,7 +43,9 @@ from struct import (
     Struct,
     error as struct_error,
 )
-import weakref
+from weakref import (
+    WeakValueDictionary,
+)
 
 QUESTION = 0
 RESPONSE = 1
@@ -327,7 +329,7 @@ def Resolver(
 
     cache = {}
     invalidate_callbacks = {}
-    in_progress = weakref.WeakValueDictionary()
+    in_progress = WeakValueDictionary()
     parsed_etc_hosts = parse_etc_hosts()
     parsed_resolve_conf = parse_resolve_conf()
 
