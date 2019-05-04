@@ -1,4 +1,15 @@
 import asyncio
+
+try:
+    from asyncio import get_running_loop
+except ImportError:
+    get_running_loop = asyncio.get_event_loop
+
+try:
+    from asyncio import current_task
+except ImportError:
+    current_task = asyncio.Task.current_task
+
 import collections
 import contextlib
 import ipaddress
@@ -6,13 +17,6 @@ import secrets
 import socket
 import struct
 import weakref
-
-get_running_loop = \
-    asyncio.get_running_loop if hasattr(asyncio, 'get_running_loop') else \
-    asyncio.get_event_loop
-current_task = \
-    asyncio.current_task if hasattr(asyncio, 'current_task') else \
-    asyncio.Task.current_task
 
 QUESTION = 0
 RESPONSE = 1
