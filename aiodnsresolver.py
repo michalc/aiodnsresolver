@@ -19,7 +19,9 @@ from collections import (
     deque,
     namedtuple,
 )
-import contextlib
+from contextlib import (
+    ExitStack,
+)
 import ipaddress
 import secrets
 import socket
@@ -416,7 +418,7 @@ def Resolver(
                 qd=(QuestionRecord(fqdn_transformed, qtype, qclass=1),), an=(), ns=(), ar=(),
             )
 
-        with contextlib.ExitStack() as stack:
+        with ExitStack() as stack:
             socks = tuple(
                 stack.enter_context(socket.socket(socket.AF_INET, socket.SOCK_DGRAM))
                 for addr in addrs
