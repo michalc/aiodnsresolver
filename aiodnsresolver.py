@@ -15,7 +15,10 @@ except ImportError:
     current_task = Task.current_task
     del Task
 
-import collections
+from collections import (
+    deque,
+    namedtuple,
+)
 import contextlib
 import ipaddress
 import secrets
@@ -26,7 +29,7 @@ import weakref
 QUESTION = 0
 RESPONSE = 1
 
-TYPES = collections.namedtuple('Types', [
+TYPES = namedtuple('Types', [
     'A', 'CNAME', 'TXT', 'AAAA'
 ])(A=1, CNAME=5, TXT=16, AAAA=28)
 
@@ -35,16 +38,16 @@ STRUCT_TTL_RDATALEN = struct.Struct('!LH')
 STRUCT_QTYPE_QCLASS = struct.Struct('!HH')
 
 # Field names chosen to be consistent with RFC 1035
-Message = collections.namedtuple('Message', [
+Message = namedtuple('Message', [
     'qid', 'qr', 'opcode', 'aa', 'tc', 'rd', 'ra', 'z', 'rcode',
     'qd', 'an', 'ns', 'ar',
 ])
 
-QuestionRecord = collections.namedtuple('Record', [
+QuestionRecord = namedtuple('Record', [
     'name', 'qtype', 'qclass',
 ])
 
-ResourceRecord = collections.namedtuple('Record', [
+ResourceRecord = namedtuple('Record', [
     'name', 'qtype', 'qclass', 'ttl', 'rdata',
 ])
 
@@ -506,7 +509,7 @@ def Resolver(
 
 def MemoizedMutex(func, *args):
 
-    waiters = collections.deque()
+    waiters = deque()
     acquired = False
     has_result = False
     result = ()
