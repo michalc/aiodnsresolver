@@ -10,6 +10,9 @@ import weakref
 get_running_loop = \
     asyncio.get_running_loop if hasattr(asyncio, 'get_running_loop') else \
     asyncio.get_event_loop
+get_current_task = \
+    asyncio.current_task if hasattr(asyncio, 'current_task') else \
+    asyncio.Task.current_task
 
 QUESTION = 0
 RESPONSE = 1
@@ -367,9 +370,7 @@ def Resolver(
 
     async def request_with_timeout(timeout, addrs, fqdn, qtype):
         cancelling_due_to_timeout = False
-        current_task = \
-            asyncio.current_task() if hasattr(asyncio, 'current_task') else \
-            asyncio.Task.current_task()
+        current_task = get_current_task()
 
         def cancel():
             nonlocal cancelling_due_to_timeout
