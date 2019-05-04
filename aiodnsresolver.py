@@ -1,4 +1,7 @@
-import asyncio
+from asyncio import (
+    Future,
+    CancelledError,
+)
 
 try:
     from asyncio import get_running_loop
@@ -218,7 +221,7 @@ async def recvfrom(loop, socks, max_bytes):
         return _reader
 
     fileno_socks = tuple((sock.fileno(), sock) for sock in socks)
-    result = asyncio.Future()
+    result = Future()
 
     for fileno, sock in fileno_socks:
         loop.add_reader(fileno, reader(sock))
@@ -393,7 +396,7 @@ def Resolver(
 
         try:
             return await request(addrs, fqdn, qtype, set_timeout_cause)
-        except asyncio.CancelledError:
+        except CancelledError:
             if cancelling_due_to_timeout:
                 raise DnsTimeout() from last_exception
             raise
@@ -527,13 +530,13 @@ def MemoizedMutex(func, *args):
     async def runner():
         nonlocal acquired, has_result, result
 
-        waiter = asyncio.Future()
+        waiter = Future()
         waiters.append(waiter)
         maybe_acquire()
 
         try:
             await waiter
-        except asyncio.CancelledError:
+        except CancelledError:
             if waiter.done() and not waiter.cancelled():
                 acquired = False
                 maybe_acquire()
@@ -544,7 +547,7 @@ def MemoizedMutex(func, *args):
 
         try:
             result = await func(*args)
-        except asyncio.CancelledError:
+        except CancelledError:
             acquired = False
             maybe_acquire()
             raise
