@@ -39,7 +39,10 @@ from socket import (
     SOL_SOCKET,
     socket,
 )
-import struct
+from struct import (
+    Struct,
+    error as struct_error,
+)
 import weakref
 
 QUESTION = 0
@@ -49,9 +52,9 @@ TYPES = namedtuple('Types', [
     'A', 'CNAME', 'TXT', 'AAAA'
 ])(A=1, CNAME=5, TXT=16, AAAA=28)
 
-STRUCT_HEADER = struct.Struct('!HHHHHH')
-STRUCT_TTL_RDATALEN = struct.Struct('!LH')
-STRUCT_QTYPE_QCLASS = struct.Struct('!HH')
+STRUCT_HEADER = Struct('!HHHHHH')
+STRUCT_TTL_RDATALEN = Struct('!LH')
+STRUCT_QTYPE_QCLASS = Struct('!HH')
 
 # Field names chosen to be consistent with RFC 1035
 Message = namedtuple('Message', [
@@ -470,7 +473,7 @@ def Resolver(
 
                 try:
                     res = parse(response_data)
-                except (struct.error, IndexError, DnsPointerLoop) as exception:
+                except (struct_error, IndexError, DnsPointerLoop) as exception:
                     last_exception = exception
                     set_timeout_cause(exception)
                     continue
