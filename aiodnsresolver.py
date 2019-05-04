@@ -31,7 +31,14 @@ from secrets import (
     choice,
     randbelow,
 )
-import socket
+from socket import (
+    AF_INET,
+    SO_RCVBUF,
+    SO_SNDBUF,
+    SOCK_DGRAM,
+    SOL_SOCKET,
+    socket,
+)
 import struct
 import weakref
 
@@ -301,8 +308,8 @@ async def mix_case(fqdn):
 
 
 def set_sock_options_default(sock):
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 512)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 512)
+    sock.setsockopt(SOL_SOCKET, SO_SNDBUF, 512)
+    sock.setsockopt(SOL_SOCKET, SO_RCVBUF, 512)
 
 
 def Resolver(
@@ -427,7 +434,7 @@ def Resolver(
 
         with ExitStack() as stack:
             socks = tuple(
-                stack.enter_context(socket.socket(socket.AF_INET, socket.SOCK_DGRAM))
+                stack.enter_context(socket(AF_INET, SOCK_DGRAM))
                 for addr in addrs
             )
 
