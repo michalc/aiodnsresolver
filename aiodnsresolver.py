@@ -27,7 +27,10 @@ from ipaddress import (
     IPv6Address,
     ip_address,
 )
-import secrets
+from secrets import (
+    choice,
+    randbelow,
+)
 import socket
 import struct
 import weakref
@@ -292,7 +295,7 @@ async def get_host_default(hosts, fqdn, qtype):
 
 async def mix_case(fqdn):
     return bytes(
-        (char | secrets.choice((32, 0))) if 65 <= char < 91 else char
+        (char | choice((32, 0))) if 65 <= char < 91 else char
         for char in fqdn.upper()
     )
 
@@ -415,7 +418,7 @@ def Resolver(
 
     async def request(addrs, fqdn, qtype, set_timeout_cause):
         async def req():
-            qid = secrets.randbelow(65536)
+            qid = randbelow(65536)
             fqdn_transformed = await transform_fqdn(fqdn)
             return Message(
                 qid=qid, qr=QUESTION, opcode=0, aa=0, tc=0, rd=1, ra=0, z=0, rcode=0,
