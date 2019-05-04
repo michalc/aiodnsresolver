@@ -364,14 +364,14 @@ def Resolver(
         raise exception
 
     async def request_with_timeout(timeout, addrs, fqdn, qtype):
-        cancelling_due_to_DnsTimeout = False
+        cancelling_due_to_timeout = False
         current_task = \
             asyncio.current_task() if hasattr(asyncio, 'current_task') else \
             asyncio.Task.current_task()
 
         def cancel():
-            nonlocal cancelling_due_to_DnsTimeout
-            cancelling_due_to_DnsTimeout = True
+            nonlocal cancelling_due_to_timeout
+            cancelling_due_to_timeout = True
             current_task.cancel()
 
         handle = loop.call_later(timeout, cancel)
@@ -385,7 +385,7 @@ def Resolver(
         try:
             return await request(addrs, fqdn, qtype, set_timeout_cause)
         except asyncio.CancelledError:
-            if cancelling_due_to_DnsTimeout:
+            if cancelling_due_to_timeout:
                 raise DnsTimeout() from last_exception
             raise
 
