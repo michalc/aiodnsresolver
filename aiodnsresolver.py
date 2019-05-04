@@ -8,7 +8,9 @@ except ImportError:
 try:
     from asyncio import current_task
 except ImportError:
-    current_task = asyncio.Task.current_task
+    from asyncio import Task
+    current_task = Task.current_task
+    del Task
 
 import collections
 import contextlib
