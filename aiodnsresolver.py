@@ -22,7 +22,11 @@ from collections import (
 from contextlib import (
     ExitStack,
 )
-import ipaddress
+from ipaddress import (
+    IPv4Address,
+    IPv6Address,
+    ip_address,
+)
 import secrets
 import socket
 import struct
@@ -82,13 +86,13 @@ class DnsTimeout(DnsError):
     pass
 
 
-class IPv4AddressExpiresAt(ipaddress.IPv4Address):
+class IPv4AddressExpiresAt(IPv4Address):
     def __init__(self, rdata, expires_at):
         super().__init__(rdata)
         self.expires_at = expires_at
 
 
-class IPv6AddressExpiresAt(ipaddress.IPv6Address):
+class IPv6AddressExpiresAt(IPv6Address):
     def __init__(self, rdata, expires_at):
         super().__init__(rdata)
         self.expires_at = expires_at
@@ -261,7 +265,7 @@ def parse_etc_hosts():
     with open('/etc/hosts', 'r') as file:
         lines = tuple(file)
     hosts = tuple(
-        (host.encode(), ipaddress.ip_address(words[0]))
+        (host.encode(), ip_address(words[0]))
         for line in lines
         for (line_before_comment, _, __) in (line.partition('#'),)
         for words in (line_before_comment.split(),)
@@ -269,12 +273,12 @@ def parse_etc_hosts():
     )
     return {
         TYPES.A: {
-            host: IPv4AddressExpiresAt(ip_address, expires_at=0)
-            for host, ip_address in hosts if isinstance(ip_address, ipaddress.IPv4Address)
+            host: IPv4AddressExpiresAt(address, expires_at=0)
+            for host, address in hosts if isinstance(address, IPv4Address)
         },
         TYPES.AAAA: {
-            host: IPv6AddressExpiresAt(ip_address, expires_at=0)
-            for host, ip_address in hosts if isinstance(ip_address, ipaddress.IPv6Address)
+            host: IPv6AddressExpiresAt(address, expires_at=0)
+            for host, address in hosts if isinstance(address, IPv6Address)
         }
     }
 
