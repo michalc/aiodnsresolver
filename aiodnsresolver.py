@@ -7,6 +7,10 @@ import socket
 import struct
 import weakref
 
+get_running_loop = \
+    asyncio.get_running_loop if hasattr(asyncio, 'get_running_loop') else \
+    asyncio.get_event_loop
+
 QUESTION = 0
 RESPONSE = 1
 
@@ -285,9 +289,7 @@ def Resolver(
         max_cname_chain_length=20,
 ):
 
-    loop = \
-        asyncio.get_running_loop() if hasattr(asyncio, 'get_running_loop') else \
-        asyncio.get_event_loop()
+    loop = get_running_loop()
 
     cache = {}
     invalidate_callbacks = {}
