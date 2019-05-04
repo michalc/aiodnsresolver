@@ -3,7 +3,7 @@ import asyncio
 try:
     from asyncio import get_running_loop
 except ImportError:
-    get_running_loop = asyncio.get_event_loop
+    from asyncio import get_event_loop as get_running_loop
 
 try:
     from asyncio import current_task
