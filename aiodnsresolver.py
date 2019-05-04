@@ -1,6 +1,6 @@
 from asyncio import (
-    Future,
     CancelledError,
+    Future,
 )
 
 try:
