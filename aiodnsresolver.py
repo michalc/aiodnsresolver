@@ -237,9 +237,11 @@ async def recvfrom(loop, socks, max_bytes):
             except BlockingIOError:
                 pass
             except BaseException as exception:
+                remove_readers()
                 if not result.done():
                     result.set_exception(exception)
             else:
+                remove_readers()
                 if not result.done():
                     result.set_result((data, addr))
         return _reader
@@ -250,11 +252,14 @@ async def recvfrom(loop, socks, max_bytes):
     for fileno, sock in fileno_socks:
         loop.add_reader(fileno, reader(sock))
 
+    def remove_readers():
+        for fileno, _ in fileno_socks:
+            loop.remove_reader(fileno)
+
     try:
         return await result
     finally:
-        for fileno, _ in fileno_socks:
-            loop.remove_reader(fileno)
+        remove_readers()
 
 
 def parse_resolve_conf():
