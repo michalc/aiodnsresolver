@@ -104,6 +104,32 @@ ip_addresses = await resolve('www.google.com', TYPES.A)
 This can be used as part of a HA system: if a nameserver isn't contactable, this pattern avoids waiting for its timeout before querying another nameserver.
 
 
+## Custom hosts
+
+It's possible to specify hosts without editing the `/etc/hosts` file.
+
+```python
+from aiodnsresolver import Resolver, IPv4AddressExpiresAt, TYPES
+
+async def get_host(_, fqdn, qtype):
+    hosts = {
+        b'localhost': {
+            TYPES.A: IPv4AddressExpiresAt('127.0.0.1', expires_at=0),
+        },
+        b'example.com': {
+            TYPES.A: IPv4AddressExpiresAt('127.0.0.1', expires_at=0),
+        },
+    }
+    try:
+        return hosts[qtype][fqdn]
+    except KeyError:
+        return None
+
+resolve, _ = Resolver(get_host=get_host)
+ip_addresses = await resolve('www.google.com', TYPES.A)
+```
+
+
 ## Exceptions
 
 Exceptions are subclasses of `DnsError`, and are raised if a record does not exist, on socket errors, timeouts, message parsing errors, or other errors returned from the nameserver.
