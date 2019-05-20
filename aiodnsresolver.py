@@ -387,7 +387,7 @@ def Resolver(
         del cache[key]
         invalidate_callbacks.pop(key).cancel()
 
-    def invalidate_all():
+    async def invalidate_all():
         for callback in invalidate_callbacks.values():
             callback.cancel()
         invalidate_callbacks.clear()
