@@ -113,7 +113,7 @@ class TestResolverIntegration(unittest.TestCase):
             self.assertEqual(queried_names[1].lower(), b'my.domain.quite-long.abcdefghijklm')
             self.assertEqual(str(res_4[0]), '123.100.123.2')
 
-            invalidate()
+            await invalidate()
             res_5 = await resolve('my.domain.quite-long.abcdefghijklm', TYPES.A)
             self.assertEqual(len(queried_names), 3)
             self.assertEqual(queried_names[2].lower(), b'my.domain.quite-long.abcdefghijklm')
@@ -1412,7 +1412,7 @@ class TestResolverIntegration(unittest.TestCase):
                 } for ip_address in ip_addresses]
 
             async def close(self):
-                self.clear_cache()
+                await self.clear_cache()
 
         loop = asyncio.get_event_loop()
         self.addCleanup(patch_open())

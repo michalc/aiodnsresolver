@@ -40,7 +40,7 @@ ip_addresses = await resolve('www.google.com', TYPES.A)
 # Will only make another request to the nameserver(s) if the ip_addresses have expired
 ip_addresses = await resolve('www.google.com', TYPES.A)
 
-clear_cache()
+await clear_cache()
 # Will make another request to the nameserver(s)
 ip_addresses = await resolve('www.google.com', TYPES.A)
 ```
@@ -237,7 +237,7 @@ class AioHttpDnsResolver(aiohttp.abc.AbstractResolver):
         } for ip_address in ip_addresses]
 
     async def close(self):
-        self.clear_cache()
+        await self.clear_cache()
 
 
 async def main():
@@ -292,7 +292,7 @@ class AioHttpDnsResolver(tornado.netutil.Resolver):
         ]
 
     async def close(self):
-        self.clear_cache()
+        await self.clear_cache()
 
 async def main():
     tornado.netutil.Resolver.configure(AioHttpDnsResolver)
