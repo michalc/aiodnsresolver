@@ -8,7 +8,7 @@ def long_description():
 
 setuptools.setup(
     name='aiodnsresolver',
-    version='0.0.134',
+    version='0.0.135',
     description='Pure asyncio Python DNS resolver',
     long_description=long_description(),
     long_description_content_type='text/markdown',
