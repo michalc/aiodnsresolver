@@ -22,6 +22,9 @@ from collections import (
 from contextlib import (
     ExitStack,
 )
+from enum import (
+    IntEnum,
+)
 from ipaddress import (
     IPv4Address,
     IPv6Address,
@@ -54,9 +57,16 @@ from weakref import (
 QUESTION = 0
 RESPONSE = 1
 
-TYPES = namedtuple('Types', [
-    'A', 'CNAME', 'TXT', 'AAAA'
-])(A=1, CNAME=5, TXT=16, AAAA=28)
+
+class TYPES(IntEnum):
+    A = 1
+    CNAME = 5
+    TXT = 16
+    AAAA = 28
+
+    def __str__(self):
+        return self.name
+
 
 STRUCT_HEADER = Struct('!HHHHHH')
 STRUCT_TTL_RDATALEN = Struct('!LH')
