@@ -154,6 +154,44 @@ except DnsError as exception:
 If a lower-level exception caused the `DnsError`, it will be in the `__cause__` attribute of the exception.
 
 
+## Logging
+
+By default log messages are output to the logger named `aiodnsresolver`. This can be customised for all requests by passing a `Logger` or `LoggerAdapter` as the `default_logger` option to `Resolver`
+
+```python
+import logging
+from aiodnsresolver import Resolver
+
+resolve, _ = Resolver(get_host=get_host, logger=logging.getLogger('my-application.dns'))
+```
+
+or per request by passing a `Logger` or `LoggerAdapter` to the resolve function.
+
+```python
+import logging
+from aiodnsresolver import Resolver
+
+resolve, _ = Resolver()
+resolve('www.google.com', TYPES.A, logger=logging.getLogger('my-application.dns'))
+```
+
+A maximum of two messages per resolve are logged at the `INFO` log level, the remainder at `DEBUG`. No log messages are output on raised exceptions: it is the responsiblity of client code to log these if desired.
+
+By default all messages are output prefixed with `[<domain-name>,<record-type>]`. This can be customised by passing a custom `LoggerAdapter` class as the `logger_adapter` to `Resolver`.
+
+```python
+import logging
+from aiodnsresolver import Resolver
+
+class MyCustomLoggerAdapter(logging.LoggerAdapter):
+    def process(self, msg, kwargs):
+        return '---%s-%s--- %s' % (self.extra['aiodnsresolver_fqdn'], self.extra['aiodnsresolver_qtype'], msg), kwargs
+
+resolve, _ = Resolver()
+resolve('www.google.com', TYPES.A, logger_adapter=MyCustomLoggerAdapter)
+```
+
+
 ## Disable 0x20-bit encoding
 
 By default each domain name is encoded with [0x20-bit encoding](https://astrolavos.gatech.edu/articles/increased_dns_resistance.pdf) before being sent to the nameservers. However, some nameservers, such as Docker's built-in, do not support this. So, to control or disable the encoding, you can pass a custom `transform_fqdn` coroutine to Resolver that does not perform any additional encoding.

@@ -27,6 +27,10 @@ from ipaddress import (
     IPv6Address,
     ip_address,
 )
+from logging import (
+    LoggerAdapter,
+    getLogger,
+)
 from secrets import (
     choice,
     randbelow,
@@ -118,6 +122,12 @@ class BytesExpiresAt(bytes):
         _rdata = super().__new__(cls, rdata)
         _rdata.expires_at = expires_at
         return _rdata
+
+
+class ResolveLoggerAdapter(LoggerAdapter):
+    def process(self, msg, kwargs):
+        str_args = self.extra['aiodnsresolver_fqdn'], self.extra['aiodnsresolver_qtype'], msg
+        return '[%s,%s] %s' % str_args, kwargs
 
 
 def pack(message):
@@ -323,6 +333,8 @@ def set_sock_options_default(sock):
 
 
 def Resolver(
+        default_logger=getLogger('aiodnsresolver'),
+        logger_adapter=ResolveLoggerAdapter,
         get_host=get_host_default,
         get_nameservers=get_nameservers_default,
         set_sock_options=set_sock_options_default,
@@ -338,40 +350,56 @@ def Resolver(
     parsed_etc_hosts = parse_etc_hosts()
     parsed_resolve_conf = parse_resolve_conf()
 
-    async def resolve(fqdn_str, qtype):
+    async def resolve(fqdn_str, qtype, logger=default_logger):
+        logger = logger_adapter(
+            logger, {'aiodnsresolver_fqdn': fqdn_str, 'aiodnsresolver_qtype': qtype})
+        logger.info('Resolving...')
+
         fqdn = BytesExpiresAt(fqdn_str.encode('idna'), expires_at=float('inf'))
+        logger.debug('IDNA encoded: %s', fqdn)
 
         for _ in range(max_cname_chain_length):
             host = await get_host(parsed_etc_hosts, fqdn, qtype)
             if host is not None:
+                logger.info('Resolved: (%s, from hosts)', host)
                 return (host,)
 
-            cname_rdata, qtype_rdata = await request_memoized(fqdn, qtype)
+            cname_rdata, qtype_rdata = await request_memoized(logger, fqdn, qtype)
             min_expires_at = fqdn.expires_at  # pylint: disable=no-member
             if qtype_rdata:
-                return rdata_expires_at_min(qtype_rdata, min_expires_at)
+                result = rdata_expires_at_min(qtype_rdata, min_expires_at)
+                logger.info('Resolved: (%s)', result)
+                return result
             fqdn = rdata_expires_at_min([cname_rdata[0]], min_expires_at)[0]
+            logger.debug('CNAME: %s', fqdn)
 
+        logger.debug('Too many CNAMEs')
         raise DnsCnameChainTooLong()
 
-    async def request_memoized(fqdn, qtype):
+    async def request_memoized(logger, fqdn, qtype):
         key = (fqdn, qtype)
 
         try:
-            return cache[key]
+            cached_result = cache[key]
         except KeyError:
-            pass
+            logger.debug('Not found in cache')
+        else:
+            logger.debug('Found in cache: %s', cached_result)
+            return cached_result
 
         try:
             memoized_mutex = in_progress[key]
         except KeyError:
-            memoized_mutex = MemoizedMutex(request_and_cache, fqdn, qtype)
+            memoized_mutex = MemoizedMutex(request_and_cache, logger, fqdn, qtype)
             in_progress[key] = memoized_mutex
+        else:
+            logger.debug('Concurrent request found, waiting for it to complete')
 
-        return await memoized_mutex()
+        result = await memoized_mutex()
+        return result
 
-    async def request_and_cache(fqdn, qtype):
-        answers = await request_until_response(fqdn, qtype)
+    async def request_and_cache(logger, fqdn, qtype):
+        answers = await request_until_response(logger, fqdn, qtype)
 
         expires_at = min(
             rdata_ttl.expires_at
@@ -379,34 +407,38 @@ def Resolver(
             for rdata_ttl in rdata_groups
         )
         key = (fqdn, qtype)
-        invalidate_callbacks[key] = loop.call_at(expires_at, invalidate, key)
+        invalidate_callbacks[key] = loop.call_at(expires_at, invalidate, logger, key)
         cache[key] = answers
         return answers
 
-    def invalidate(key):
+    def invalidate(logger, key):
+        logger.debug('Removing from DNS cache: %s', key)
         del cache[key]
         invalidate_callbacks.pop(key).cancel()
 
-    async def invalidate_all():
+    async def invalidate_all(logger=default_logger):
+        logger.debug('Clearing DNS cache')
         for callback in invalidate_callbacks.values():
             callback.cancel()
         invalidate_callbacks.clear()
         cache.clear()
 
-    async def request_until_response(fqdn, qtype):
+    async def request_until_response(logger, fqdn, qtype):
         exception = DnsError()
         async for nameserver in get_nameservers(parsed_resolve_conf, fqdn):
+            logger.debug('Attempting nameserver: %s', nameserver)
             timeout, addrs = nameserver[0], nameserver[1:]
             try:
-                return await request_with_timeout(timeout, addrs, fqdn, qtype)
+                return await request_with_timeout(logger, timeout, addrs, fqdn, qtype)
             except DnsRecordDoesNotExist:
                 raise
             except DnsError as recent_exception:
+                logger.debug('Nameserver failed: %s', nameserver)
                 exception = recent_exception
 
         raise exception
 
-    async def request_with_timeout(timeout, addrs, fqdn, qtype):
+    async def request_with_timeout(logger, timeout, addrs, fqdn, qtype):
         cancelling_due_to_timeout = False
         task = current_task()
 
@@ -424,23 +456,25 @@ def Resolver(
             last_exception = exception
 
         try:
-            return await request(addrs, fqdn, qtype, set_timeout_cause)
+            return await request(logger, addrs, fqdn, qtype, set_timeout_cause)
         except CancelledError:
             if cancelling_due_to_timeout:
                 raise DnsTimeout() from last_exception
+            logger.debug('Cancelled')
             raise
 
         finally:
             handle.cancel()
 
-    async def request(addrs, fqdn, qtype, set_timeout_cause):
+    async def request(logger, addrs, fqdn, qtype, set_timeout_cause):
         async def req():
             qid = randbelow(65536)
             fqdn_transformed = await transform_fqdn(fqdn)
-            return Message(
+            message = Message(
                 qid=qid, qr=QUESTION, opcode=0, aa=0, tc=0, rd=1, ra=0, z=0, rcode=0,
                 qd=(QuestionRecord(fqdn_transformed, qtype, qclass=1),), an=(), ns=(), ar=(),
             )
+            return message
 
         with ExitStack() as stack:
             socks = tuple(
@@ -459,13 +493,16 @@ def Resolver(
                     last_exception = exception
                     set_timeout_cause(exception)
                 else:
-                    connections[addr_port] = (sock, await req())
+                    _req = await req()
+                    connections[addr_port] = (sock, _req)
 
             if not connections:
+                logger.debug('No sockets connected')
                 raise DnsSocketError() from last_exception
 
             ttl_start = loop.time()
             for (sock, req) in connections.values():
+                logger.debug('Sending %s to %s', req, sock)
                 await loop.sock_sendall(sock, pack(req))
 
             last_exception = DnsError()
@@ -474,19 +511,25 @@ def Resolver(
                 try:
                     response_data, addr_port = await recvfrom(loop, connected_socks, 512)
                 except OSError as exception:
+                    logger.debug('Exception receiving from: %s', connected_socks)
                     last_exception = exception
                     set_timeout_cause(exception)
                     continue
+                else:
+                    logger.debug('Response from: %s', addr_port)
 
                 try:
                     res = parse(response_data)
                 except (struct_error, IndexError, DnsPointerLoop) as exception:
+                    logger.debug('Error parsing response: %s', type(exception).__name__)
                     last_exception = exception
                     set_timeout_cause(exception)
                     continue
 
+                logger.debug('Received response: %s', res)
                 trusted = res.qid == req.qid and res.qd == req.qd
                 if not trusted:
+                    logger.debug('Response not trusted')
                     continue
 
                 del connections[addr_port]
@@ -510,6 +553,7 @@ def Resolver(
                 elif name_error or (not cname_answers and not qtype_answers):
                     # a name error can be returned by some non-authoritative
                     # servers on not-existing, contradicting RFC 1035
+                    logger.debug('Record not found from %s', connected_socks)
                     raise DnsRecordDoesNotExist()
                 else:
                     return cname_answers, qtype_answers
