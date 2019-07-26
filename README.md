@@ -370,6 +370,11 @@ loop.close()
 ```
 
 
+## Example: lowhaio
+
+No extra code is needed to use aiodnsresolver with [lowhaio](https://github.com/michalc/lowhaio): it is used by default.
+
+
 ## Testing strategy
 
 Tests attempt to closly match real-world use, and assert on how input translate to output, i.e. the _public_ behaviour of the resolver. Therefore the tests avoid assumptions on implementation details.
