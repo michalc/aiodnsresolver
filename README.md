@@ -154,6 +154,32 @@ except DnsError as exception:
 If a lower-level exception caused the `DnsError`, it will be in the `__cause__` attribute of the exception.
 
 
+## Disable 0x20-bit encoding
+
+By default each domain name is encoded with [0x20-bit encoding](https://astrolavos.gatech.edu/articles/increased_dns_resistance.pdf) before being sent to the nameservers. However, some nameservers, such as Docker's built-in, do not support this. So, to control or disable the encoding, you can pass a custom `transform_fqdn` coroutine to Resolver that does not perform any additional encoding.
+
+```python
+from aiodnsresolver import Resolver
+
+async def transform_fqdn_no_0x20_encoding(fqdn):
+    return fqdn
+
+resolve, _ = Resolver(transform_fqdn=transform_fqdn_no_0x20_encoding)
+```
+
+or performs it conditionally
+
+```python
+from aiodnsresolver import Resolver, mix_case
+
+async def transform_fqdn_0x20_encoding_conditionally(fqdn):
+    return \
+        fqdn if fqdn.endswith(b'some-domain') else \
+        await mix_case(fqdn)
+
+resolve, _ = Resolver(transform_fqdn=transform_fqdn_0x20_encoding_conditionally)
+```
+
 ## Security considerations
 
 To migitate spoofing, several techniques are used.
