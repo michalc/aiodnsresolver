@@ -443,7 +443,7 @@ def Resolver(
             except DnsRecordDoesNotExist:
                 raise
             except DnsError as recent_exception:
-                logger.debug('Nameserver failed: %s', nameserver)
+                logger.warning('Nameserver failed: %s', nameserver)
                 exception = recent_exception
 
         raise exception
