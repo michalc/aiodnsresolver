@@ -365,9 +365,14 @@ def Resolver(
 
     default_logger = get_logger()
 
-    async def resolve(fqdn_str, qtype, get_logger_adapter=ResolveLoggerAdapter):
+    async def resolve(
+            fqdn_str, qtype,
+            get_logger_adapter=ResolveLoggerAdapter,
+            get_logger=lambda: default_logger.getChild('resolve')
+    ):
         logger = get_logger_adapter(
-            default_logger, {'aiodnsresolver_fqdn': fqdn_str, 'aiodnsresolver_qtype': qtype})
+            get_logger(),
+            {'aiodnsresolver_fqdn': fqdn_str, 'aiodnsresolver_qtype': qtype})
 
         fqdn = BytesExpiresAt(fqdn_str.encode('idna'), expires_at=float('inf'))
 
@@ -426,8 +431,11 @@ def Resolver(
         del cache[key]
         invalidate_callbacks.pop(key).cancel()
 
-    async def invalidate_all(get_logger_adapter=LoggerAdapter):
-        logger = get_logger_adapter(default_logger, {})
+    async def clear_cache(
+            get_logger_adapter=LoggerAdapter,
+            get_logger=lambda: default_logger.getChild('clear_cache')
+    ):
+        logger = get_logger_adapter(get_logger(), {})
         logger.debug('Clearing DNS cache')
         for callback in invalidate_callbacks.values():
             callback.cancel()
@@ -586,7 +594,7 @@ def Resolver(
             for rdata in rdatas
         )
 
-    return resolve, invalidate_all
+    return resolve, clear_cache
 
 
 def MemoizedMutex(func, *args):

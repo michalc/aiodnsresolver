@@ -156,7 +156,7 @@ If a lower-level exception caused the `DnsError`, it will be in the `__cause__` 
 
 ## Logging
 
-By default logging is through the logger named `aiodnsresolver`, and all messages from resolving are output prefixed with `[<domain-name>,<record-type>]`.
+By default logging is through children of the logger named `aiodnsresolver`, and all messages from resolving are output prefixed with `[<domain-name>,<record-type>]`.
 
 This can be customised by passing a function that returns a `Logger` to `Resolver`
 
