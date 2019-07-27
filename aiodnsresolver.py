@@ -342,9 +342,12 @@ def set_sock_options_default(sock):
     sock.setsockopt(SOL_SOCKET, SO_RCVBUF, 512)
 
 
+def get_logger_default():
+    return getLogger('aiodnsresolver')
+
+
 def Resolver(
-        get_logger=lambda: getLogger('aiodnsresolver'),
-        get_logger_adapter=ResolveLoggerAdapter,
+        get_logger=get_logger_default,
         get_host=get_host_default,
         get_nameservers=get_nameservers_default,
         set_sock_options=set_sock_options_default,
@@ -362,9 +365,9 @@ def Resolver(
 
     default_logger = get_logger()
 
-    async def resolve(fqdn_str, qtype, logger=default_logger):
+    async def resolve(fqdn_str, qtype, get_logger_adapter=ResolveLoggerAdapter):
         logger = get_logger_adapter(
-            logger, {'aiodnsresolver_fqdn': fqdn_str, 'aiodnsresolver_qtype': qtype})
+            default_logger, {'aiodnsresolver_fqdn': fqdn_str, 'aiodnsresolver_qtype': qtype})
 
         fqdn = BytesExpiresAt(fqdn_str.encode('idna'), expires_at=float('inf'))
 
@@ -423,7 +426,8 @@ def Resolver(
         del cache[key]
         invalidate_callbacks.pop(key).cancel()
 
-    async def invalidate_all(logger=default_logger):
+    async def invalidate_all(get_logger_adapter=LoggerAdapter):
+        logger = get_logger_adapter(default_logger, {})
         logger.debug('Clearing DNS cache')
         for callback in invalidate_callbacks.values():
             callback.cancel()

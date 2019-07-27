@@ -156,28 +156,34 @@ If a lower-level exception caused the `DnsError`, it will be in the `__cause__` 
 
 ## Logging
 
-By default log messages are output to the logger named `aiodnsresolver`. This can be customised for all requests by passing a function that returns a `Logger` or `LoggerAdapter` as the `get_logger` option to `Resolver`
+By default logging is through the logger named `aiodnsresolver`, and all messages from resolving are output prefixed with `[<domain-name>,<record-type>]`.
+
+This can be customised by passing a function that returns a `Logger` to `Resolver`
 
 ```python
 import logging
 from aiodnsresolver import Resolver
 
-resolve, _ = Resolver(get_host=get_host, get_logger=lambda: logging.getLogger('my-application.dns'))
+resolve, _ = Resolver(get_logger=lambda: logging.getLogger('my-application.dns'))
 ```
 
-or per request by passing a `Logger` or `LoggerAdapter` to the resolve function.
+or a function that returns a `LoggerAdapter` to the `resolve` or `clear_cache` functions.
 
 ```python
 import logging
 from aiodnsresolver import Resolver
 
+class MyLoggerAdapter(logging.LoggerAdapter):
+    def process(self, msg, kwargs):
+        str_args = self.extra['aiodnsresolver_fqdn'], self.extra['aiodnsresolver_qtype'], msg
+        return '[FQDN:%s, QTYPE:%s] %s' % str_args, kwargs
+
 resolve, _ = Resolver()
-resolve('www.google.com', TYPES.A, logger=logging.getLogger('my-application.dns'))
+ip_addresses = await resolve('www.google.com', TYPES.A, get_logger_adapter=MyLoggerAdapter)
 ```
 
 A maximum of two messages per DNS query are logged calling `logger.info`. If a nameserver fails, a `logger.warning` is called [an exception will be raised if no nameservers succeed], and the remainder of messages use `logger.debug`. No `logger.exception` calls are made on raised exceptions: it is the responsiblity of client code to log these if desired.
 
-By default all messages are output prefixed with `[<domain-name>,<record-type>]`. This can be customised by passing a custom `LoggerAdapter` class as the `logger_adapter` to `Resolver`.
 
 ```python
 import logging
