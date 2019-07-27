@@ -347,12 +347,6 @@ def get_logger_default():
     return getLogger('aiodnsresolver')
 
 
-def get_child(logger_or_adapter, name):
-    return \
-        logger_or_adapter.getChild(name) if hasattr(logger_or_adapter, 'getChild') else \
-        type(logger_or_adapter)(logger_or_adapter.logger.getChild(name), logger_or_adapter.extra)
-
-
 def Resolver(
         get_logger=get_logger_default,
         get_logger_adapter=ResolverLoggerAdapter,
@@ -379,7 +373,7 @@ def Resolver(
 
     async def resolve(
             fqdn_str, qtype,
-            get_logger=lambda: get_child(default_logger, 'resolve'),
+            get_logger=lambda: default_logger.getChild('resolve'),
             get_logger_adapter=get_logger_adapter,
     ):
         logger = get_logger_adapter(
@@ -444,7 +438,7 @@ def Resolver(
         invalidate_callbacks.pop(key).cancel()
 
     async def clear_cache(
-            get_logger=lambda: get_child(default_logger, 'clear_cache'),
+            get_logger=lambda: default_logger.getChild('clear_cache'),
             get_logger_adapter=get_logger_adapter,
     ):
         logger = get_logger_adapter(get_logger(), {})
