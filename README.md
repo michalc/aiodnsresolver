@@ -175,7 +175,7 @@ resolve, _ = Resolver()
 resolve('www.google.com', TYPES.A, logger=logging.getLogger('my-application.dns'))
 ```
 
-A maximum of two messages per resolve are logged at the `INFO` log level. If a nameserver fails, a `WARNING` is issued [an exception will be raised if no nameservers succeed], and the remainder of messages at at `DEBUG`. No log messages are output on raised exceptions: it is the responsiblity of client code to log these if desired.
+A maximum of two messages per DNS query are logged calling `logger.info`. If a nameserver fails, a `logger.warning` is called [an exception will be raised if no nameservers succeed], and the remainder of messages use `logger.debug`. No `logger.exception` calls are made on raised exceptions: it is the responsiblity of client code to log these if desired.
 
 By default all messages are output prefixed with `[<domain-name>,<record-type>]`. This can be customised by passing a custom `LoggerAdapter` class as the `logger_adapter` to `Resolver`.
 

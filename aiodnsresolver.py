@@ -363,27 +363,23 @@ def Resolver(
     async def resolve(fqdn_str, qtype, logger=default_logger):
         logger = logger_adapter(
             logger, {'aiodnsresolver_fqdn': fqdn_str, 'aiodnsresolver_qtype': qtype})
-        logger.info('Resolving...')
 
         fqdn = BytesExpiresAt(fqdn_str.encode('idna'), expires_at=float('inf'))
-        logger.debug('IDNA encoded: %s', fqdn)
 
         for _ in range(max_cname_chain_length):
             host = await get_host(parsed_etc_hosts, fqdn, qtype)
             if host is not None:
-                logger.info('Resolved: (%s, from hosts)', host)
+                logger.info('Resolved %s from hosts: %s', fqdn, host)
                 return (host,)
 
             cname_rdata, qtype_rdata = await request_memoized(logger, fqdn, qtype)
             min_expires_at = fqdn.expires_at  # pylint: disable=no-member
             if qtype_rdata:
-                result = rdata_expires_at_min(qtype_rdata, min_expires_at)
-                logger.info('Resolved: (%s)', result)
-                return result
+                logger.info('Resolved %s %s: %s', fqdn, qtype, qtype_rdata)
+                return rdata_expires_at_min(qtype_rdata, min_expires_at)
             fqdn = rdata_expires_at_min([cname_rdata[0]], min_expires_at)[0]
-            logger.debug('CNAME: %s', fqdn)
+            logger.info('Resolved CNAME: %s', fqdn)
 
-        logger.debug('Too many CNAMEs')
         raise DnsCnameChainTooLong()
 
     async def request_memoized(logger, fqdn, qtype):
@@ -392,9 +388,9 @@ def Resolver(
         try:
             cached_result = cache[key]
         except KeyError:
-            logger.debug('Not found in cache')
+            logger.info('Not found %s in cache', fqdn)
         else:
-            logger.debug('Found in cache: %s', cached_result)
+            logger.info('Found %s in cache: %s', fqdn, cached_result)
             return cached_result
 
         try:
@@ -405,8 +401,7 @@ def Resolver(
         else:
             logger.debug('Concurrent request found, waiting for it to complete')
 
-        result = await memoized_mutex()
-        return result
+        return await memoized_mutex()
 
     async def request_and_cache(logger, fqdn, qtype):
         answers = await request_until_response(logger, fqdn, qtype)
@@ -443,7 +438,7 @@ def Resolver(
             except DnsRecordDoesNotExist:
                 raise
             except DnsError as recent_exception:
-                logger.warning('Nameserver failed: %s', nameserver)
+                logger.warning('Nameserver failed: %s', nameserver[1])
                 exception = recent_exception
 
         raise exception
@@ -560,10 +555,11 @@ def Resolver(
                 if non_name_error:
                     last_exception = DnsResponseCode(res.rcode)
                     set_timeout_cause(last_exception)
+                    logger.debug('Error from %s', addr_port)
                 elif name_error or (not cname_answers and not qtype_answers):
                     # a name error can be returned by some non-authoritative
                     # servers on not-existing, contradicting RFC 1035
-                    logger.debug('Record not found from %s', connected_socks)
+                    logger.debug('Record not found from %s', addr_port)
                     raise DnsRecordDoesNotExist()
                 else:
                     return cname_answers, qtype_answers
