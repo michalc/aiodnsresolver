@@ -156,9 +156,9 @@ If a lower-level exception caused the `DnsError`, it will be in the `__cause__` 
 
 ## Logging
 
-By default logging is through [children of] the logger named `aiodnsresolver`, and all messages are prefixed with `[dns<comma-separated-variables>]`.
+By default logging is through [children of] the logger named `aiodnsresolver`, and all messages are prefixed with `[dns]` or `[dns:<comma-separated-context-variables>]`.
 
-Each function of the API accepts `get_logger` and `get_logger_adapter` options to customise this. For example to set the parent logger you can pass a function that returns a `Logger` to `Resolver`.
+Each function of the API accepts `get_logger` and `get_logger_adapter` options to customise this. For example to set the parent logger you can pass a function that returns a `Logger` [or `LoggerAdapter`, see below] to `Resolver`.
 
 ```python
 import logging
@@ -183,6 +183,37 @@ ip_addresses = await resolve('www.google.com', TYPES.A, get_logger_adapter=MyLog
 ```
 
 A maximum of two messages per DNS query are logged calling `logger.info`. If a nameserver fails, a `logger.warning` is called [an exception will be raised if no nameservers succeed], and the remainder of messages use `logger.debug`. No `logger.exception` calls are made on raised exceptions: it is the responsiblity of client code to log these if desired.
+
+
+### Chaining Logging Adapters
+
+For complex or highly concurrent applications, it may be desirable that logging adapters be chained to output log messages that incorporate a parent context. So the default ouput of
+
+```
+[dns:my-domain.com,A] Concurrent request found, waiting for it to complete
+```
+
+would be prefixed with a _parent_ context to output something like
+
+```
+[request:12345] [dns:my-domain.com,A] Concurrent request found, waiting for it to complete
+```
+
+To do this, you can pass a `LoggerAdapter` to `get_logger`.
+
+```python
+import logging
+from aiodnsresolver import Resolver, ResolveLoggerAdapter, TYPES
+
+class ParentAdapter(logging.LoggerAdapter):
+    def process(self, msg, kwargs):
+        return '[request:%s] %s' % (self.extra['request-id'], msg), kwargs
+
+chained_logger = ParentAdapter(logging.getLogger('aiodnsresolver.resolve'), {'request-id': '12345'})
+
+resolve, _ = Resolver()
+result = await resolve('www.google.com', TYPES.A, get_logger=lambda: chained_logger)
+```
 
 
 ## Disable 0x20-bit encoding

@@ -142,7 +142,7 @@ class BaseLoggerAdapter(LoggerAdapter):
 class ResolveLoggerAdapter(LoggerAdapter):
     def process(self, msg, kwargs):
         str_args = self.extra['aiodnsresolver_fqdn'], self.extra['aiodnsresolver_qtype'], msg
-        return '[dns,%s,%s] %s' % str_args, kwargs
+        return '[dns:%s,%s] %s' % str_args, kwargs
 
 
 def pack(message):
