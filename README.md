@@ -164,7 +164,7 @@ This can be customised by passing a function that returns a `Logger` to `Resolve
 import logging
 from aiodnsresolver import Resolver
 
-resolve, _ = Resolver(get_logger=lambda: logging.getLogger('my-application.dns'))
+resolve, clear_cache = Resolver(get_logger=lambda: logging.getLogger('my-application.dns'))
 ```
 
 or a function that returns a `LoggerAdapter` to the `resolve` or `clear_cache` functions.
