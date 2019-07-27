@@ -158,7 +158,9 @@ If a lower-level exception caused the `DnsError`, it will be in the `__cause__` 
 
 By default logging is through [children of] the logger named `aiodnsresolver`, and all messages are prefixed with `[dns]` or `[dns:<comma-separated-context-variables>]`.
 
-Each function of the API accepts `get_logger` and `get_logger_adapter` options to customise this. For example to set the parent logger you can pass a function that returns a `Logger` [or `LoggerAdapter`, see below] to `Resolver`.
+Each function of the API accepts `get_logger` and `get_logger_adapter`: the defaults of which result in the above behaviour. Internally, aiodnsresolver passes the result of `get_logger` to `get_logger_adapter`, along with any `extra` data, and calls `.debug` or `.info` etc on the object returned to perform logging. Both `get_logger` or `get_logger_adapter` can be specified as needed.
+
+For example to set the parent logger for all functions, you can pass a function that returns a `Logger` to `Resolver`.
 
 ```python
 import logging
@@ -182,10 +184,8 @@ resolve, clear_cache = Resolver()
 ip_addresses = await resolve('www.google.com', TYPES.A, get_logger_adapter=MyLoggerAdapter)
 ```
 
-A maximum of two messages per DNS query are logged calling `logger.info`. If a nameserver fails, a `logger.warning` is called [an exception will be raised if no nameservers succeed], and the remainder of messages use `logger.debug`. No `logger.exception` calls are made on raised exceptions: it is the responsiblity of client code to log these if desired.
 
-
-### Chaining Logging Adapters
+### Chaining logging adapters
 
 For complex or highly concurrent applications, it may be desirable that logging adapters be chained to output log messages that incorporate a parent context. So the default ouput of
 
@@ -200,6 +200,12 @@ would be prefixed with a _parent_ context to output something like
 ```
 
 To do this, you can pass a `LoggerAdapter` to `get_logger`.
+
+
+### Log levels
+
+A maximum of two messages per DNS query are logged at `INFO`. If a nameserver fails, a `WARNING` is issued [although an exception will be raised if no nameservers succeed], and the remainder of messages are logged at `DEBUG`. No `ERROR` or `CRITICAL` messages are issued when exceptions are raised: it is the responsiblity of client code to log these if desired.
+
 
 ```python
 import logging
