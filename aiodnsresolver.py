@@ -134,15 +134,11 @@ class BytesExpiresAt(bytes):
         return _rdata
 
 
-class BaseLoggerAdapter(LoggerAdapter):
+class ResolverLoggerAdapter(LoggerAdapter):
     def process(self, msg, kwargs):
-        return '[dns] %s' % msg, kwargs
-
-
-class ResolveLoggerAdapter(LoggerAdapter):
-    def process(self, msg, kwargs):
-        str_args = self.extra['aiodnsresolver_fqdn'], self.extra['aiodnsresolver_qtype'], msg
-        return '[dns:%s,%s] %s' % str_args, kwargs
+        return \
+            ('[dns] %s' % (msg,), kwargs) if not self.extra else \
+            ('[dns:%s] %s' % (','.join(str(v) for v in self.extra.values()), msg), kwargs)
 
 
 def pack(message):
@@ -351,9 +347,15 @@ def get_logger_default():
     return getLogger('aiodnsresolver')
 
 
+def get_child(logger_or_adapter, name):
+    return \
+        logger_or_adapter.getChild(name) if hasattr(logger_or_adapter, 'getChild') else \
+        type(logger_or_adapter)(logger_or_adapter.logger.getChild(name), logger_or_adapter.extra)
+
+
 def Resolver(
         get_logger=get_logger_default,
-        get_logger_adapter=BaseLoggerAdapter,
+        get_logger_adapter=ResolverLoggerAdapter,
         get_host=get_host_default,
         get_nameservers=get_nameservers_default,
         set_sock_options=set_sock_options_default,
@@ -377,8 +379,8 @@ def Resolver(
 
     async def resolve(
             fqdn_str, qtype,
-            get_logger_adapter=ResolveLoggerAdapter,
-            get_logger=lambda: default_logger.getChild('resolve')
+            get_logger=lambda: get_child(default_logger, 'resolve'),
+            get_logger_adapter=get_logger_adapter,
     ):
         logger = get_logger_adapter(
             get_logger(),
@@ -442,8 +444,8 @@ def Resolver(
         invalidate_callbacks.pop(key).cancel()
 
     async def clear_cache(
-            get_logger_adapter=BaseLoggerAdapter,
-            get_logger=lambda: default_logger.getChild('clear_cache')
+            get_logger=lambda: get_child(default_logger, 'clear_cache'),
+            get_logger_adapter=get_logger_adapter,
     ):
         logger = get_logger_adapter(get_logger(), {})
         logger.debug('Clearing DNS cache')

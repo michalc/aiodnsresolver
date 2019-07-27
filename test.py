@@ -188,6 +188,19 @@ class TestResolverIntegration(unittest.TestCase):
             log = log_stream.getvalue()
             self.assertIn("\n[request:12345] [dns:my.domain,A] Found b'my.domain' in cache", log)
 
+        log_stream = io.StringIO()
+        log_stream_handler = logging.StreamHandler(log_stream)
+        log_stream_handler.setLevel('DEBUG')
+        logger = logging.getLogger('aiodnsresolver')
+        logger.addHandler(log_stream_handler)
+        logger.setLevel('DEBUG')
+
+        resolve, _ = Resolver(get_logger=lambda: ParentAdapter(logger, {'request-id': '12346'}),)
+        await resolve('my.domain', TYPES.A)
+        log = log_stream.getvalue()
+        self.assertIn(
+            "\n[request:12346] [dns:my.domain,A] Response from: ('127.0.0.1', 53)\n", log)
+
     @async_test
     async def test_cname_short_chain(self):
         loop = asyncio.get_event_loop()
