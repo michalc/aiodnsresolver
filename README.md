@@ -172,7 +172,7 @@ import logging
 from aiodnsresolver import Resolver
 
 resolve, _ = Resolver()
-resolve('www.google.com', TYPES.A, logger=lambda: logging.getLogger('my-application.dns'))
+resolve('www.google.com', TYPES.A, logger=logging.getLogger('my-application.dns'))
 ```
 
 A maximum of two messages per DNS query are logged calling `logger.info`. If a nameserver fails, a `logger.warning` is called [an exception will be raised if no nameservers succeed], and the remainder of messages use `logger.debug`. No `logger.exception` calls are made on raised exceptions: it is the responsiblity of client code to log these if desired.
