@@ -1,5 +1,7 @@
 import asyncio
+import io
 import ipaddress
+import logging
 import socket
 import struct
 import unittest
@@ -118,6 +120,73 @@ class TestResolverIntegration(unittest.TestCase):
             self.assertEqual(len(queried_names), 3)
             self.assertEqual(queried_names[2].lower(), b'my.domain.quite-long.abcdefghijklm')
             self.assertEqual(str(res_5[0]), '123.100.123.3')
+
+    @async_test
+    async def test_a_query_chained_debug_logging(self):
+        loop = asyncio.get_event_loop()
+        queried_names = []
+
+        async def get_response(query_data):
+            query = parse(query_data)
+            queried_names.append(query.qd[0].name)
+
+            reponse_record_1 = ResourceRecord(
+                name=query.qd[0].name,
+                qtype=TYPES.A,
+                qclass=1,
+                ttl=21-len(queried_names),
+                rdata=ipaddress.IPv4Address('123.100.123.' + str(len(queried_names))).packed,
+            )
+            reponse_record_2 = ResourceRecord(
+                name=query.qd[0].name,
+                qtype=TYPES.A,
+                qclass=1,
+                ttl=41-len(queried_names),
+                rdata=ipaddress.IPv4Address('123.100.124.' + str(len(queried_names))).packed,
+            )
+            response = Message(
+                qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
+                qd=query.qd, an=(reponse_record_1, reponse_record_2), ns=(), ar=(),
+            )
+            return pack(response)
+
+        self.addCleanup(patch_open())
+        stop_nameserver = await start_nameserver(53, get_response)
+        self.add_async_cleanup(loop, stop_nameserver)
+
+        log_stream = io.StringIO()
+        log_stream_handler = logging.StreamHandler(log_stream)
+        log_stream_handler.setLevel('DEBUG')
+        logger = logging.getLogger('aiodnsresolver')
+        logger.addHandler(log_stream_handler)
+        logger.setLevel('DEBUG')
+
+        class ParentAdapter(logging.LoggerAdapter):
+            def process(self, msg, kwargs):
+                return '[request:%s] %s' % (self.extra['request-id'], msg), kwargs
+
+        resolve, _ = Resolver()
+
+        with FastForward(loop):
+            await resolve(
+                'my.domain', TYPES.A,
+                get_logger=lambda: ParentAdapter(logger, {'request-id': '12345'}),
+            )
+            log = log_stream.getvalue()
+            self.assertIn(
+                "\n[request:12345] [dns:my.domain,A] Response from: ('127.0.0.1', 53)\n", log)
+            self.assertNotIn("\n[dns:my.domain,A] Found b'my.domain' in cache", log)
+
+            await resolve('my.domain', TYPES.A)
+            log = log_stream.getvalue()
+            self.assertIn("\n[dns:my.domain,A] Found b'my.domain' in cache", log)
+
+            await resolve(
+                'my.domain', TYPES.A,
+                get_logger=lambda: ParentAdapter(logger, {'request-id': '12345'}),
+            )
+            log = log_stream.getvalue()
+            self.assertIn("\n[request:12345] [dns:my.domain,A] Found b'my.domain' in cache", log)
 
     @async_test
     async def test_cname_short_chain(self):
