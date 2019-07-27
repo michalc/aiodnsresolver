@@ -348,6 +348,7 @@ def get_logger_default():
 
 def Resolver(
         get_logger=get_logger_default,
+        get_logger_adapter=LoggerAdapter,
         get_host=get_host_default,
         get_nameservers=get_nameservers_default,
         set_sock_options=set_sock_options_default,
@@ -356,14 +357,18 @@ def Resolver(
 ):
 
     loop = get_running_loop()
+    default_logger = get_logger()
+    logger = get_logger_adapter(default_logger, {})
 
     cache = {}
     invalidate_callbacks = {}
     in_progress = WeakValueDictionary()
-    parsed_etc_hosts = parse_etc_hosts()
-    parsed_resolve_conf = parse_resolve_conf()
 
-    default_logger = get_logger()
+    parsed_etc_hosts = parse_etc_hosts()
+    logger.debug('Parsed /etc/hosts: %s', parsed_etc_hosts)
+
+    parsed_resolve_conf = parse_resolve_conf()
+    logger.debug('Parsed /etc/resolv.conf: %s', parsed_resolve_conf)
 
     async def resolve(
             fqdn_str, qtype,
