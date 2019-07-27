@@ -25,7 +25,7 @@ setuptools.setup(
         'Topic :: Internet :: Name Service (DNS)',
     ],
     keywords='async dns asyncio resolver gethostbyname getaddrinfo',
-    python_requires='>=3.6.0',
+    python_requires='>=3.6.4',
     test_suite='test',
     tests_require=[
         'aiofastforward~=0.0.24',
