@@ -26,6 +26,7 @@ from aiodnsresolver import (
     DnsTimeout,
     Message,
     Resolver,
+    ResolverLoggerAdapter,
     ResourceRecord,
     pack,
     parse,
@@ -165,12 +166,22 @@ class TestResolverIntegration(unittest.TestCase):
             def process(self, msg, kwargs):
                 return '[request:%s] %s' % (self.extra['request-id'], msg), kwargs
 
+        def get_logger_adapter_a(logger, extra):
+            parent_adapter = ParentAdapter(logger, {'request-id': '12345'})
+            child_adapter = ResolverLoggerAdapter(parent_adapter, extra)
+            return child_adapter
+
+        def get_logger_adapter_b(logger, extra):
+            parent_adapter = ParentAdapter(logger, {'request-id': '12346'})
+            child_adapter = ResolverLoggerAdapter(parent_adapter, extra)
+            return child_adapter
+
         resolve, _ = Resolver()
 
         with FastForward(loop):
             await resolve(
                 'my.domain', TYPES.A,
-                get_logger=lambda: ParentAdapter(logger, {'request-id': '12345'}),
+                get_logger_adapter=get_logger_adapter_a,
             )
             log = log_stream.getvalue()
             self.assertIn(
@@ -183,7 +194,7 @@ class TestResolverIntegration(unittest.TestCase):
 
             await resolve(
                 'my.domain', TYPES.A,
-                get_logger=lambda: ParentAdapter(logger, {'request-id': '12345'}),
+                get_logger_adapter=get_logger_adapter_a,
             )
             log = log_stream.getvalue()
             self.assertIn("\n[request:12345] [dns:my.domain,A] Found b'my.domain' in cache", log)
@@ -195,7 +206,7 @@ class TestResolverIntegration(unittest.TestCase):
         logger.addHandler(log_stream_handler)
         logger.setLevel('DEBUG')
 
-        resolve, _ = Resolver(get_logger=lambda: ParentAdapter(logger, {'request-id': '12346'}),)
+        resolve, _ = Resolver(get_logger_adapter=get_logger_adapter_b)
         await resolve('my.domain', TYPES.A)
         log = log_stream.getvalue()
         self.assertIn(

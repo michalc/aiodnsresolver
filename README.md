@@ -199,20 +199,23 @@ would be prefixed with a _parent_ context to output something like
 [request:12345] [dns:my-domain.com,A] Concurrent request found, waiting for it to complete
 ```
 
-To do this, you can pass a function that returns a `LoggerAdapter` as `get_logger`.
+To do this, set `get_logger_adapter` as a function that chains multiple `LoggerAdapter`.
 
 ```python
 import logging
-from aiodnsresolver import Resolver, TYPES
+from aiodnsresolver import Resolver, TYPES, ResolverLoggerAdapter
 
-class ParentAdapter(logging.LoggerAdapter):
+class RequestAdapter(logging.LoggerAdapter):
     def process(self, msg, kwargs):
         return '[request:%s] %s' % (self.extra['request-id'], msg), kwargs
 
-chained_logger = ParentAdapter(logging.getLogger('aiodnsresolver.resolve'), {'request-id': '12345'})
+def get_logger_adapter(logger, extra):
+    parent_adapter = RequestAdapter(logger, {'request-id': '12345'})
+    child_adapter = ResolverLoggerAdapter(parent_adapter, extra)
+    return child_adapter
 
 resolve, _ = Resolver()
-result = await resolve('www.google.com', TYPES.A, get_logger=lambda: chained_logger)
+result = await resolve('www.google.com', TYPES.A, get_logger_adapter=get_logger_adapter)
 ```
 
 
