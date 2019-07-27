@@ -217,7 +217,7 @@ To migitate spoofing, several techniques are used.
 
 - Each query is given a random ID, which is checked against any response.
 
-- Each domain name is encoded with [0x20-bit encoding](https://astrolavos.gatech.edu/articles/increased_dns_resistance.pdf), which is checked against any response.
+- By default each domain name is encoded with [0x20-bit encoding](https://astrolavos.gatech.edu/articles/increased_dns_resistance.pdf), which is checked against any response.
 
 - A new socket, and so a new random local port, is used for each query.
 
