@@ -134,10 +134,15 @@ class BytesExpiresAt(bytes):
         return _rdata
 
 
+class BaseLoggerAdapter(LoggerAdapter):
+    def process(self, msg, kwargs):
+        return '[dns] %s' % msg, kwargs
+
+
 class ResolveLoggerAdapter(LoggerAdapter):
     def process(self, msg, kwargs):
         str_args = self.extra['aiodnsresolver_fqdn'], self.extra['aiodnsresolver_qtype'], msg
-        return '[%s,%s] %s' % str_args, kwargs
+        return '[dns,%s,%s] %s' % str_args, kwargs
 
 
 def pack(message):
@@ -348,7 +353,7 @@ def get_logger_default():
 
 def Resolver(
         get_logger=get_logger_default,
-        get_logger_adapter=LoggerAdapter,
+        get_logger_adapter=BaseLoggerAdapter,
         get_host=get_host_default,
         get_nameservers=get_nameservers_default,
         set_sock_options=set_sock_options_default,
@@ -437,7 +442,7 @@ def Resolver(
         invalidate_callbacks.pop(key).cancel()
 
     async def clear_cache(
-            get_logger_adapter=LoggerAdapter,
+            get_logger_adapter=BaseLoggerAdapter,
             get_logger=lambda: default_logger.getChild('clear_cache')
     ):
         logger = get_logger_adapter(get_logger(), {})
