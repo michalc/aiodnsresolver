@@ -185,19 +185,6 @@ ip_addresses = await resolve('www.google.com', TYPES.A, get_logger_adapter=MyLog
 A maximum of two messages per DNS query are logged calling `logger.info`. If a nameserver fails, a `logger.warning` is called [an exception will be raised if no nameservers succeed], and the remainder of messages use `logger.debug`. No `logger.exception` calls are made on raised exceptions: it is the responsiblity of client code to log these if desired.
 
 
-```python
-import logging
-from aiodnsresolver import Resolver
-
-class MyCustomLoggerAdapter(logging.LoggerAdapter):
-    def process(self, msg, kwargs):
-        return '---%s-%s--- %s' % (self.extra['aiodnsresolver_fqdn'], self.extra['aiodnsresolver_qtype'], msg), kwargs
-
-resolve, _ = Resolver()
-resolve('www.google.com', TYPES.A, logger_adapter=MyCustomLoggerAdapter)
-```
-
-
 ## Disable 0x20-bit encoding
 
 By default each domain name is encoded with [0x20-bit encoding](https://astrolavos.gatech.edu/articles/increased_dns_resistance.pdf) before being sent to the nameservers. However, some nameservers, such as Docker's built-in, do not support this. So, to control or disable the encoding, you can pass a custom `transform_fqdn` coroutine to Resolver that does not perform any additional encoding.
