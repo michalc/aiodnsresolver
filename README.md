@@ -203,7 +203,7 @@ To do this, you can pass a `LoggerAdapter` to `get_logger`.
 
 ```python
 import logging
-from aiodnsresolver import Resolver, ResolveLoggerAdapter, TYPES
+from aiodnsresolver import Resolver, TYPES
 
 class ParentAdapter(logging.LoggerAdapter):
     def process(self, msg, kwargs):
