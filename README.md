@@ -158,7 +158,7 @@ If a lower-level exception caused the `DnsError`, it will be in the `__cause__` 
 
 By default logging is through children of the logger named `aiodnsresolver`, and all messages from resolving are output prefixed with `[<domain-name>,<record-type>]`.
 
-This can be customised by passing a function that returns a `Logger` to `Resolver`
+This can be customised by passing a function that returns a `Logger` to `Resolver`,
 
 ```python
 import logging
@@ -167,7 +167,7 @@ from aiodnsresolver import Resolver
 resolve, clear_cache = Resolver(get_logger=lambda: logging.getLogger('my-application.dns'))
 ```
 
-or a function that returns a `LoggerAdapter` to the `resolve` or `clear_cache` functions.
+or passing function that returns a `LoggerAdapter` to the `resolve` or `clear_cache` functions,
 
 ```python
 import logging
@@ -180,6 +180,16 @@ class MyLoggerAdapter(logging.LoggerAdapter):
 
 resolve, clear_cache = Resolver()
 ip_addresses = await resolve('www.google.com', TYPES.A, get_logger_adapter=MyLoggerAdapter)
+```
+
+or in highly specialised cases by passing function that returns a `Logger` from to the `resolve` or `clear_cache` functions.
+
+```python
+import logging
+from aiodnsresolver import Resolver
+
+resolve, clear_cache = Resolver()
+ip_addresses = await resolve('www.google.com', TYPES.A, get_logger=lambda: logging.getLogger('logger-for-resolve'))
 ```
 
 A maximum of two messages per DNS query are logged calling `logger.info`. If a nameserver fails, a `logger.warning` is called [an exception will be raised if no nameservers succeed], and the remainder of messages use `logger.debug`. No `logger.exception` calls are made on raised exceptions: it is the responsiblity of client code to log these if desired.
