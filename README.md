@@ -199,7 +199,7 @@ would be prefixed with a _parent_ context to output something like
 [request:12345] [dns:my-domain.com,A] Concurrent request found, waiting for it to complete
 ```
 
-To do this, you can pass a `LoggerAdapter` to `get_logger`.
+To do this, you can pass a function that returns a `LoggerAdapter` as `get_logger`.
 
 ```python
 import logging
