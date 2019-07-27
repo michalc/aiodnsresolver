@@ -182,7 +182,7 @@ resolve, clear_cache = Resolver()
 ip_addresses = await resolve('www.google.com', TYPES.A, get_logger_adapter=MyLoggerAdapter)
 ```
 
-or in highly specialised cases by passing function that returns a `Logger` from to the `resolve` or `clear_cache` functions.
+or in highly specialised cases by passing function that returns a `Logger` to the `resolve` or `clear_cache` functions.
 
 ```python
 import logging
