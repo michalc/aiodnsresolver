@@ -178,7 +178,7 @@ class MyLoggerAdapter(logging.LoggerAdapter):
         str_args = self.extra['aiodnsresolver_fqdn'], self.extra['aiodnsresolver_qtype'], msg
         return '[FQDN:%s, QTYPE:%s] %s' % str_args, kwargs
 
-resolve, _ = Resolver()
+resolve, clear_cache = Resolver()
 ip_addresses = await resolve('www.google.com', TYPES.A, get_logger_adapter=MyLoggerAdapter)
 ```
 
