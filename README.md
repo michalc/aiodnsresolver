@@ -201,12 +201,6 @@ would be prefixed with a _parent_ context to output something like
 
 To do this, you can pass a `LoggerAdapter` to `get_logger`.
 
-
-### Log levels
-
-A maximum of two messages per DNS query are logged at `INFO`. If a nameserver fails, a `WARNING` is issued [although an exception will be raised if no nameservers succeed], and the remainder of messages are logged at `DEBUG`. No `ERROR` or `CRITICAL` messages are issued when exceptions are raised: it is the responsiblity of client code to log these if desired.
-
-
 ```python
 import logging
 from aiodnsresolver import Resolver, TYPES
@@ -220,6 +214,11 @@ chained_logger = ParentAdapter(logging.getLogger('aiodnsresolver.resolve'), {'re
 resolve, _ = Resolver()
 result = await resolve('www.google.com', TYPES.A, get_logger=lambda: chained_logger)
 ```
+
+
+### Log levels
+
+A maximum of two messages per DNS query are logged at `INFO`. If a nameserver fails, a `WARNING` is issued [although an exception will be raised if no nameservers succeed], and the remainder of messages are logged at `DEBUG`. No `ERROR` or `CRITICAL` messages are issued when exceptions are raised: it is the responsiblity of client code to log these if desired.
 
 
 ## Disable 0x20-bit encoding
