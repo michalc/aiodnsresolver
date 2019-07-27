@@ -156,13 +156,13 @@ If a lower-level exception caused the `DnsError`, it will be in the `__cause__` 
 
 ## Logging
 
-By default log messages are output to the logger named `aiodnsresolver`. This can be customised for all requests by passing a `Logger` or `LoggerAdapter` as the `default_logger` option to `Resolver`
+By default log messages are output to the logger named `aiodnsresolver`. This can be customised for all requests by passing a function that returns a `Logger` or `LoggerAdapter` as the `get_logger` option to `Resolver`
 
 ```python
 import logging
 from aiodnsresolver import Resolver
 
-resolve, _ = Resolver(get_host=get_host, logger=logging.getLogger('my-application.dns'))
+resolve, _ = Resolver(get_host=get_host, get_logger=lambda: logging.getLogger('my-application.dns'))
 ```
 
 or per request by passing a `Logger` or `LoggerAdapter` to the resolve function.
@@ -172,7 +172,7 @@ import logging
 from aiodnsresolver import Resolver
 
 resolve, _ = Resolver()
-resolve('www.google.com', TYPES.A, logger=logging.getLogger('my-application.dns'))
+resolve('www.google.com', TYPES.A, logger=lambda: logging.getLogger('my-application.dns'))
 ```
 
 A maximum of two messages per DNS query are logged calling `logger.info`. If a nameserver fails, a `logger.warning` is called [an exception will be raised if no nameservers succeed], and the remainder of messages use `logger.debug`. No `logger.exception` calls are made on raised exceptions: it is the responsiblity of client code to log these if desired.

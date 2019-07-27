@@ -343,8 +343,8 @@ def set_sock_options_default(sock):
 
 
 def Resolver(
-        default_logger=getLogger('aiodnsresolver'),
-        logger_adapter=ResolveLoggerAdapter,
+        get_logger=lambda: getLogger('aiodnsresolver'),
+        get_logger_adapter=ResolveLoggerAdapter,
         get_host=get_host_default,
         get_nameservers=get_nameservers_default,
         set_sock_options=set_sock_options_default,
@@ -360,8 +360,10 @@ def Resolver(
     parsed_etc_hosts = parse_etc_hosts()
     parsed_resolve_conf = parse_resolve_conf()
 
+    default_logger = get_logger()
+
     async def resolve(fqdn_str, qtype, logger=default_logger):
-        logger = logger_adapter(
+        logger = get_logger_adapter(
             logger, {'aiodnsresolver_fqdn': fqdn_str, 'aiodnsresolver_qtype': qtype})
 
         fqdn = BytesExpiresAt(fqdn_str.encode('idna'), expires_at=float('inf'))
