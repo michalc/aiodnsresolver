@@ -559,6 +559,9 @@ def Resolver(
 
                 del connections[addr_port]
 
+                if res.tc:
+                    logger.warning('Response truncated')
+
                 name_error = res.rcode == 3
                 non_name_error = res.rcode and not name_error
                 name_lower = req.qd[0].name.lower()

@@ -213,6 +213,43 @@ class TestResolverIntegration(unittest.TestCase):
             "\n[request:12346] [dns:my.domain,A] Response from: ('127.0.0.1', 53)\n", log)
 
     @async_test
+    async def test_a_query_truncated_logs(self):
+        loop = asyncio.get_event_loop()
+
+        async def get_response(query_data):
+            query = parse(query_data)
+            reponse_record = ResourceRecord(
+                name=query.qd[0].name,
+                qtype=TYPES.A,
+                qclass=1,
+                ttl=21,
+                rdata=ipaddress.IPv4Address('123.100.123.1').packed,
+            )
+            response = Message(
+                qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=1, rd=0, ra=1, z=0, rcode=0,
+                qd=query.qd, an=(reponse_record,), ns=(), ar=(),
+            )
+            return pack(response)
+
+        self.addCleanup(patch_open())
+        stop_nameserver = await start_nameserver(53, get_response)
+        self.add_async_cleanup(loop, stop_nameserver)
+
+        log_stream = io.StringIO()
+        log_stream_handler = logging.StreamHandler(log_stream)
+        log_stream_handler.setLevel('WARNING')
+        logger = logging.getLogger('aiodnsresolver')
+        logger.addHandler(log_stream_handler)
+        logger.setLevel('WARNING')
+
+        resolve, _ = Resolver()
+
+        res = await resolve('my.domain', TYPES.A)
+        log = log_stream.getvalue()
+        self.assertIn('[dns:my.domain,A] Response truncated\n', log)
+        self.assertEqual(str(res[0]), '123.100.123.1')
+
+    @async_test
     async def test_cname_short_chain(self):
         loop = asyncio.get_event_loop()
         queried_names = []
