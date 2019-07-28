@@ -373,7 +373,7 @@ def Resolver(
 
     async def resolve(
             fqdn_str, qtype,
-            get_logger=lambda: default_logger.getChild('resolve'),
+            get_logger=lambda: default_logger,
             get_logger_adapter=get_logger_adapter,
     ):
         logger = get_logger_adapter(
@@ -438,7 +438,7 @@ def Resolver(
         invalidate_callbacks.pop(key).cancel()
 
     async def clear_cache(
-            get_logger=lambda: default_logger.getChild('clear_cache'),
+            get_logger=lambda: default_logger,
             get_logger_adapter=get_logger_adapter,
     ):
         logger = get_logger_adapter(get_logger(), {})

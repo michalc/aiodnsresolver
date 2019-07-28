@@ -156,7 +156,7 @@ If a lower-level exception caused the `DnsError`, it will be in the `__cause__` 
 
 ## Logging
 
-By default logging is through [children of] the logger named `aiodnsresolver`, and all messages are prefixed with `[dns]` or `[dns:<comma-separated-context-variables>]`.
+By default logging is through the logger named `aiodnsresolver`, and all messages are prefixed with `[dns]` or `[dns:<comma-separated-context-variables>]`.
 
 Each function of the API accepts `get_logger` and `get_logger_adapter`: the defaults of which result in the above behaviour. Internally, aiodnsresolver passes the result of `get_logger` to `get_logger_adapter`, along with any `extra` data, and calls `.debug` or `.info` etc on the object returned to perform logging. Both `get_logger` or `get_logger_adapter` can be specified as needed.
 
