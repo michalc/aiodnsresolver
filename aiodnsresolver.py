@@ -348,13 +348,13 @@ def get_logger_default():
 
 
 def Resolver(
-        get_logger=get_logger_default,
-        get_logger_adapter=ResolverLoggerAdapter,
         get_host=get_host_default,
         get_nameservers=get_nameservers_default,
         set_sock_options=set_sock_options_default,
         transform_fqdn=mix_case,
         max_cname_chain_length=20,
+        get_logger=get_logger_default,
+        get_logger_adapter=ResolverLoggerAdapter,
 ):
 
     loop = get_running_loop()
