@@ -166,13 +166,15 @@ class TestResolverIntegration(unittest.TestCase):
             def process(self, msg, kwargs):
                 return '[request:%s] %s' % (self.extra['request-id'], msg), kwargs
 
-        def get_logger_adapter_a(logger, extra):
-            parent_adapter = ParentAdapter(logger, {'request-id': '12345'})
+        def get_logger_adapter_a(extra):
+            parent_adapter = ParentAdapter(logging.getLogger(
+                'aiodnsresolver'), {'request-id': '12345'})
             child_adapter = ResolverLoggerAdapter(parent_adapter, extra)
             return child_adapter
 
-        def get_logger_adapter_b(logger, extra):
-            parent_adapter = ParentAdapter(logger, {'request-id': '12346'})
+        def get_logger_adapter_b(extra):
+            parent_adapter = ParentAdapter(logging.getLogger(
+                'aiodnsresolver'), {'request-id': '12346'})
             child_adapter = ResolverLoggerAdapter(parent_adapter, extra)
             return child_adapter
 

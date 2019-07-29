@@ -141,6 +141,10 @@ class ResolverLoggerAdapter(LoggerAdapter):
             ('[dns:%s] %s' % (','.join(str(v) for v in self.extra.values()), msg), kwargs)
 
 
+def get_logger_adapter_default(extra):
+    return ResolverLoggerAdapter(getLogger('aiodnsresolver'), extra)
+
+
 def pack(message):
     def pack_name(name):
         return b''.join(
@@ -343,23 +347,17 @@ def set_sock_options_default(sock):
     sock.setsockopt(SOL_SOCKET, SO_RCVBUF, 512)
 
 
-def get_logger_default():
-    return getLogger('aiodnsresolver')
-
-
 def Resolver(
         get_host=get_host_default,
         get_nameservers=get_nameservers_default,
         set_sock_options=set_sock_options_default,
         transform_fqdn=mix_case,
         max_cname_chain_length=20,
-        get_logger=get_logger_default,
-        get_logger_adapter=ResolverLoggerAdapter,
+        get_logger_adapter=get_logger_adapter_default,
 ):
 
     loop = get_running_loop()
-    default_logger = get_logger()
-    logger = get_logger_adapter(default_logger, {})
+    logger = get_logger_adapter({})
 
     cache = {}
     invalidate_callbacks = {}
@@ -373,12 +371,12 @@ def Resolver(
 
     async def resolve(
             fqdn_str, qtype,
-            get_logger=lambda: default_logger,
             get_logger_adapter=get_logger_adapter,
     ):
-        logger = get_logger_adapter(
-            get_logger(),
-            {'aiodnsresolver_fqdn': fqdn_str, 'aiodnsresolver_qtype': qtype})
+        logger = get_logger_adapter({
+            'aiodnsresolver_fqdn': fqdn_str,
+            'aiodnsresolver_qtype': qtype,
+        })
 
         fqdn = BytesExpiresAt(fqdn_str.encode('idna'), expires_at=float('inf'))
 
@@ -438,10 +436,9 @@ def Resolver(
         invalidate_callbacks.pop(key).cancel()
 
     async def clear_cache(
-            get_logger=lambda: default_logger,
             get_logger_adapter=get_logger_adapter,
     ):
-        logger = get_logger_adapter(get_logger(), {})
+        logger = get_logger_adapter({})
         logger.debug('Clearing DNS cache')
         for callback in invalidate_callbacks.values():
             callback.cancel()

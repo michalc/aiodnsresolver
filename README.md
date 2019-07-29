@@ -156,33 +156,19 @@ If a lower-level exception caused the `DnsError`, it will be in the `__cause__` 
 
 ## Logging
 
-By default logging is through the logger named `aiodnsresolver`, and all messages are prefixed with `[dns]` or `[dns:<comma-separated-context-variables>]`.
+By default logging is through the `Logger` named `aiodnsresolver`, and all messages are prefixed with `[dns]` or `[dns:<fqdn>,<query-type>]` through a `LoggerAdapter`. Each function accepts `get_logger_adapter`: the default of which results in this behaviour, and can be overridden to set either the `Logger` or the `LoggerAdapter`.
 
-Each function of the API accepts `get_logger` and `get_logger_adapter`: the defaults of which result in the above behaviour. Internally, aiodnsresolver passes the result of `get_logger` to `get_logger_adapter`, along with any `extra` data, and calls `.debug` or `.info` etc on the object returned to perform logging. Both `get_logger` or `get_logger_adapter` can be specified as needed.
-
-For example to set the parent logger for all functions, you can pass a function that returns a `Logger` to `Resolver`.
 
 ```python
 import logging
-from aiodnsresolver import Resolver
+from aiodnsresolver import Resolver, ResolverLoggerAdapter
 
-resolve, clear_cache = Resolver(get_logger=lambda: logging.getLogger('my-application.dns'))
+resolve, clear_cache = Resolver(
+    get_logger_adapter=lambda extra: ResolverLoggerAdapter(logging.getLogger('my-application.dns'), extra),
+)
 ```
 
-or to customise how messages during `resolve` are presented, you can pass a function that returns a `LoggerAdapter`.
-
-```python
-import logging
-from aiodnsresolver import Resolver
-
-class MyLoggerAdapter(logging.LoggerAdapter):
-    def process(self, msg, kwargs):
-        str_args = self.extra['aiodnsresolver_fqdn'], self.extra['aiodnsresolver_qtype'], msg
-        return '[FQDN:%s, QTYPE:%s] %s' % str_args, kwargs
-
-resolve, clear_cache = Resolver()
-ip_addresses = await resolve('www.google.com', TYPES.A, get_logger_adapter=MyLoggerAdapter)
-```
+The `LoggerAdapter` used by `resolve` and `clear_cache` defaults to the one passed to `Resolver`.
 
 
 ### Chaining logging adapters
@@ -209,8 +195,8 @@ class RequestAdapter(logging.LoggerAdapter):
     def process(self, msg, kwargs):
         return '[request:%s] %s' % (self.extra['request-id'], msg), kwargs
 
-def get_logger_adapter(logger, extra):
-    parent_adapter = RequestAdapter(logger, {'request-id': '12345'})
+def get_logger_adapter(extra):
+    parent_adapter = RequestAdapter(logging.getLogger('my-application.dns'), {'request-id': '12345'})
     child_adapter = ResolverLoggerAdapter(parent_adapter, extra)
     return child_adapter
 
