@@ -1,6 +1,6 @@
 # aiodnsresolver [![CircleCI](https://circleci.com/gh/michalc/aiodnsresolver.svg?style=svg)](https://circleci.com/gh/michalc/aiodnsresolver) [![Test Coverage](https://api.codeclimate.com/v1/badges/8fa95ca31fe002296b9b/test_coverage)](https://codeclimate.com/github/michalc/aiodnsresolver/test_coverage)
 
-Asyncio Python DNS resolver. Pure Python, with no dependencies other than the standard library, threads are not used, no additional tasks are created, and all code is in a single module. The nameservers to query are taken from `/etc/resolve.conf`, and treats hosts in `/etc/hosts` as A or AAAA records with a TTL of 0.
+Asyncio Python DNS resolver. Pure Python, with no dependencies other than the standard library, threads are not used, no additional tasks are created, and all code is in a single module. The nameservers to query are taken from `/etc/resolv.conf`, and treats hosts in `/etc/hosts` as A or AAAA records with a TTL of 0.
 
 Designed for highly concurrent/HA situations. Based on https://github.com/gera2ld/async_dns.
 
@@ -74,7 +74,7 @@ CNAME records are followed transparently. The `expires_at` of IP addresses found
 
 ## Custom nameservers and timeouts
 
-It is possible to query nameservers other than those in `/etc/resolve.conf`, and for each to specify a timeout in seconds to wait for a reply before querying the next.
+It is possible to query nameservers other than those in `/etc/resolv.conf`, and for each to specify a timeout in seconds to wait for a reply before querying the next.
 
 ```python
 async def get_nameservers(_, __):
@@ -272,7 +272,7 @@ The scope of this project is deliberately restricted to operations that are used
 
   It is technically possible that in the case of extremely high numbers of A or AAAA records for a domain, they would not fit in a single UDP message. However, this is extremely unlikely, and in this unlikely case, extremely unlikely to affect target applications in any meaningful way. If a truncated message is received, a warning is logged.
 
-- The resolver is a _stub_ resolver: it delegates the responsibility of recursion to the nameserver(s) it queries. In the vast majority of envisioned use cases this is acceptable, since the nameservers in `/etc/resolve.conf` will be recursive.
+- The resolver is a _stub_ resolver: it delegates the responsibility of recursion to the nameserver(s) it queries. In the vast majority of envisioned use cases this is acceptable, since the nameservers in `/etc/resolv.conf` will be recursive.
 
 
 ## Example: aiohttp
@@ -399,10 +399,10 @@ Tests attempt to closly match real-world use, and assert on how input translate 
 
 There are however exceptions.
 
-Many tests assume that timeouts are controlled by `asyncio.sleep`, `loop.call_later` or `loop.call_at`. This is to allow time to be fast-forwarded through cache invalidation using [aiofastforward](https://github.com/michalc/aiofastforward) without actually having to wait the corresponding time in the tests. Also, many tests assume `open` is used to access files, and patch it to allow assertions on what the code would do with different contents of `/etc/resolve.conf` or `/etc/hosts`.
+Many tests assume that timeouts are controlled by `asyncio.sleep`, `loop.call_later` or `loop.call_at`. This is to allow time to be fast-forwarded through cache invalidation using [aiofastforward](https://github.com/michalc/aiofastforward) without actually having to wait the corresponding time in the tests. Also, many tests assume `open` is used to access files, and patch it to allow assertions on what the code would do with different contents of `/etc/resolv.conf` or `/etc/hosts`.
 
 While both being assumptions, they are both unlikely to change, and in the case that they are changed, this would much more likely result in tests failing incorrectly rather than passing incorrectly. Therefore these are low-risk assumptions.
 
 A higher risk assumption is that many tests use the, otherwise private, `pack` and `parse` functions as part of the built-in DNS server that is used by the tests. These are the core functions used by the production code used to pack and parse DNS messages. While asserting that the resolver can communicate to the built-in nameserver, all the tests do is assert that `pack` and `parse` are consistent with each other: it is an assumption that other nameservers have equivalent behaviour.
 
-To mitigate the risks that these assumptions bring, some "end to end"-style tests are included, which use whatever nameservers are in `/etc/resolve.conf`, and asserting on globally available DNS results. While not going through every possible case of input, they do validate that core behaviour is consistent with one other implementation of the protocol.
+To mitigate the risks that these assumptions bring, some "end to end"-style tests are included, which use whatever nameservers are in `/etc/resolv.conf`, and asserting on globally available DNS results. While not going through every possible case of input, they do validate that core behaviour is consistent with one other implementation of the protocol.
