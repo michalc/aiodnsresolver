@@ -592,7 +592,7 @@ def Resolver(
         return \
             IPv4AddressExpiresAt(record.rdata, expires_at) if record.qtype == TYPES.A else \
             IPv6AddressExpiresAt(record.rdata, expires_at) if record.qtype == TYPES.AAAA else \
-            BytesExpiresAt(record.rdata, expires_at)
+            BytesExpiresAt(record.rdata.lower(), expires_at)
 
     def rdata_expires_at_min(rdatas, expires_at):
         return tuple(
