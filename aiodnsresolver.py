@@ -255,7 +255,7 @@ def parse(data):
         if qtype == TYPES.CNAME:
             rdata = b'.'.join(load_labels())
         elif qtype == TYPES.TXT:
-            rdata = b''.join(load_char_strings(dc))
+            rdata = b' '.join([b'"%b"' % cs for cs in load_char_strings(dc)])
             c += dc
         else:
             rdata = data[c: c + dc]
