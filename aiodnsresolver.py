@@ -599,6 +599,7 @@ def Resolver(
                     for answer in res.an
                     if answer.name.lower() == name_lower and answer.qtype == qtype
                 )
+
                 if non_name_error:
                     last_exception = DnsResponseCode(res.rcode)
                     set_timeout_cause(last_exception)
@@ -619,7 +620,8 @@ def Resolver(
         return \
             IPv4AddressExpiresAt(record.rdata, expires_at) if record.qtype == TYPES.A else \
             IPv6AddressExpiresAt(record.rdata, expires_at) if record.qtype == TYPES.AAAA else \
-            BytesExpiresAt(record.rdata.lower(), expires_at)
+            BytesExpiresAt(record.rdata.lower(), expires_at) if record.qtype == TYPES.CNAME else\
+            BytesExpiresAt(record.rdata, expires_at)
 
     def rdata_expires_at_min(rdatas, expires_at):
         return tuple(
