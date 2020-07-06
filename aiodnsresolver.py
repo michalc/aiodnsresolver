@@ -207,28 +207,28 @@ def parse(data):
                 break
 
     def load_char_strings(dc):
+
         nonlocal c
 
-        local_cursor = c
+        str_len_i = c
+        end_i = c + dc
         last_str = False
 
         while not last_str:
-            str_len = data[local_cursor]
-
-            local_cursor += 1
+            str_len = data[str_len_i]
+            str_start_i = str_len_i + 1
 
             # make sure we don't go off the end
-            if (local_cursor + str_len) >= dc:
-                str_end = local_cursor + dc
+            if (str_start_i + str_len) >= end_i:
+                str_end_i = end_i
                 last_str = True
+
             else:
-                str_end = local_cursor + str_len
+                str_end_i = str_start_i + str_len
 
-            cur_str = data[local_cursor:str_end]
-
+            cur_str = data[str_start_i:str_end_i]
             yield cur_str
-
-            local_cursor = (str_end + 1)
+            str_len_i = str_end_i + 1
 
     def split_bits(num, *lengths):
         for length in lengths:
@@ -256,6 +256,7 @@ def parse(data):
             rdata = b'.'.join(load_labels())
         elif qtype == TYPES.TXT:
             rdata = b''.join(load_char_strings(dc))
+            c += dc
         else:
             rdata = data[c: c + dc]
             c += dc
