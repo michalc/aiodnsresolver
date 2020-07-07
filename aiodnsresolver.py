@@ -220,15 +220,18 @@ def parse(data):
 
             # make sure we don't go off the end
             if (str_start_i + str_len) >= end_i:
-                str_end_i = end_i
+                str_end_count = end_i
                 last_str = True
 
             else:
-                str_end_i = str_start_i + str_len
+                str_end_count = str_start_i + str_len
 
-            cur_str = data[str_start_i:str_end_i]
+            cur_str = data[str_start_i:str_end_count]
             yield cur_str
-            str_len_i = str_end_i + 1
+            # if we slice n characters, the next string starts 
+            # at *index* n
+            str_len_i = str_end_count
+
 
     def split_bits(num, *lengths):
         for length in lengths:
