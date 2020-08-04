@@ -959,7 +959,7 @@ class TestResolverIntegration(unittest.TestCase):
         local_ip = socket.gethostbyname(socket.gethostname())
 
         async def get_nameservers(_, __):
-            yield (0.5, (local_ip, nameserver_port()))
+            yield (0.5, (local_ip, 10053))
 
         resolve, _ = Resolver(get_nameservers=get_nameservers)
         res = await resolve('my.domain', TYPES.A)
@@ -1275,12 +1275,12 @@ class TestResolverIntegration(unittest.TestCase):
 
             stop_nameserver_53 = await start_nameserver(get_response_53)
             self.add_async_cleanup(loop, stop_nameserver_53)
-            stop_nameserver_54 = await start_nameserver(get_response_54, port=nameserver_port() + 1)
+            stop_nameserver_54 = await start_nameserver(get_response_54, port=10054)
             self.add_async_cleanup(loop, stop_nameserver_54)
 
             async def get_nameservers(_, __):
-                yield (0.5, ('127.0.0.1', nameserver_port()))
-                yield (0.5, ('127.0.0.1', nameserver_port() + 1))
+                yield (0.5, ('127.0.0.1', 10053))
+                yield (0.5, ('127.0.0.1', 10054))
 
             resolve, _ = Resolver(get_nameservers=get_nameservers)
 
@@ -1318,14 +1318,14 @@ class TestResolverIntegration(unittest.TestCase):
 
             stop_nameserver_53 = await start_nameserver(get_response_53)
             self.add_async_cleanup(loop, stop_nameserver_53)
-            stop_nameserver_54 = await start_nameserver(get_response_54, port=nameserver_port() + 1)
+            stop_nameserver_54 = await start_nameserver(get_response_54, port=10054)
             self.add_async_cleanup(loop, stop_nameserver_54)
 
             async def get_nameservers(_, __):
                 yield (
                     0.5,
-                    ('127.0.0.1', nameserver_port()),
-                    ('127.0.0.1', nameserver_port() + 1),
+                    ('127.0.0.1', 10053),
+                    ('127.0.0.1', 10054),
                 )
 
             resolve, _ = Resolver(get_nameservers=get_nameservers)
@@ -1726,26 +1726,12 @@ def patch_open():
     return patched_open.stop
 
 
-def nameserver_port(port=None):
-
-    if not port:
-        euid = os.geteuid()
-        if euid == 0:
-            port = 53
-        else:
-            port = 10053
-
-    return port
-
-
 async def get_nameservers(_, __):
-    yield (0.5, ('127.0.0.1', nameserver_port()))
+    yield (0.5, ('127.0.0.1', 10053))
 
 
-async def start_nameserver(get_response, port=None):
+async def start_nameserver(get_response, port=10053):
     loop = asyncio.get_event_loop()
-
-    port = nameserver_port(port)
 
     sock = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
     sock.setblocking(False)
