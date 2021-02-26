@@ -29,7 +29,7 @@ setuptools.setup(
     test_suite='test',
     tests_require=[
         'aiofastforward~=0.0.24',
-        'aiohttp~=3.5.4',
+        'aiohttp>=3.5.4,<3.8.0',
         'async-timeout~=3.0.1',
         'attrs~=19.1.0',
         'chardet~=3.0.4',
