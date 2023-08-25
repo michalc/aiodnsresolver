@@ -512,6 +512,7 @@ def Resolver(
                     set_sock_options(sock)
                     sock.settimeout(timeout)
                     sock.connect(addr_port)
+                    sock.settimeout(None)
                 except OSError as exception:
                     last_exception = exception
                     set_timeout_cause(exception)
