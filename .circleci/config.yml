@@ -31,11 +31,6 @@ jobs:
             coverage xml -i
             ./cc-test-reporter after-build --exit-code $?
       - run:
-          name: Send coverage
-          command: |
-            pip install coveralls==1.7.0
-            coveralls
-      - run:
           name: Linting
           command: |
             pip install -r requirements_lint.txt
