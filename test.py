@@ -1,5 +1,6 @@
 import asyncio
 import io
+import os
 import ipaddress
 import logging
 import socket
@@ -80,11 +81,11 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(53, get_response)
+        stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
         with FastForward(loop) as forward:
-            resolve, invalidate = Resolver()
+            resolve, invalidate = Resolver(get_nameservers=get_nameservers)
             res_1 = await resolve('my.domain.quite-long.abcdefghijklm', TYPES.A)
 
             self.assertEqual(len(queried_names), 1)
@@ -152,7 +153,7 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(53, get_response)
+        stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
         log_stream = io.StringIO()
@@ -178,7 +179,7 @@ class TestResolverIntegration(unittest.TestCase):
             child_adapter = ResolverLoggerAdapter(parent_adapter, extra)
             return child_adapter
 
-        resolve, _ = Resolver()
+        resolve, _ = Resolver(get_nameservers=get_nameservers)
 
         with FastForward(loop):
             await resolve(
@@ -208,7 +209,7 @@ class TestResolverIntegration(unittest.TestCase):
         logger.addHandler(log_stream_handler)
         logger.setLevel('DEBUG')
 
-        resolve, _ = Resolver(get_logger_adapter=get_logger_adapter_b)
+        resolve, _ = Resolver(get_logger_adapter=get_logger_adapter_b, get_nameservers=get_nameservers)
         await resolve('my.domain', TYPES.A)
         log = log_stream.getvalue()
         self.assertIn(
@@ -234,7 +235,7 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(53, get_response)
+        stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
         log_stream = io.StringIO()
@@ -244,7 +245,7 @@ class TestResolverIntegration(unittest.TestCase):
         logger.addHandler(log_stream_handler)
         logger.setLevel('WARNING')
 
-        resolve, _ = Resolver()
+        resolve, _ = Resolver(get_nameservers=get_nameservers)
 
         res = await resolve('my.domain', TYPES.A)
         log = log_stream.getvalue()
@@ -282,10 +283,10 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(53, get_response)
+        stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve, _ = Resolver()
+        resolve, _ = Resolver(get_nameservers=get_nameservers)
         res_1 = await resolve('first', TYPES.A)
         self.assertEqual(str(res_1[0]), '123.100.124.1')
 
@@ -310,10 +311,10 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(53, get_response)
+        stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve, _ = Resolver()
+        resolve, _ = Resolver(get_nameservers=get_nameservers)
         with self.assertRaises(DnsCnameChainTooLong):
             await resolve('first', TYPES.A)
 
@@ -354,10 +355,10 @@ class TestResolverIntegration(unittest.TestCase):
             return data_compressed
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(53, get_response)
+        stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve, _ = Resolver()
+        resolve, _ = Resolver(get_nameservers=get_nameservers)
         res = await resolve('some.domain', TYPES.A)
         self.assertEqual(str(res[0]), '123.100.124.1')
 
@@ -404,10 +405,10 @@ class TestResolverIntegration(unittest.TestCase):
             return data_compressed
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(53, get_response)
+        stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve, _ = Resolver()
+        resolve, _ = Resolver(get_nameservers=get_nameservers)
         res = await resolve('some.domain', TYPES.A)
         self.assertEqual(str(res[0]), '123.100.124.1')
         self.assertEqual(str(res[1]), '123.100.124.2')
@@ -461,10 +462,10 @@ class TestResolverIntegration(unittest.TestCase):
             return data_compressed_2
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(53, get_response)
+        stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve, _ = Resolver()
+        resolve, _ = Resolver(get_nameservers=get_nameservers)
         res = await resolve('some.domain', TYPES.A)
         self.assertEqual(str(res[0]), '123.100.124.1')
         self.assertEqual(str(res[1]), '123.100.124.2')
@@ -506,10 +507,10 @@ class TestResolverIntegration(unittest.TestCase):
             return data_compressed
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(53, get_response)
+        stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve, _ = Resolver()
+        resolve, _ = Resolver(get_nameservers=get_nameservers)
         with self.assertRaises(DnsTimeout):
             await resolve('some.domain', TYPES.A)
 
@@ -551,10 +552,10 @@ class TestResolverIntegration(unittest.TestCase):
             return data_compressed
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(53, get_response)
+        stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve, _ = Resolver()
+        resolve, _ = Resolver(get_nameservers=get_nameservers)
         with self.assertRaises(DnsTimeout):
             await resolve('some.domain', TYPES.A)
 
@@ -597,10 +598,10 @@ class TestResolverIntegration(unittest.TestCase):
             return data_compressed
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(53, get_response)
+        stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve, _ = Resolver()
+        resolve, _ = Resolver(get_nameservers=get_nameservers)
         with self.assertRaises(DnsTimeout):
             await resolve('some.domain', TYPES.A)
 
@@ -629,10 +630,10 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(53, get_response)
+        stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve, _ = Resolver()
+        resolve, _ = Resolver(get_nameservers=get_nameservers)
         res_1_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
         res_2_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
 
@@ -668,10 +669,10 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(53, get_response)
+        stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve, _ = Resolver()
+        resolve, _ = Resolver(get_nameservers=get_nameservers)
         res_1_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
         res_2_task = asyncio.ensure_future(resolve('other.domain', TYPES.A))
 
@@ -709,11 +710,11 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(53, get_response)
+        stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
         with FastForward(loop) as forward:
-            resolve, _ = Resolver()
+            resolve, _ = Resolver(get_nameservers=get_nameservers)
             await resolve('my.domain', TYPES.A)
             await resolve('other.domain', TYPES.A)
             self.assertEqual(len(queried_names), 2)
@@ -749,10 +750,10 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(53, get_response)
+        stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve, _ = Resolver()
+        resolve, _ = Resolver(get_nameservers=get_nameservers)
         res_1_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
         res_2_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
 
@@ -790,10 +791,10 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(53, get_response)
+        stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve, _ = Resolver()
+        resolve, _ = Resolver(get_nameservers=get_nameservers)
 
         with self.assertRaises(ipaddress.AddressValueError):
             await resolve('my.domain', TYPES.A)
@@ -826,10 +827,10 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(53, get_response)
+        stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve, _ = Resolver()
+        resolve, _ = Resolver(get_nameservers=get_nameservers)
         res_1 = await resolve('my.domain', TYPES.A)
 
         self.assertEqual(str(res_1[0]), '123.100.123.2')
@@ -862,10 +863,10 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(53, get_response)
+        stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve, _ = Resolver()
+        resolve, _ = Resolver(get_nameservers=get_nameservers)
         res_1 = await resolve('my.domain.that-is.fairly.long', TYPES.A)
 
         self.assertEqual(str(res_1[0]), '123.100.123.2')
@@ -897,10 +898,10 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(53, get_response)
+        stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve, _ = Resolver()
+        resolve, _ = Resolver(get_nameservers=get_nameservers)
         res_1 = await resolve('my.domain', TYPES.A)
 
         self.assertEqual(str(res_1[0]), '123.100.123.2')
@@ -925,7 +926,7 @@ class TestResolverIntegration(unittest.TestCase):
             server_task.cancel()
         self.add_async_cleanup(loop, cleanup)
 
-        resolve, _ = Resolver()
+        resolve, _ = Resolver(get_nameservers=get_nameservers)
         # Suspect that the loopback interface "knows" if it won't be able
         # to receive packets if nothing is bound on the other end
         with self.assertRaises(DnsTimeout) as cm:
@@ -952,13 +953,13 @@ class TestResolverIntegration(unittest.TestCase):
             )
             return pack(response)
 
-        stop_nameserver = await start_nameserver(53, get_response)
+        stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
         local_ip = socket.gethostbyname(socket.gethostname())
 
         async def get_nameservers(_, __):
-            yield (0.5, (local_ip, 53))
+            yield (0.5, (local_ip, 10053))
 
         resolve, _ = Resolver(get_nameservers=get_nameservers)
         res = await resolve('my.domain', TYPES.A)
@@ -989,10 +990,10 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(53, get_response)
+        stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve, _ = Resolver()
+        resolve, _ = Resolver(get_nameservers=get_nameservers)
         res_1_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
         response_blockers[0].cancel()
         await asyncio.sleep(0)
@@ -1029,10 +1030,10 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(53, get_response)
+        stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve, _ = Resolver()
+        resolve, _ = Resolver(get_nameservers=get_nameservers)
         res_1_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
         res_2_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
         await asyncio.sleep(0)
@@ -1071,10 +1072,10 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(53, get_response)
+        stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve, _ = Resolver()
+        resolve, _ = Resolver(get_nameservers=get_nameservers)
         res_1_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
         res_2_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
         res_3_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
@@ -1116,10 +1117,10 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(53, get_response)
+        stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve, _ = Resolver()
+        resolve, _ = Resolver(get_nameservers=get_nameservers)
         res_1_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
         res_2_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
         res_3_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
@@ -1166,10 +1167,10 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(53, get_response)
+        stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve, _ = Resolver()
+        resolve, _ = Resolver(get_nameservers=get_nameservers)
 
         async def resolve_then_cancel_res_2_task():
             try:
@@ -1223,11 +1224,11 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(53, get_response)
+        stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
         with FastForward(loop) as forward:
-            resolve, _ = Resolver()
+            resolve, _ = Resolver(get_nameservers=get_nameservers)
             asyncio.ensure_future(resolve('my.domain', TYPES.A))
             await requests[0].wait()
             self.assertEqual(len(queried_names), 1)
@@ -1272,14 +1273,14 @@ class TestResolverIntegration(unittest.TestCase):
                 )
                 return pack(response)
 
-            stop_nameserver_53 = await start_nameserver(53, get_response_53)
+            stop_nameserver_53 = await start_nameserver(get_response_53)
             self.add_async_cleanup(loop, stop_nameserver_53)
-            stop_nameserver_54 = await start_nameserver(54, get_response_54)
+            stop_nameserver_54 = await start_nameserver(get_response_54, port=10054)
             self.add_async_cleanup(loop, stop_nameserver_54)
 
             async def get_nameservers(_, __):
-                yield (0.5, ('127.0.0.1', 53))
-                yield (0.5, ('127.0.0.1', 54))
+                yield (0.5, ('127.0.0.1', 10053))
+                yield (0.5, ('127.0.0.1', 10054))
 
             resolve, _ = Resolver(get_nameservers=get_nameservers)
 
@@ -1315,16 +1316,16 @@ class TestResolverIntegration(unittest.TestCase):
                 )
                 return pack(response)
 
-            stop_nameserver_53 = await start_nameserver(53, get_response_53)
+            stop_nameserver_53 = await start_nameserver(get_response_53)
             self.add_async_cleanup(loop, stop_nameserver_53)
-            stop_nameserver_54 = await start_nameserver(54, get_response_54)
+            stop_nameserver_54 = await start_nameserver(get_response_54, port=10054)
             self.add_async_cleanup(loop, stop_nameserver_54)
 
             async def get_nameservers(_, __):
                 yield (
                     0.5,
-                    ('127.0.0.1', 53),
-                    ('127.0.0.1', 54),
+                    ('127.0.0.1', 10053),
+                    ('127.0.0.1', 10054),
                 )
 
             resolve, _ = Resolver(get_nameservers=get_nameservers)
@@ -1345,11 +1346,11 @@ class TestResolverIntegration(unittest.TestCase):
             await blocker.wait()
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(53, get_response)
+        stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
         with FastForward(loop) as forward:
-            resolve, _ = Resolver()
+            resolve, _ = Resolver(get_nameservers=get_nameservers)
             res_1_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
             await request.wait()
             await forward(2.5)
@@ -1380,7 +1381,7 @@ class TestResolverIntegration(unittest.TestCase):
         # No nameserver started
         self.addCleanup(patch_open())
 
-        resolve, _ = Resolver()
+        resolve, _ = Resolver(get_nameservers=get_nameservers)
         with self.assertRaises(DnsTimeout) as cm:
             await resolve('my.domain', TYPES.A)
 
@@ -1391,7 +1392,7 @@ class TestResolverIntegration(unittest.TestCase):
         def set_sock_options(sock):
             sock.setsockopt(socket.SOL_SOCKET, 1123432, 512)
 
-        resolve, _ = Resolver(set_sock_options=set_sock_options)
+        resolve, _ = Resolver(set_sock_options=set_sock_options, get_nameservers=get_nameservers)
         with self.assertRaises(DnsSocketError) as cm:
             await resolve('my.domain', TYPES.A)
 
@@ -1419,10 +1420,10 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(53, get_response)
+        stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve, _ = Resolver()
+        resolve, _ = Resolver(get_nameservers=get_nameservers)
         tasks = [
             asyncio.ensure_future(resolve('my.domain-' + str((i + 1) % 255), TYPES.A))
             for i in range(1000)
@@ -1461,10 +1462,10 @@ class TestResolverIntegration(unittest.TestCase):
             return pack(response)
 
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(53, get_response)
+        stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
-        resolve, _ = Resolver()
+        resolve, _ = Resolver(get_nameservers=get_nameservers)
         tasks = [
             asyncio.ensure_future(resolve('my.domain', TYPES.A))
             for i in range(100)
@@ -1518,7 +1519,7 @@ class TestResolverIntegration(unittest.TestCase):
         class AioHttpDnsResolver(aiohttp.abc.AbstractResolver):
             def __init__(self):
                 super().__init__()
-                self.resolver, self.clear_cache = Resolver()
+                self.resolver, self.clear_cache = Resolver(get_nameservers=get_nameservers)
 
             async def resolve(self, host, port=0, family=socket.AF_INET):
                 # Use ipv4 unless requested otherwise
@@ -1548,7 +1549,7 @@ class TestResolverIntegration(unittest.TestCase):
 
         loop = asyncio.get_event_loop()
         self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(53, get_response)
+        stop_nameserver = await start_nameserver(get_response)
         self.add_async_cleanup(loop, stop_nameserver)
 
         async def handle_get(_):
@@ -1725,7 +1726,11 @@ def patch_open():
     return patched_open.stop
 
 
-async def start_nameserver(port, get_response):
+async def get_nameservers(_, __):
+    yield (0.5, ('127.0.0.1', 10053))
+
+
+async def start_nameserver(get_response, port=10053):
     loop = asyncio.get_event_loop()
 
     sock = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
