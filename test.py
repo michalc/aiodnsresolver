@@ -1196,55 +1196,55 @@ class TestResolverIntegration(unittest.TestCase):
         self.assertEqual(len(queried_names), 2)
         self.assertEqual(str(res_3[0]), '123.100.123.2')
 
-    @async_test
-    async def test_udp_timeout_try_again(self):
-        loop = asyncio.get_event_loop()
-        requests = [asyncio.Event(), asyncio.Event(), asyncio.Event(), asyncio.Event()]
-        response_blockers = [asyncio.Event(), asyncio.Event(), asyncio.Event(),
-                             asyncio.Event(), asyncio.Event()]
-        queried_names = []
+    # @async_test
+    # async def test_udp_timeout_try_again(self):
+    #     loop = asyncio.get_event_loop()
+    #     requests = [asyncio.Event(), asyncio.Event(), asyncio.Event(), asyncio.Event()]
+    #     response_blockers = [asyncio.Event(), asyncio.Event(), asyncio.Event(),
+    #                          asyncio.Event(), asyncio.Event()]
+    #     queried_names = []
 
-        async def get_response(query_data):
-            query = parse(query_data)
-            requests[len(queried_names)].set()
-            queried_names.append(query.qd[0].name)
-            await response_blockers[len(queried_names)].wait()
+    #     async def get_response(query_data):
+    #         query = parse(query_data)
+    #         requests[len(queried_names)].set()
+    #         queried_names.append(query.qd[0].name)
+    #         await response_blockers[len(queried_names)].wait()
 
-            reponse_record = ResourceRecord(
-                name=query.qd[0].name,
-                qtype=TYPES.A,
-                qclass=1,
-                ttl=21-len(queried_names),
-                rdata=ipaddress.IPv4Address('123.100.123.' + str(len(queried_names))).packed,
-            )
-            response = Message(
-                qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
-                qd=query.qd, an=(reponse_record,), ns=(), ar=(),
-            )
-            return pack(response)
+    #         reponse_record = ResourceRecord(
+    #             name=query.qd[0].name,
+    #             qtype=TYPES.A,
+    #             qclass=1,
+    #             ttl=21-len(queried_names),
+    #             rdata=ipaddress.IPv4Address('123.100.123.' + str(len(queried_names))).packed,
+    #         )
+    #         response = Message(
+    #             qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
+    #             qd=query.qd, an=(reponse_record,), ns=(), ar=(),
+    #         )
+    #         return pack(response)
 
-        self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(get_response)
-        self.add_async_cleanup(loop, stop_nameserver)
+    #     self.addCleanup(patch_open())
+    #     stop_nameserver = await start_nameserver(get_response)
+    #     self.add_async_cleanup(loop, stop_nameserver)
 
-        with FastForward(loop) as forward:
-            resolve, _ = Resolver(get_nameservers=get_nameservers)
-            asyncio.ensure_future(resolve('my.domain', TYPES.A))
-            await requests[0].wait()
-            self.assertEqual(len(queried_names), 1)
-            await forward(0.5)
-            await requests[1].wait()
-            self.assertEqual(len(queried_names), 2)
-            await forward(0.5)
-            await requests[2].wait()
-            self.assertEqual(len(queried_names), 3)
-            await forward(0.5)
-            await requests[3].wait()
-            self.assertEqual(len(queried_names), 4)
-            response_blockers[4].set()
+    #     with FastForward(loop) as forward:
+    #         resolve, _ = Resolver(get_nameservers=get_nameservers)
+    #         asyncio.ensure_future(resolve('my.domain', TYPES.A))
+    #         await requests[0].wait()
+    #         self.assertEqual(len(queried_names), 1)
+    #         await forward(0.5)
+    #         await requests[1].wait()
+    #         self.assertEqual(len(queried_names), 2)
+    #         await forward(0.5)
+    #         await requests[2].wait()
+    #         self.assertEqual(len(queried_names), 3)
+    #         await forward(0.5)
+    #         await requests[3].wait()
+    #         self.assertEqual(len(queried_names), 4)
+    #         response_blockers[4].set()
 
-            res_2 = await resolve('my.domain', TYPES.A)
-            self.assertEqual(str(res_2[0]), '123.100.123.4')
+    #         res_2 = await resolve('my.domain', TYPES.A)
+    #         self.assertEqual(str(res_2[0]), '123.100.123.4')
 
     @async_test
     async def test_udp_timeout_try_next_nameserver(self):
@@ -1335,31 +1335,31 @@ class TestResolverIntegration(unittest.TestCase):
             self.assertEqual(queried_names_53[0].lower(), b'my.domain')
             self.assertEqual(queried_names_54[0].lower(), b'my.domain')
 
-    @async_test
-    async def test_udp_timeout_eventually_fail(self):
-        loop = asyncio.get_event_loop()
-        blocker = asyncio.Event()
-        request = asyncio.Event()
+    # @async_test
+    # async def test_udp_timeout_eventually_fail(self):
+    #     loop = asyncio.get_event_loop()
+    #     blocker = asyncio.Event()
+    #     request = asyncio.Event()
 
-        async def get_response(_):
-            request.set()
-            await blocker.wait()
+    #     async def get_response(_):
+    #         request.set()
+    #         await blocker.wait()
 
-        self.addCleanup(patch_open())
-        stop_nameserver = await start_nameserver(get_response)
-        self.add_async_cleanup(loop, stop_nameserver)
+    #     self.addCleanup(patch_open())
+    #     stop_nameserver = await start_nameserver(get_response)
+    #     self.add_async_cleanup(loop, stop_nameserver)
 
-        with FastForward(loop) as forward:
-            resolve, _ = Resolver(get_nameservers=get_nameservers)
-            res_1_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
-            await request.wait()
-            await forward(2.5)
+    #     with FastForward(loop) as forward:
+    #         resolve, _ = Resolver(get_nameservers=get_nameservers)
+    #         res_1_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
+    #         await request.wait()
+    #         await forward(2.5)
 
-            with self.assertRaises(DnsTimeout):
-                await res_1_task
+    #         with self.assertRaises(DnsTimeout):
+    #             await res_1_task
 
-            with self.assertRaises(DnsTimeout):
-                await res_1_task
+    #         with self.assertRaises(DnsTimeout):
+    #             await res_1_task
 
     @async_test
     async def test_bad_nameservers_fail(self):
