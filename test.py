@@ -188,7 +188,7 @@ class TestResolverIntegration(unittest.TestCase):
             )
             log = log_stream.getvalue()
             self.assertIn(
-                "\n[request:12345] [dns:my.domain,A] Response from: ('127.0.0.1', 53)\n", log)
+                "\n[request:12345] [dns:my.domain,A] Response from: ('127.0.0.1', 10053)\n", log)
             self.assertNotIn("\n[dns:my.domain,A] Found b'my.domain' in cache", log)
 
             await resolve('my.domain', TYPES.A)
@@ -213,7 +213,7 @@ class TestResolverIntegration(unittest.TestCase):
         await resolve('my.domain', TYPES.A)
         log = log_stream.getvalue()
         self.assertIn(
-            "\n[request:12346] [dns:my.domain,A] Response from: ('127.0.0.1', 53)\n", log)
+            "\n[request:12346] [dns:my.domain,A] Response from: ('127.0.0.1', 10053)\n", log)
 
     @async_test
     async def test_a_query_truncated_logs(self):
