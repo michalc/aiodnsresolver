@@ -3,6 +3,7 @@ workflows:
   version: 2
   test:
     jobs:
+      - test-3.8.13
       - test-3.7.3
       - test-3.7.2
       - test-3.7.1
@@ -10,11 +11,10 @@ workflows:
       - test-3.6.7
       - test-3.6.6
       - test-3.6.5
-      - test-3.6.4
 jobs:
-  test-3.7.3:
+  test-3.8.13:
     docker:
-      - image: python:3.7.3
+      - image: python:3.8.13
     steps:
       - checkout
       - run:
@@ -26,8 +26,9 @@ jobs:
       - run:
           name: Run tests
           command: |
+            pip install -r requirements_test.txt
             ./cc-test-reporter before-build
-            coverage run -m setup test -v
+            coverage run -m unittest -v
             coverage xml -i
             ./cc-test-reporter after-build --exit-code $?
       - run:
@@ -36,15 +37,20 @@ jobs:
             pip install -r requirements_lint.txt
             pre-commit install
             pre-commit run --all-files
-  test-3.7.2: &template
+  test-3.7.3: &template
     docker:
-      - image: python:3.7.2
+      - image: python:3.7.3
     steps:
       - checkout
       - run:
           name: Run tests
           command: |
-            python -m setup test -v
+            pip install -r requirements_test.txt
+            python -m unittest -v
+  test-3.7.2:
+    <<: *template
+    docker:
+      - image: python:3.7.2
   test-3.7.1:
     <<: *template
     docker:

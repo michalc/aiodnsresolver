@@ -1,5 +1,5 @@
 repos:
-- repo: git://github.com/pre-commit/pre-commit-hooks
+- repo: https://github.com/pre-commit/pre-commit-hooks
   rev: v1.2.3
   hooks:
     - id: autopep8-wrapper
@@ -24,6 +24,7 @@ repos:
       types: [python]
       args:
         - --disable=broad-except
+        - --disable=consider-using-f-string
         - --disable=invalid-name
         - --disable=missing-docstring
         - --disable=protected-access
@@ -32,6 +33,7 @@ repos:
         - --disable=too-many-locals
         - --disable=too-many-public-methods
         - --disable=too-many-statements
+        - --disable=undefined-loop-variable
         - --include-naming-hint=yes
         - --max-args=10
         - --max-locals=25

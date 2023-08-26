@@ -288,7 +288,7 @@ async def recvfrom(loop, socks, max_bytes):
 
 
 def parse_resolve_conf():
-    with open('/etc/resolv.conf', 'r') as file:
+    with open('/etc/resolv.conf', 'r', encoding='ascii') as file:
         lines = tuple(file)
     return tuple(
         words_on_line[1]
@@ -307,7 +307,7 @@ async def get_nameservers_default(nameservers, _):
 
 
 def parse_etc_hosts():
-    with open('/etc/hosts', 'r') as file:
+    with open('/etc/hosts', 'r', encoding='ascii') as file:
         lines = tuple(file)
     hosts = tuple(
         (host.encode(), ip_address(words[0]))
@@ -657,13 +657,13 @@ def MemoizedMutex(func, *args):
                 if not waiter.cancelled():
                     waiter.set_exception(exception)
             raise
-        else:
-            acquired = False
-            has_result = True
-            while waiters:
-                waiter = waiters.popleft()
-                if not waiter.cancelled():
-                    waiter.set_result(None)
-            return result
+
+        acquired = False
+        has_result = True
+        while waiters:
+            waiter = waiters.popleft()
+            if not waiter.cancelled():
+                waiter.set_result(None)
+        return result
 
     return runner
