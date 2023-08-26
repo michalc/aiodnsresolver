@@ -867,9 +867,6 @@ class TestResolverIntegration(unittest.TestCase):
         self.add_async_cleanup(loop, stop_nameserver)
 
         resolve, _ = Resolver(get_nameservers=get_nameservers)
-        with self.assertRaises(DnsTimeout):
-            await resolve('my.domain.that-is.fairly.long', TYPES.A)
-
         res_1 = await resolve('my.domain.that-is.fairly.long', TYPES.A)
         self.assertEqual(str(res_1[0]), '123.100.123.2')
         self.assertEqual(len(queried_names), 2)
@@ -1729,6 +1726,7 @@ def patch_open():
 
 
 async def get_nameservers(_, __):
+    yield (0.5, ('127.0.0.1', 10053))
     yield (0.5, ('127.0.0.1', 10053))
 
 
