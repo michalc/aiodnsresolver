@@ -1,6 +1,6 @@
 # aiodnsresolver
 
-[![PyPI package](https://img.shields.io/pypi/v/pg-bulk-ingest?label=PyPI%20package&color=%234c1)](https://pypi.org/project/pg-bulk-ingest/) [![Test suite](https://img.shields.io/github/actions/workflow/status/michalc/aiodnsresolver/test.yml?label=Test%20suite)](https://github.com/michalc/aiodnsresolver/actions/workflows/test.yml) [![Code coverage](https://img.shields.io/codecov/c/github/michalc/aiodnsresolver?label=Code%20coverage)](https://app.codecov.io/gh/michalc/aiodnsresolver)
+[![PyPI package](https://img.shields.io/pypi/v/aiodnsresolver?label=PyPI%20package&color=%234c1)](https://pypi.org/project/aiodnsresolver/) [![Test suite](https://img.shields.io/github/actions/workflow/status/michalc/aiodnsresolver/test.yml?label=Test%20suite)](https://github.com/michalc/aiodnsresolver/actions/workflows/test.yml) [![Code coverage](https://img.shields.io/codecov/c/github/michalc/aiodnsresolver?label=Code%20coverage)](https://app.codecov.io/gh/michalc/aiodnsresolver)
 
 Asyncio Python DNS resolver. Pure Python, with no dependencies other than the standard library, threads are not used, no additional tasks are created, and all code is in a single module. The nameservers to query are taken from `/etc/resolv.conf`, and treats hosts in `/etc/hosts` as A or AAAA records with a TTL of 0.
 
