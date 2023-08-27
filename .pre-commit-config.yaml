@@ -31,7 +31,6 @@ repos:
         - --disable=invalid-name
         - --disable=missing-docstring
         - --disable=no-else-raise
-        - --disable=protected-access
         - --disable=too-many-branches
         - --disable=too-many-lines
         - --disable=too-many-locals
