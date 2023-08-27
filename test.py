@@ -937,13 +937,14 @@ class TestResolverIntegration(unittest.TestCase):
     @async_test
     async def test_listen_then_close_local_raises_exception(self):
         loop = asyncio.get_event_loop()
+        received = asyncio.Event()
 
         async def server():
             with socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM) as sock:
                 sock.setblocking(False)
-                sock.bind(('', 53))
+                sock.bind(('', 10053))
                 await recvfrom(loop, [sock], 512)
-                await asyncio.sleep(0)
+                received.set()
 
         self.addCleanup(patch_open())
         server_task = asyncio.ensure_future(server())
@@ -959,6 +960,7 @@ class TestResolverIntegration(unittest.TestCase):
         with self.assertRaises(DnsTimeout) as cm:
             await resolve('my.domain', TYPES.A)
 
+        await received.wait()
         self.assertIsInstance(cm.exception.__cause__, ConnectionRefusedError)
 
     @async_test
