@@ -1,0 +1,47 @@
+name: Test
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    name: Run tests
+    strategy:
+      matrix:
+        python-version:
+          - 3.8.0
+          - 3.7.1
+          - 3.6.7
+    runs-on: ubuntu-20.04
+    steps:
+      - name: "Checkout"
+        uses: "actions/checkout@v3"
+      - uses: "actions/setup-python@v4"
+        with:
+          python-version: '${{ matrix.python-version }}'
+      - name: "Install python dependencies"
+        run: |
+          pip install ".[test]"
+      - name: "Run tests"
+        run: |
+          pytest test.py --cov
+      - uses: codecov/codecov-action@v3
+
+  lint:
+    name: Run linting
+    runs-on: ubuntu-20.04
+    steps:
+      - name: "Checkout"
+        uses: "actions/checkout@v3"
+      - uses: "actions/setup-python@v4"
+        with:
+          python-version: 3.8.0
+      - name: "Install python dependencies"
+        run: |
+          pip install ".[test,lint]"
+      - run: |
+          pre-commit install
+          pre-commit run --all-files

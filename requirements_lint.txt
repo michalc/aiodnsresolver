@@ -1,4 +1,0 @@
--r requirements_test.txt
-
-pre-commit==3.3.3
-pylint==2.4.0

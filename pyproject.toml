@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "aiodnsresolver"
+version = "0.0.0.dev0"
+authors = [
+  { name="Gerald", email="i@gerald.top" },
+]
+description = "Pure asyncio Python DNS resolver"
+readme = "README.md"
+requires-python = ">=3.6.4"
+license = "MIT"
+classifiers = [
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Topic :: Internet :: Name Service (DNS)",
+]
+
+[project.optional-dependencies]
+test = [
+    "aiofastforward",
+    "aiohttp",
+    "pytest",
+    "pytest-cov",
+]
+lint = [
+	"pre-commit",
+	"pylint",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/michalc/aiodnsresolver"
+
+[tool.hatch.build]
+include = [
+  "aiodnsresolver.py",
+]
