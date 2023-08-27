@@ -138,7 +138,8 @@ class ResolverLoggerAdapter(LoggerAdapter):
     def process(self, msg, kwargs):
         return \
             ('[dns] %s' % (msg,), kwargs) if not self.extra else \
-            ('[dns:%s] %s' % (','.join(str(v) for v in self.extra.values()), msg), kwargs)
+            ('[dns:%s] %s' % (','.join(str(v)
+             for v in self.extra.values()), msg), kwargs)
 
 
 def get_logger_adapter_default(extra):
@@ -161,7 +162,8 @@ def pack(message):
     header = STRUCT_HEADER.pack(
         message.qid,
         (message.qr << 15) + (message.opcode << 11) + (message.aa << 10) + (message.tc << 9) +
-        (message.rd << 8) + (message.ra << 7) + (message.z << 4) + message.rcode,
+        (message.rd << 8) + (message.ra << 7) +
+        (message.z << 4) + message.rcode,
         len(message.qd),
         len(message.an),
         len(message.ns),
@@ -171,7 +173,8 @@ def pack(message):
         pack_name(rec.name) + STRUCT_QTYPE_QCLASS.pack(rec.qtype, rec.qclass)
         for rec in message.qd
     ) + tuple(
-        pack_name(rec.name) + STRUCT_QTYPE_QCLASS.pack(rec.qtype, rec.qclass) + pack_resource(rec)
+        pack_name(rec.name) + STRUCT_QTYPE_QCLASS.pack(rec.qtype,
+                                                       rec.qclass) + pack_resource(rec)
         for group in (message.an, message.ns, message.ar)
         for rec in group
     ))
@@ -187,7 +190,8 @@ def parse(data):
 
         while True:
             while data[local_cursor] >= 192:  # is pointer
-                local_cursor = (data[local_cursor] - 192) * 256 + data[local_cursor + 1]
+                local_cursor = (data[local_cursor] - 192) * \
+                    256 + data[local_cursor + 1]
                 if not followed_pointers:
                     c += 2
                 if local_cursor in followed_pointers:
@@ -238,7 +242,8 @@ def parse(data):
 
     c = 0
     qid, x, qd_count, an_count, ns_count, ar_count = unpack(STRUCT_HEADER)
-    rcode, z, ra, rd, tc, aa, opcode, qr = split_bits(x, 4, 3, 1, 1, 1, 1, 4, 1)
+    rcode, z, ra, rd, tc, aa, opcode, qr = split_bits(
+        x, 4, 3, 1, 1, 1, 1, 4, 1)
 
     qd = tuple(parse_question_record() for _ in range(qd_count))
     an = tuple(parse_resource_record() for _ in range(an_count))
@@ -410,10 +415,12 @@ def Resolver(
         try:
             memoized_mutex = in_progress[key]
         except KeyError:
-            memoized_mutex = MemoizedMutex(request_and_cache, logger, fqdn, qtype)
+            memoized_mutex = MemoizedMutex(
+                request_and_cache, logger, fqdn, qtype)
             in_progress[key] = memoized_mutex
         else:
-            logger.debug('Concurrent request found, waiting for it to complete')
+            logger.debug(
+                'Concurrent request found, waiting for it to complete')
 
         return await memoized_mutex()
 
@@ -426,7 +433,8 @@ def Resolver(
             for rdata_ttl in rdata_groups
         )
         key = (fqdn, qtype)
-        invalidate_callbacks[key] = loop.call_at(expires_at, invalidate, logger, key)
+        invalidate_callbacks[key] = loop.call_at(
+            expires_at, invalidate, logger, key)
         cache[key] = answers
         return answers
 
@@ -529,11 +537,13 @@ def Resolver(
 
             last_exception = DnsError()
             while connections:
-                connected_socks = tuple(sock for sock, req in connections.values())
+                connected_socks = tuple(
+                    sock for sock, req in connections.values())
                 try:
                     response_data, addr_port = await recvfrom(loop, connected_socks, 512)
                 except OSError as exception:
-                    logger.debug('Exception receiving from: %s', connected_socks)
+                    logger.debug('Exception receiving from: %s',
+                                 connected_socks)
                     last_exception = exception
                     set_timeout_cause(exception)
                     continue
@@ -543,7 +553,8 @@ def Resolver(
                 try:
                     res = parse(response_data)
                 except (struct_error, IndexError, DnsPointerLoop) as exception:
-                    logger.debug('Error parsing response: %s', type(exception).__name__)
+                    logger.debug('Error parsing response: %s',
+                                 type(exception).__name__)
                     last_exception = exception
                     set_timeout_cause(exception)
                     continue
@@ -596,7 +607,8 @@ def Resolver(
 
     def rdata_expires_at_min(rdatas, expires_at):
         return tuple(
-            type(rdata)(rdata=rdata, expires_at=min(expires_at, rdata.expires_at))
+            type(rdata)(rdata=rdata, expires_at=min(
+                expires_at, rdata.expires_at))
             for rdata in rdatas
         )
 

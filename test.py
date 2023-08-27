@@ -64,18 +64,21 @@ class TestResolverIntegration(unittest.TestCase):
                 qtype=TYPES.A,
                 qclass=1,
                 ttl=21-len(queried_names),
-                rdata=ipaddress.IPv4Address('123.100.123.' + str(len(queried_names))).packed,
+                rdata=ipaddress.IPv4Address(
+                    '123.100.123.' + str(len(queried_names))).packed,
             )
             reponse_record_2 = ResourceRecord(
                 name=query.qd[0].name,
                 qtype=TYPES.A,
                 qclass=1,
                 ttl=41-len(queried_names),
-                rdata=ipaddress.IPv4Address('123.100.124.' + str(len(queried_names))).packed,
+                rdata=ipaddress.IPv4Address(
+                    '123.100.124.' + str(len(queried_names))).packed,
             )
             response = Message(
                 qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
-                qd=query.qd, an=(reponse_record_1, reponse_record_2), ns=(), ar=(),
+                qd=query.qd, an=(reponse_record_1,
+                                 reponse_record_2), ns=(), ar=(),
             )
             return pack(response)
 
@@ -88,7 +91,8 @@ class TestResolverIntegration(unittest.TestCase):
             res_1 = await resolve('my.domain.quite-long.abcdefghijklm', TYPES.A)
 
             self.assertEqual(len(queried_names), 1)
-            self.assertEqual(queried_names[0].lower(), b'my.domain.quite-long.abcdefghijklm')
+            self.assertEqual(queried_names[0].lower(
+            ), b'my.domain.quite-long.abcdefghijklm')
             self.assertEqual(str(res_1[0]), '123.100.123.1')
             self.assertEqual(res_1[0].expires_at, loop.time() + 20.0)
             self.assertEqual(str(res_1[1]), '123.100.124.1')
@@ -105,7 +109,8 @@ class TestResolverIntegration(unittest.TestCase):
             await forward(0.5)
             res_3 = await resolve('my.domain.quite-long.abcdefghijklm', TYPES.A)
             self.assertEqual(len(queried_names), 2)
-            self.assertEqual(queried_names[1].lower(), b'my.domain.quite-long.abcdefghijklm')
+            self.assertEqual(queried_names[1].lower(
+            ), b'my.domain.quite-long.abcdefghijklm')
             self.assertEqual(str(res_3[0]), '123.100.123.2')
             self.assertEqual(res_3[0].expires_at, loop.time() + 19.0)
 
@@ -113,13 +118,15 @@ class TestResolverIntegration(unittest.TestCase):
 
             res_4 = await resolve('my.domain.quite-long.abcdefghijklm', TYPES.A)
             self.assertEqual(len(queried_names), 2)
-            self.assertEqual(queried_names[1].lower(), b'my.domain.quite-long.abcdefghijklm')
+            self.assertEqual(queried_names[1].lower(
+            ), b'my.domain.quite-long.abcdefghijklm')
             self.assertEqual(str(res_4[0]), '123.100.123.2')
 
             await invalidate()
             res_5 = await resolve('my.domain.quite-long.abcdefghijklm', TYPES.A)
             self.assertEqual(len(queried_names), 3)
-            self.assertEqual(queried_names[2].lower(), b'my.domain.quite-long.abcdefghijklm')
+            self.assertEqual(queried_names[2].lower(
+            ), b'my.domain.quite-long.abcdefghijklm')
             self.assertEqual(str(res_5[0]), '123.100.123.3')
 
     @async_test
@@ -136,18 +143,21 @@ class TestResolverIntegration(unittest.TestCase):
                 qtype=TYPES.A,
                 qclass=1,
                 ttl=21-len(queried_names),
-                rdata=ipaddress.IPv4Address('123.100.123.' + str(len(queried_names))).packed,
+                rdata=ipaddress.IPv4Address(
+                    '123.100.123.' + str(len(queried_names))).packed,
             )
             reponse_record_2 = ResourceRecord(
                 name=query.qd[0].name,
                 qtype=TYPES.A,
                 qclass=1,
                 ttl=41-len(queried_names),
-                rdata=ipaddress.IPv4Address('123.100.124.' + str(len(queried_names))).packed,
+                rdata=ipaddress.IPv4Address(
+                    '123.100.124.' + str(len(queried_names))).packed,
             )
             response = Message(
                 qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
-                qd=query.qd, an=(reponse_record_1, reponse_record_2), ns=(), ar=(),
+                qd=query.qd, an=(reponse_record_1,
+                                 reponse_record_2), ns=(), ar=(),
             )
             return pack(response)
 
@@ -188,18 +198,21 @@ class TestResolverIntegration(unittest.TestCase):
             log = log_stream.getvalue()
             self.assertIn(
                 "\n[request:12345] [dns:my.domain,A] Response from: ('127.0.0.1', 10053)\n", log)
-            self.assertNotIn("\n[dns:my.domain,A] Found b'my.domain' in cache", log)
+            self.assertNotIn(
+                "\n[dns:my.domain,A] Found b'my.domain' in cache", log)
 
             await resolve('my.domain', TYPES.A)
             log = log_stream.getvalue()
-            self.assertIn("\n[dns:my.domain,A] Found b'my.domain' in cache", log)
+            self.assertIn(
+                "\n[dns:my.domain,A] Found b'my.domain' in cache", log)
 
             await resolve(
                 'my.domain', TYPES.A,
                 get_logger_adapter=get_logger_adapter_a,
             )
             log = log_stream.getvalue()
-            self.assertIn("\n[request:12345] [dns:my.domain,A] Found b'my.domain' in cache", log)
+            self.assertIn(
+                "\n[request:12345] [dns:my.domain,A] Found b'my.domain' in cache", log)
 
         log_stream = io.StringIO()
         log_stream_handler = logging.StreamHandler(log_stream)
@@ -344,7 +357,8 @@ class TestResolverIntegration(unittest.TestCase):
 
             occurance_1 = data.index(packed_name)
             occurance_1_end = occurance_1 + len(packed_name)
-            occurance_2 = occurance_1_end + data[occurance_1_end:].index(packed_name)
+            occurance_2 = occurance_1_end + \
+                data[occurance_1_end:].index(packed_name)
             occurance_2_end = occurance_2 + len(packed_name)
 
             data_compressed = \
@@ -392,9 +406,11 @@ class TestResolverIntegration(unittest.TestCase):
 
             occurance_1 = data.index(packed_name)
             occurance_1_end = occurance_1 + len(packed_name)
-            occurance_2 = occurance_1_end + data[occurance_1_end:].index(packed_name)
+            occurance_2 = occurance_1_end + \
+                data[occurance_1_end:].index(packed_name)
             occurance_2_end = occurance_2 + len(packed_name)
-            occurance_3 = occurance_2_end + data[occurance_2_end:].index(packed_name)
+            occurance_3 = occurance_2_end + \
+                data[occurance_2_end:].index(packed_name)
             occurance_3_end = occurance_3 + len(packed_name)
 
             data_compressed = \
@@ -443,7 +459,8 @@ class TestResolverIntegration(unittest.TestCase):
 
             occurance_1 = data.index(packed_name)
             occurance_1_end = occurance_1 + len(packed_name)
-            occurance_2 = occurance_1_end + data[occurance_1_end:].index(packed_name)
+            occurance_2 = occurance_1_end + \
+                data[occurance_1_end:].index(packed_name)
             occurance_2_end = occurance_2 + len(packed_name)
 
             data_compressed_1 = \
@@ -451,7 +468,8 @@ class TestResolverIntegration(unittest.TestCase):
                 struct.pack('!H', (192 * 256) + occurance_1) + \
                 data[occurance_2_end:]
 
-            occurance_3 = occurance_2 + 2 + data_compressed_1[occurance_2 + 2:].index(packed_name)
+            occurance_3 = occurance_2 + 2 + \
+                data_compressed_1[occurance_2 + 2:].index(packed_name)
             occurance_3_end = occurance_3 + len(packed_name)
 
             data_compressed_2 = \
@@ -496,7 +514,8 @@ class TestResolverIntegration(unittest.TestCase):
 
             occurance_1 = data.index(packed_name)
             occurance_1_end = occurance_1 + len(packed_name)
-            occurance_2 = occurance_1_end + data[occurance_1_end:].index(packed_name)
+            occurance_2 = occurance_1_end + \
+                data[occurance_1_end:].index(packed_name)
             occurance_2_end = occurance_2 + len(packed_name)
 
             data_compressed = \
@@ -540,7 +559,8 @@ class TestResolverIntegration(unittest.TestCase):
 
             occurance_1 = data.index(packed_name)
             occurance_1_end = occurance_1 + len(packed_name)
-            occurance_2 = occurance_1_end + data[occurance_1_end:].index(packed_name)
+            occurance_2 = occurance_1_end + \
+                data[occurance_1_end:].index(packed_name)
             occurance_2_end = occurance_2 + len(packed_name)
 
             data_compressed = \
@@ -585,7 +605,8 @@ class TestResolverIntegration(unittest.TestCase):
 
             occurance_1 = data.index(packed_name)
             occurance_1_end = occurance_1 + len(packed_name)
-            occurance_2 = occurance_1_end + data[occurance_1_end:].index(packed_name)
+            occurance_2 = occurance_1_end + \
+                data[occurance_1_end:].index(packed_name)
             occurance_2_end = occurance_2 + len(packed_name)
 
             data_compressed = \
@@ -621,7 +642,8 @@ class TestResolverIntegration(unittest.TestCase):
                 qtype=TYPES.A,
                 qclass=1,
                 ttl=21-len(queried_names),
-                rdata=ipaddress.IPv4Address('123.100.123.' + str(len(queried_names))).packed,
+                rdata=ipaddress.IPv4Address(
+                    '123.100.123.' + str(len(queried_names))).packed,
             )
             response = Message(
                 qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
@@ -660,7 +682,8 @@ class TestResolverIntegration(unittest.TestCase):
                 qtype=TYPES.A,
                 qclass=1,
                 ttl=21-len(queried_names),
-                rdata=ipaddress.IPv4Address('123.100.123.' + str(len(queried_names))).packed,
+                rdata=ipaddress.IPv4Address(
+                    '123.100.123.' + str(len(queried_names))).packed,
             )
             response = Message(
                 qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
@@ -701,7 +724,8 @@ class TestResolverIntegration(unittest.TestCase):
                 qtype=TYPES.A,
                 qclass=1,
                 ttl=21-len(queried_names),
-                rdata=ipaddress.IPv4Address('123.100.123.' + str(len(queried_names))).packed,
+                rdata=ipaddress.IPv4Address(
+                    '123.100.123.' + str(len(queried_names))).packed,
             )
             response = Message(
                 qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
@@ -782,7 +806,8 @@ class TestResolverIntegration(unittest.TestCase):
                 qclass=1,
                 ttl=21-len(queried_names),
                 rdata=b'bad-ip-address' if len(queried_names) == 1 else
-                ipaddress.IPv4Address('123.100.123.' + str(len(queried_names))).packed,
+                ipaddress.IPv4Address(
+                    '123.100.123.' + str(len(queried_names))).packed,
             )
             response = Message(
                 qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
@@ -817,7 +842,8 @@ class TestResolverIntegration(unittest.TestCase):
                 qtype=TYPES.A,
                 qclass=1,
                 ttl=21-len(queried_names),
-                rdata=ipaddress.IPv4Address('123.100.123.' + str(len(queried_names))).packed,
+                rdata=ipaddress.IPv4Address(
+                    '123.100.123.' + str(len(queried_names))).packed,
             )
             qid = query.qid + (1 if len(queried_names) == 1 else 0)
             response = Message(
@@ -850,7 +876,8 @@ class TestResolverIntegration(unittest.TestCase):
                 qtype=TYPES.A,
                 qclass=1,
                 ttl=0,
-                rdata=ipaddress.IPv4Address('123.100.123.' + str(len(queried_names))).packed,
+                rdata=ipaddress.IPv4Address(
+                    '123.100.123.' + str(len(queried_names))).packed,
             )
             lower = query.qd[0].name.lower()
             question = \
@@ -888,7 +915,8 @@ class TestResolverIntegration(unittest.TestCase):
                 qtype=TYPES.A,
                 qclass=1,
                 ttl=0,
-                rdata=ipaddress.IPv4Address('123.100.123.' + str(len(queried_names))).packed,
+                rdata=ipaddress.IPv4Address(
+                    '123.100.123.' + str(len(queried_names))).packed,
             )
             response = Message(
                 qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
@@ -980,7 +1008,8 @@ class TestResolverIntegration(unittest.TestCase):
                 qtype=TYPES.A,
                 qclass=1,
                 ttl=21-len(queried_names),
-                rdata=ipaddress.IPv4Address('123.100.123.' + str(len(queried_names))).packed,
+                rdata=ipaddress.IPv4Address(
+                    '123.100.123.' + str(len(queried_names))).packed,
             )
             response = Message(
                 qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
@@ -1007,7 +1036,8 @@ class TestResolverIntegration(unittest.TestCase):
     @async_test
     async def test_concurrent_tasks_first_cancel_not_cancel_second(self):
         loop = asyncio.get_event_loop()
-        response_blockers = [asyncio.Future(), asyncio.Future(), asyncio.Future()]
+        response_blockers = [
+            asyncio.Future(), asyncio.Future(), asyncio.Future()]
         queried_names = []
 
         async def get_response(query_data):
@@ -1020,7 +1050,8 @@ class TestResolverIntegration(unittest.TestCase):
                 qtype=TYPES.A,
                 qclass=1,
                 ttl=21-len(queried_names),
-                rdata=ipaddress.IPv4Address('123.100.123.' + str(len(queried_names))).packed,
+                rdata=ipaddress.IPv4Address(
+                    '123.100.123.' + str(len(queried_names))).packed,
             )
             response = Message(
                 qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
@@ -1062,7 +1093,8 @@ class TestResolverIntegration(unittest.TestCase):
                 qtype=TYPES.A,
                 qclass=1,
                 ttl=21-len(queried_names),
-                rdata=ipaddress.IPv4Address('123.100.123.' + str(len(queried_names))).packed,
+                rdata=ipaddress.IPv4Address(
+                    '123.100.123.' + str(len(queried_names))).packed,
             )
             response = Message(
                 qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
@@ -1107,7 +1139,8 @@ class TestResolverIntegration(unittest.TestCase):
                 qtype=TYPES.A,
                 qclass=1,
                 ttl=21-len(queried_names),
-                rdata=ipaddress.IPv4Address('123.100.123.' + str(len(queried_names))).packed,
+                rdata=ipaddress.IPv4Address(
+                    '123.100.123.' + str(len(queried_names))).packed,
             )
             response = Message(
                 qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
@@ -1157,7 +1190,8 @@ class TestResolverIntegration(unittest.TestCase):
                 qtype=TYPES.A,
                 qclass=1,
                 ttl=21-len(queried_names),
-                rdata=ipaddress.IPv4Address('123.100.123.' + str(len(queried_names))).packed,
+                rdata=ipaddress.IPv4Address(
+                    '123.100.123.' + str(len(queried_names))).packed,
             )
             response = Message(
                 qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
@@ -1198,7 +1232,8 @@ class TestResolverIntegration(unittest.TestCase):
     @async_test
     async def test_udp_timeout_try_again(self):
         loop = asyncio.get_event_loop()
-        requests = [asyncio.Event(), asyncio.Event(), asyncio.Event(), asyncio.Event()]
+        requests = [asyncio.Event(), asyncio.Event(),
+                    asyncio.Event(), asyncio.Event()]
         response_blockers = [asyncio.Event(), asyncio.Event(), asyncio.Event(),
                              asyncio.Event(), asyncio.Event()]
         queried_names = []
@@ -1214,7 +1249,8 @@ class TestResolverIntegration(unittest.TestCase):
                 qtype=TYPES.A,
                 qclass=1,
                 ttl=21-len(queried_names),
-                rdata=ipaddress.IPv4Address('123.100.123.' + str(len(queried_names))).packed,
+                rdata=ipaddress.IPv4Address(
+                    '123.100.123.' + str(len(queried_names))).packed,
             )
             response = Message(
                 qid=query.qid, qr=RESPONSE, opcode=0, aa=0, tc=0, rd=0, ra=1, z=0, rcode=0,
@@ -1391,7 +1427,8 @@ class TestResolverIntegration(unittest.TestCase):
         def set_sock_options(sock):
             sock.setsockopt(socket.SOL_SOCKET, 1123432, 512)
 
-        resolve, _ = Resolver(set_sock_options=set_sock_options, get_nameservers=get_nameservers)
+        resolve, _ = Resolver(
+            set_sock_options=set_sock_options, get_nameservers=get_nameservers)
         with self.assertRaises(DnsSocketError) as cm:
             await resolve('my.domain', TYPES.A)
 
@@ -1424,7 +1461,8 @@ class TestResolverIntegration(unittest.TestCase):
 
         resolve, _ = Resolver(get_nameservers=get_nameservers)
         tasks = [
-            asyncio.ensure_future(resolve('my.domain-' + str((i + 1) % 255), TYPES.A))
+            asyncio.ensure_future(
+                resolve('my.domain-' + str((i + 1) % 255), TYPES.A))
             for i in range(1000)
         ]
         results = [
@@ -1518,7 +1556,8 @@ class TestResolverIntegration(unittest.TestCase):
         class AioHttpDnsResolver(aiohttp.abc.AbstractResolver):
             def __init__(self):
                 super().__init__()
-                self.resolver, self.clear_cache = Resolver(get_nameservers=get_nameservers)
+                self.resolver, self.clear_cache = Resolver(
+                    get_nameservers=get_nameservers)
 
             async def resolve(self, host, port=0, family=socket.AF_INET):
                 # Use ipv4 unless requested otherwise
@@ -1530,9 +1569,11 @@ class TestResolverIntegration(unittest.TestCase):
                 try:
                     ip_addresses = await self.resolver(host, record_type)
                 except DnsRecordDoesNotExist as does_not_exist:
-                    raise OSError(0, '{} does not exist'.format(host)) from does_not_exist
+                    raise OSError(0, '{} does not exist'.format(
+                        host)) from does_not_exist
                 except DnsError as resolver_error:
-                    raise OSError(0, '{} failed to resolve'.format(host)) from resolver_error
+                    raise OSError(0, '{} failed to resolve'.format(
+                        host)) from resolver_error
 
                 return [{
                     'hostname': host,
@@ -1566,7 +1607,8 @@ class TestResolverIntegration(unittest.TestCase):
         resolver = AioHttpDnsResolver()
         self.add_async_cleanup(loop, resolver.close)
         async with aiohttp.ClientSession(
-                connector=aiohttp.TCPConnector(use_dns_cache=False, resolver=resolver),
+                connector=aiohttp.TCPConnector(
+                    use_dns_cache=False, resolver=resolver),
         ) as session:
             async with await session.get('http://some-domain.com:8876/page') as result:
                 self.assertEqual(result.status, 204)
@@ -1742,7 +1784,8 @@ async def start_nameserver(get_response, port=10053):
         try:
             while True:
                 data, addr = await recvfrom(loop, [sock], 512)
-                client_tasks.append(asyncio.ensure_future(client_task(data, addr)))
+                client_tasks.append(
+                    asyncio.ensure_future(client_task(data, addr)))
         finally:
             for task in client_tasks:
                 task.cancel()
