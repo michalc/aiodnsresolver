@@ -36,7 +36,6 @@ repos:
         - --disable=too-many-locals
         - --disable=too-many-public-methods
         - --disable=too-many-statements
-        - --disable=undefined-loop-variable
         - --disable=unspecified-encoding
         - --include-naming-hint=yes
         - --max-args=10
