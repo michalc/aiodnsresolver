@@ -7,6 +7,7 @@ name = "aiodnsresolver"
 version = "0.0.0.dev0"
 authors = [
   { name="Gerald", email="i@gerald.top" },
+  { name="Michal Charemza", email="michal@charemza.name" },
 ]
 description = "Pure asyncio Python DNS resolver"
 readme = "README.md"
