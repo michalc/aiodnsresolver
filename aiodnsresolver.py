@@ -138,8 +138,10 @@ class ResolverLoggerAdapter(LoggerAdapter):
     def process(self, msg, kwargs):
         return \
             ('[dns] %s' % (msg,), kwargs) if not self.extra else \
-            ('[dns:%s] %s' % (','.join(str(v)
-             for v in self.extra.values()), msg), kwargs)
+            ('[dns:%s] %s' % (','.join(
+                str(v)
+                for v in self.extra.values()
+            ), msg), kwargs)
 
 
 def get_logger_adapter_default(extra):
