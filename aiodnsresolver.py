@@ -562,6 +562,12 @@ def Resolver(
                     continue
 
                 logger.debug('Received response: %s', res)
+                try:
+                    _, req = connections[addr_port]
+                except KeyError:
+                    logger.debug('Already processed response from %s', addr_port)
+                    continue
+
                 trusted = res.qid == req.qid and res.qd == req.qd
                 if not trusted:
                     logger.debug('Response not trusted')

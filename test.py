@@ -1326,8 +1326,6 @@ class TestResolverIntegration(unittest.TestCase):
     @async_test
     async def test_multiple_nameservers(self):
         loop = asyncio.get_event_loop()
-        queried_names_53 = []
-        queried_names_54 = []
 
         with FastForward(loop):
             async def get_response_53(query_data):
@@ -1356,15 +1354,33 @@ class TestResolverIntegration(unittest.TestCase):
             stop_nameserver_54 = await start_nameserver(get_response_54, port=10054)
             self.add_async_cleanup(loop, stop_nameserver_54)
 
-            async def get_multiple_nameservers(_, __):
+            async def get_multiple_nameservers_53_then_54(_, __):
                 yield (
                     0.5,
                     ('127.0.0.1', 10053),
                     ('127.0.0.1', 10054),
                 )
 
-            resolve, _ = Resolver(get_nameservers=get_multiple_nameservers)
+            resolve, _ = Resolver(get_nameservers=get_multiple_nameservers_53_then_54)
 
+            queried_names_53 = []
+            queried_names_54 = []
+            res = await resolve('my.domain', TYPES.A)
+            self.assertEqual(str(res[0]), '123.100.123.1')
+            self.assertEqual(queried_names_53[0].lower(), b'my.domain')
+            self.assertEqual(queried_names_54[0].lower(), b'my.domain')
+
+            async def get_multiple_nameservers_54_then_53(_, __):
+                yield (
+                    0.5,
+                    ('127.0.0.1', 10054),
+                    ('127.0.0.1', 10053),
+                )
+
+            resolve, _ = Resolver(get_nameservers=get_multiple_nameservers_54_then_53)
+
+            queried_names_53 = []
+            queried_names_54 = []
             res = await resolve('my.domain', TYPES.A)
             self.assertEqual(str(res[0]), '123.100.123.1')
             self.assertEqual(queried_names_53[0].lower(), b'my.domain')
