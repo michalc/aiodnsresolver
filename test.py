@@ -943,7 +943,7 @@ class TestResolverIntegration(unittest.TestCase):
             with socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM) as sock:
                 sock.setblocking(False)
                 sock.bind(('', 10053))
-                await recvfrom(loop, [sock], 512)
+                await recvfrom(loop, [(sock, None)], 512)
                 received.set()
 
         self.addCleanup(patch_open())
@@ -1801,7 +1801,7 @@ async def start_nameserver(get_response, port=10053):
         client_tasks = []
         try:
             while True:
-                data, addr = await recvfrom(loop, [sock], 512)
+                _, (data, addr) = await recvfrom(loop, [(sock, None)], 512)
                 client_tasks.append(
                     asyncio.ensure_future(client_task(data, addr)))
         finally:

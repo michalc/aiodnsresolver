@@ -256,13 +256,13 @@ def parse(data):
 
 
 async def recvfrom(loop, socks, max_bytes):
-    for sock in socks:
+    for sock, req in socks:
         try:
-            return sock.recvfrom(max_bytes)
+            return req, sock.recvfrom(max_bytes)
         except BlockingIOError:
             pass
 
-    def reader(sock):
+    def reader(sock, req):
         def _reader():
             try:
                 (data, addr) = sock.recvfrom(max_bytes)
@@ -275,17 +275,17 @@ async def recvfrom(loop, socks, max_bytes):
             else:
                 remove_readers()
                 if not result.done():
-                    result.set_result((data, addr))
+                    result.set_result((req, (data, addr)))
         return _reader
 
-    fileno_socks = tuple((sock.fileno(), sock) for sock in socks)
+    fileno_socks = tuple((sock.fileno(), sock, req) for sock, req in socks)
     result = Future()
 
-    for fileno, sock in fileno_socks:
-        loop.add_reader(fileno, reader(sock))
+    for fileno, sock, req in fileno_socks:
+        loop.add_reader(fileno, reader(sock, req))
 
     def remove_readers():
-        for fileno, _ in fileno_socks:
+        for fileno, _, __ in fileno_socks:
             loop.remove_reader(fileno)
 
     try:
@@ -539,13 +539,12 @@ def Resolver(
 
             last_exception = DnsError()
             while connections:
-                connected_socks = tuple(
-                    sock for sock, req in connections.values())
+
                 try:
-                    response_data, addr_port = await recvfrom(loop, connected_socks, 512)
+                    req, (response_data, addr_port) = await recvfrom(loop,
+                                                                     connections.values(), 512)
                 except OSError as exception:
-                    logger.debug('Exception receiving from: %s',
-                                 connected_socks)
+                    logger.debug('Exception receiving from: %s', connections)
                     last_exception = exception
                     set_timeout_cause(exception)
                     continue
@@ -562,11 +561,6 @@ def Resolver(
                     continue
 
                 logger.debug('Received response: %s', res)
-                try:
-                    _, req = connections[addr_port]
-                except KeyError:
-                    logger.debug('Already processed response from %s', addr_port)
-                    continue
 
                 trusted = res.qid == req.qid and res.qd == req.qd
                 if not trusted:
