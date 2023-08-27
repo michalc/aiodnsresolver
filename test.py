@@ -1334,31 +1334,31 @@ class TestResolverIntegration(unittest.TestCase):
             self.assertEqual(queried_names_53[0].lower(), b'my.domain')
             self.assertEqual(queried_names_54[0].lower(), b'my.domain')
 
-    # @async_test
-    # async def test_udp_timeout_eventually_fail(self):
-    #     loop = asyncio.get_event_loop()
-    #     blocker = asyncio.Event()
-    #     request = asyncio.Event()
+    @async_test
+    async def test_udp_timeout_eventually_fail(self):
+        loop = asyncio.get_event_loop()
+        blocker = asyncio.Event()
+        request = asyncio.Event()
 
-    #     async def get_response(_):
-    #         request.set()
-    #         await blocker.wait()
+        async def get_response(_):
+            request.set()
+            await blocker.wait()
 
-    #     self.addCleanup(patch_open())
-    #     stop_nameserver = await start_nameserver(get_response)
-    #     self.add_async_cleanup(loop, stop_nameserver)
+        self.addCleanup(patch_open())
+        stop_nameserver = await start_nameserver(get_response)
+        self.add_async_cleanup(loop, stop_nameserver)
 
-    #     with FastForward(loop) as forward:
-    #         resolve, _ = Resolver(get_nameservers=get_nameservers)
-    #         res_1_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
-    #         await request.wait()
-    #         await forward(2.5)
+        with FastForward(loop) as forward:
+            resolve, _ = Resolver(get_nameservers=get_nameservers)
+            res_1_task = asyncio.ensure_future(resolve('my.domain', TYPES.A))
+            await request.wait()
+            await forward(2.5)
 
-    #         with self.assertRaises(DnsTimeout):
-    #             await res_1_task
+            with self.assertRaises(DnsTimeout):
+                await res_1_task
 
-    #         with self.assertRaises(DnsTimeout):
-    #             await res_1_task
+            with self.assertRaises(DnsTimeout):
+                await res_1_task
 
     @async_test
     async def test_bad_nameservers_fail(self):
