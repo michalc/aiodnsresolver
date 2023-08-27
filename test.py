@@ -1,6 +1,5 @@
 import asyncio
 import io
-import os
 import ipaddress
 import logging
 import socket
@@ -209,7 +208,8 @@ class TestResolverIntegration(unittest.TestCase):
         logger.addHandler(log_stream_handler)
         logger.setLevel('DEBUG')
 
-        resolve, _ = Resolver(get_logger_adapter=get_logger_adapter_b, get_nameservers=get_nameservers)
+        resolve, _ = Resolver(get_logger_adapter=get_logger_adapter_b,
+                              get_nameservers=get_nameservers)
         await resolve('my.domain', TYPES.A)
         log = log_stream.getvalue()
         self.assertIn(
@@ -957,10 +957,10 @@ class TestResolverIntegration(unittest.TestCase):
 
         local_ip = socket.gethostbyname(socket.gethostname())
 
-        async def get_nameservers(_, __):
+        async def get_local_nameservers(_, __):
             yield (0.5, (local_ip, 10053))
 
-        resolve, _ = Resolver(get_nameservers=get_nameservers)
+        resolve, _ = Resolver(get_nameservers=get_local_nameservers)
         res = await resolve('my.domain', TYPES.A)
         self.assertEqual(str(res[0]), '123.100.123.1')
 
@@ -1277,11 +1277,11 @@ class TestResolverIntegration(unittest.TestCase):
             stop_nameserver_54 = await start_nameserver(get_response_54, port=10054)
             self.add_async_cleanup(loop, stop_nameserver_54)
 
-            async def get_nameservers(_, __):
+            async def get_53_and_54_nameservers(_, __):
                 yield (0.5, ('127.0.0.1', 10053))
                 yield (0.5, ('127.0.0.1', 10054))
 
-            resolve, _ = Resolver(get_nameservers=get_nameservers)
+            resolve, _ = Resolver(get_nameservers=get_53_and_54_nameservers)
 
             res = await resolve('my.domain', TYPES.A)
             self.assertEqual(str(res[0]), '123.100.123.1')
@@ -1320,14 +1320,14 @@ class TestResolverIntegration(unittest.TestCase):
             stop_nameserver_54 = await start_nameserver(get_response_54, port=10054)
             self.add_async_cleanup(loop, stop_nameserver_54)
 
-            async def get_nameservers(_, __):
+            async def get_multiple_nameservers(_, __):
                 yield (
                     0.5,
                     ('127.0.0.1', 10053),
                     ('127.0.0.1', 10054),
                 )
 
-            resolve, _ = Resolver(get_nameservers=get_nameservers)
+            resolve, _ = Resolver(get_nameservers=get_multiple_nameservers)
 
             res = await resolve('my.domain', TYPES.A)
             self.assertEqual(str(res[0]), '123.100.123.1')
@@ -1365,10 +1365,10 @@ class TestResolverIntegration(unittest.TestCase):
         loop = asyncio.get_event_loop()
 
         with FastForward(loop):
-            async def get_nameservers(_, __):
+            async def get_bad_nameservers(_, __):
                 yield (0.5, ('300.300.300.300', 53))
 
-            resolve, _ = Resolver(get_nameservers=get_nameservers)
+            resolve, _ = Resolver(get_nameservers=get_bad_nameservers)
 
             with self.assertRaises(DnsSocketError) as cm:
                 await resolve('my.domain', TYPES.A)
