@@ -1688,6 +1688,8 @@ class TestResolverEndToEnd(unittest.TestCase):
     async def test_txt_query(self):
         resolve, _ = Resolver()
         res = await resolve('charemza.name', TYPES.TXT)
+        all_lowercase = all(r == r.lower() for r in res)
+        self.assertFalse(all_lowercase)
         self.assertIn(b'google', res[0])
 
     @async_test
