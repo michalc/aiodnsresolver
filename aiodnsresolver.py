@@ -488,7 +488,7 @@ def Resolver(
             last_exception = exception
 
         try:
-            return await request(logger, addrs, fqdn, qtype, set_timeout_cause)
+            return await request(logger, addrs, fqdn, qtype, timeout, set_timeout_cause)
         except CancelledError:
             if cancelling_due_to_timeout:
                 raise DnsTimeout() from last_exception
@@ -498,7 +498,7 @@ def Resolver(
         finally:
             handle.cancel()
 
-    async def request(logger, addrs, fqdn, qtype, set_timeout_cause):
+    async def request(logger, addrs, fqdn, qtype, timeout, set_timeout_cause):
         async def req():
             qid = randbelow(65536)
             fqdn_transformed = await transform_fqdn(fqdn)
@@ -520,7 +520,9 @@ def Resolver(
                 try:
                     sock.setblocking(False)
                     set_sock_options(sock)
+                    sock.settimeout(timeout)
                     sock.connect(addr_port)
+                    sock.settimeout(None)
                 except OSError as exception:
                     last_exception = exception
                     set_timeout_cause(exception)
