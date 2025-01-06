@@ -31,6 +31,7 @@ from aiodnsresolver import (
     pack,
     parse,
     recvfrom,
+    MemoizedMutex,
 )
 
 
@@ -38,7 +39,9 @@ def async_test(func):
     def wrapper(*args, **kwargs):
         future = func(*args, **kwargs)
         loop = asyncio.get_event_loop()
-        loop.run_until_complete(future)
+        loop.run_until_complete(
+            asyncio.wait_for(future, 10)
+        )
     return wrapper
 
 
@@ -1768,6 +1771,38 @@ class TestResolverEndToEnd(unittest.TestCase):
             self.assertIsInstance(res[0], ipaddress.IPv6Address)
             self.assertEqual(str(res[0]), '::1')
             self.assertEqual(res[0].expires_at, loop.time())
+
+
+class TestMemoizedMutex(unittest.TestCase):
+    @async_test
+    async def test_non_async_function(self):
+        async def func():
+            return 42
+
+        memoized = MemoizedMutex(func)
+        task1 = asyncio.create_task(memoized())
+        task2 = asyncio.create_task(memoized())
+        task3 = asyncio.create_task(memoized())
+
+        self.assertEqual(await task1, 42)
+        self.assertEqual(await task2, 42)
+        self.assertEqual(await task3, 42)
+
+
+    @async_test
+    async def test_usage_after_resolve(self):
+        async def func():
+            await asyncio.sleep(0)
+            return 42
+
+        memoized = MemoizedMutex(func)
+        task1 = asyncio.create_task(memoized())
+        self.assertEqual(await task1, 42)
+
+        task2 = asyncio.create_task(memoized())
+        task3 = asyncio.create_task(memoized())
+        self.assertEqual(await task2, 42)
+        self.assertEqual(await task3, 42)
 
 
 def patch_open():
