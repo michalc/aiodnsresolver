@@ -1780,14 +1780,15 @@ class TestMemoizedMutex(unittest.TestCase):
             return 42
 
         memoized = MemoizedMutex(func)
-        task1 = asyncio.create_task(memoized())
-        task2 = asyncio.create_task(memoized())
-        task3 = asyncio.create_task(memoized())
+        loop = asyncio.get_event_loop()
+
+        task1 = loop.create_task(memoized())
+        task2 = loop.create_task(memoized())
+        task3 = loop.create_task(memoized())
 
         self.assertEqual(await task1, 42)
         self.assertEqual(await task2, 42)
         self.assertEqual(await task3, 42)
-
 
     @async_test
     async def test_usage_after_resolve(self):
@@ -1796,11 +1797,13 @@ class TestMemoizedMutex(unittest.TestCase):
             return 42
 
         memoized = MemoizedMutex(func)
-        task1 = asyncio.create_task(memoized())
+        loop = asyncio.get_event_loop()
+
+        task1 = loop.create_task(memoized())
         self.assertEqual(await task1, 42)
 
-        task2 = asyncio.create_task(memoized())
-        task3 = asyncio.create_task(memoized())
+        task2 = loop.create_task(memoized())
+        task3 = loop.create_task(memoized())
         self.assertEqual(await task2, 42)
         self.assertEqual(await task3, 42)
 
