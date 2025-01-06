@@ -657,6 +657,7 @@ def MemoizedMutex(func, *args):
             raise
 
         if has_result:
+            acquired = False
             return result
 
         try:
