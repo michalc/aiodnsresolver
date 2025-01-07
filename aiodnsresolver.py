@@ -99,6 +99,10 @@ class DnsRecordDoesNotExist(DnsError):
     pass
 
 
+class DnsNoMatchingAnswers(DnsRecordDoesNotExist):
+    pass
+
+
 class DnsPointerLoop(DnsError):
     pass
 
@@ -153,7 +157,7 @@ def pack(message):
         return b''.join(
             bytes((len(part),)) + part
             for part in name.split(b'.')
-        ) + b'\0'
+        ) + b'\0' if name else b'\0'
 
     def pack_resource(record):
         rdata = \
@@ -589,11 +593,12 @@ def Resolver(
                     last_exception = DnsResponseCode(res.rcode)
                     set_timeout_cause(last_exception)
                     logger.debug('Error from %s', addr_port)
-                elif name_error or (not cname_answers and not qtype_answers):
-                    # a name error can be returned by some non-authoritative
-                    # servers on not-existing, contradicting RFC 1035
+                elif name_error:
                     logger.debug('Record not found from %s', addr_port)
                     raise DnsRecordDoesNotExist()
+                elif not cname_answers and not qtype_answers:
+                    logger.debug('No answers from %s', addr_port)
+                    raise DnsNoMatchingAnswers()
                 else:
                     return cname_answers, qtype_answers
 

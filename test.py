@@ -21,6 +21,7 @@ from aiodnsresolver import (
     TYPES,
     DnsCnameChainTooLong,
     DnsError,
+    DnsNoMatchingAnswers,
     DnsRecordDoesNotExist,
     DnsSocketError,
     DnsTimeout,
@@ -1772,6 +1773,18 @@ class TestResolverEndToEnd(unittest.TestCase):
             self.assertEqual(str(res[0]), '::1')
             self.assertEqual(res[0].expires_at, loop.time())
 
+    @async_test
+    async def test_root_servers_queries(self):
+        # Upstream DNS server should return NOERROR status with an empty `A` records set.
+        # The default Github's does not do this, so we need to switch to Google's server.
+        self.addCleanup(patch_open(upstream_ip='8.8.8.8'))
+
+        resolve, _ = Resolver()
+        with self.assertRaises(DnsNoMatchingAnswers):
+            await resolve('', TYPES.A)
+        with self.assertRaises(DnsNoMatchingAnswers):
+            await resolve('root-servers.net', TYPES.A)
+
 
 class TestMemoizedMutex(unittest.TestCase):
     @async_test
@@ -1808,11 +1821,11 @@ class TestMemoizedMutex(unittest.TestCase):
         self.assertEqual(await task3, 42)
 
 
-def patch_open():
+def patch_open(upstream_ip='127.0.0.1'):
     def mock_open(file_name, _):
         lines = \
-            ['127.0.0.1 localhost'] if file_name == '/etc/hosts' else \
-            ['nameserver 127.0.0.1']
+            [f'{upstream_ip} localhost'] if file_name == '/etc/hosts' else \
+            [f'nameserver {upstream_ip}']
 
         context_manager = MagicMock()
         context_manager.__enter__.return_value = lines
